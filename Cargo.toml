@@ -1,0 +1,10 @@
+[package]
+name = "claude-api-interaction"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+claude-rs = "0.1.0"
+tokio = { version = "1.28.0", features = ["full"] }
+dotenv = "0.15.0"
+anyhow = "1.0.71"
