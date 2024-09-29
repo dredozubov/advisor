@@ -3,7 +3,10 @@ name = "claude-api-interaction"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-anthropic = "0.3.1"
-tokio = { version = "1.28.0", features = ["full"] }
-anyhow = "1.0.71"
+[dependencies]                                                             
+security-framework = "3.0.0" 
+anthropic = { version = "0.0.8", features = ["rustls-tls", "rustls-native-certs"], default-features = false }     
+tokio = { version = "1.25.0", features = ["full"] }
+env_logger = "0.11.5"
+log = "0.4.17"
+dotenv = "0.15.0"
