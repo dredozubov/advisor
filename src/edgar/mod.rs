@@ -1,24 +1,31 @@
 use anyhow::{anyhow, Result};
+use tickers::TICKER_TO_CIK;
 use sec_edgar::{
-    filings::{Filing, FilingType},
-    client::EdgarClient,
-    search::CIKQuery,
+    edgar::{edgar_client, get_feed_entries, get_feed_entry_content},
+    edgar_query::{
+        cik_query::CIKQuery,
+        edgar_query_builder::{BuilderInput, EdgarQueryBuilder},
+        filing::FilingTypeOption::_10Q,
+    },
 };
 
 pub async fn get_latest_10q(ticker: &str) -> Result<String> {
-    let cik_query = CIKQuery::new(Some("./src/edgar/tickers"));
-    let cik = cik_query.get_cik(ticker)
-        .ok_or_else(|| anyhow!("Ticker not found: {}", ticker))?;
+    TICKER_TO_CIK
+    println!("CIK: {:?}", cik);
+    let query = EdgarQueryBuilder::new(&cik)
+        .set_filing_type(BuilderInput::TypeTInput(_10Q))
+        .build()
+        .unwrap();
+    println!("query: {:?}", query);
+    let entries = get_feed_entries(edgar_client().unwrap(), query)
+        .await
+        .unwrap_err();
+    println!("entries: {:?}", entries);
+    // let filing_type = get_feed_entry_content(entries.first().unwrap())
+    //     .unwrap()
+    //     .filing_type
+    //     .value;
 
-    let client = EdgarClient::new();
-    let filings = client.get_filings(&cik).await?;
-
-    let latest_10q = filings.into_iter()
-        .filter(|filing| filing.filing_type == FilingType::Filing10Q)
-        .max_by_key(|filing| filing.date_filed)
-        .ok_or_else(|| anyhow!("No 10-Q filing found for ticker: {}", ticker))?;
-
-    let content = client.get_filing_contents(&latest_10q).await?;
-
-    Ok(content)
+    // Ok(filing_type)
+    Ok(String::from("OK"))
 }
