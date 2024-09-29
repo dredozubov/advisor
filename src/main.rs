@@ -4,15 +4,14 @@ use std::io::{self, Write};
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 use anthropic::types::{ContentBlock, Message, MessagesRequestBuilder, Role};
-use dotenv::dotenv;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
-    // Load the environment variables from the .env file.
-    dotenv().ok();
+    let api_key = std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
+    println!("API Key (first 5 chars): {}", &api_key[..5]);
 
     // Build from configuration.
     let cfg = AnthropicConfig::new()?;
@@ -33,9 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let messages = vec![Message {
             role: Role::User,
-            content: vec![ContentBlock::Text {
-                text: input.into(),
-            }],
+            content: vec![ContentBlock::Text { text: input.into() }],
         }];
 
         let messages_request = MessagesRequestBuilder::default()
