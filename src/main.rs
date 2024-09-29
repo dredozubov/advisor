@@ -1,29 +1,39 @@
-use anyhow::Result;
-use anthropic::{Client, Message};
-use std::env;
+use std::error::Error;
+
+use anthropic::client::Client;
+use anthropic::config::AnthropicConfig;
+use anthropic::types::{ContentBlock, Message, MessagesRequestBuilder, Role};
+use dotenv::dotenv;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let api_key = env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set in the environment");
-    let client = Client::new(api_key);
+async fn main() -> Result<(), Box<dyn Error>> {
+    // Initialize the logger.
+    env_logger::init();
 
-    // Example: Send a simple message to Claude
-    let response = client
-        .message()
-        .create(Message {
-            model: "claude-3-opus-20240229".to_string(),
-            max_tokens: 1000,
-            messages: vec![anthropic::types::MessageParam {
-                role: "user".to_string(),
-                content: "Hello, Claude!".to_string(),
-            }],
-            ..Default::default()
-        })
-        .await?;
+    // Load the environment variables from the .env file.
+    dotenv().ok();
 
-    println!("Claude's response: {}", response.content[0].text);
+    // Build from configuration.
+    let cfg = AnthropicConfig::new()?;
+    let client = Client::try_from(cfg)?;
 
-    // TODO: Implement file handling and more complex interactions
+    let messages = vec![Message {
+        role: Role::User,
+        content: vec![ContentBlock::Text {
+            text: "Say hello world".into(),
+        }],
+    }];
+
+    let messages_request = MessagesRequestBuilder::default()
+        .messages(messages.clone())
+        .model("claude-3-5-sonnet-20240620".to_string())
+        .max_tokens(256usize)
+        .build()?;
+
+    // Send a completion request.
+    let messages_response = client.messages(messages_request).await?;
+
+    println!("messages response:\n\n{messages_response:#?}");
 
     Ok(())
 }
