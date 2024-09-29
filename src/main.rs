@@ -5,6 +5,8 @@ use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 use anthropic::types::{ContentBlock, Message, MessagesRequestBuilder, Role};
 
+mod edgar;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
@@ -18,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Client::try_from(cfg)?;
 
     loop {
-        print!("Enter your message (or 'quit' to exit): ");
+        print!("Enter a ticker symbol (or 'quit' to exit): ");
         io::stdout().flush()?;
 
         let mut input = String::new();
@@ -30,25 +32,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
-        let messages = vec![Message {
-            role: Role::User,
-            content: vec![ContentBlock::Text { text: input.into() }],
-        }];
+        match edgar::get_latest_10q(input).await {
+            Ok(content) => {
+                println!("Retrieved 10-Q content for {}. First 200 characters:", input);
+                println!("{}", &content[..200.min(content.len())]);
 
-        let messages_request = MessagesRequestBuilder::default()
-            .messages(messages.clone())
-            .model("claude-3-sonnet-20240229".to_string())
-            .max_tokens(256usize)
-            .build()?;
+                let messages = vec![Message {
+                    role: Role::User,
+                    content: vec![ContentBlock::Text { 
+                        text: format!("Summarize this 10-Q report: {}", content) 
+                    }],
+                }];
 
-        // Send a completion request.
-        let messages_response = client.messages(messages_request).await?;
+                let messages_request = MessagesRequestBuilder::default()
+                    .messages(messages.clone())
+                    .model("claude-3-sonnet-20240229".to_string())
+                    .max_tokens(1000usize)
+                    .build()?;
 
-        // Extract and print the assistant's response
-        if let Some(content) = messages_response.content.first() {
-            if let ContentBlock::Text { text } = content {
-                println!("Claude's response: {}", text);
-            }
+                // Send a completion request.
+                let messages_response = client.messages(messages_request).await?;
+
+                // Extract and print the assistant's response
+                if let Some(content) = messages_response.content.first() {
+                    if let ContentBlock::Text { text } = content {
+                        println!("Claude's summary: {}", text);
+                    }
+                }
+            },
+            Err(e) => println!("Error retrieving 10-Q: {}", e),
         }
 
         println!(); // Add a blank line for readability
