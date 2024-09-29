@@ -1,5 +1,5 @@
 use anyhow::Result;
-use claude_rs::Claude;
+use claude::Claude;
 use std::env;
 
 #[tokio::main]
