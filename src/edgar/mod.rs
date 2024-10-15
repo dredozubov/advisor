@@ -1,4 +1,4 @@
-mod index;
-mod tickers;
+pub mod index;
+pub mod tickers;
 
-use tickers::TICKER_TO_CIK;
+pub use tickers::TICKER_TO_CIK;

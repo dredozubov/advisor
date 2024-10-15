@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
-        match edgar::get_latest_10q(input).await {
+        match edgar::index::get_latest_10q(input).await {
             Ok(content) => {
                 println!(
                     "Retrieved 10-Q content for {}. First 200 characters:",
