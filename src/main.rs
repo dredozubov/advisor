@@ -15,12 +15,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let api_key = std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
     println!("API Key (first 5 chars): {}", &api_key[..5]);
 
+    // let response = edgar::get_latest_10q("aapl").await?;
+    // println!("{:?}", response);
+
     // Build from configuration.
     let cfg = AnthropicConfig::new()?;
     let client = Client::try_from(cfg)?;
 
     loop {
-        print!("Enter a ticker symbol (or 'quit' to exit): ");
+        print!("'quit' to exit\n> ");
         io::stdout().flush()?;
 
         let mut input = String::new();
@@ -34,13 +37,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match edgar::get_latest_10q(input).await {
             Ok(content) => {
-                println!("Retrieved 10-Q content for {}. First 200 characters:", input);
-                println!("{}", &content[..200.min(content.len())]);
+                println!(
+                    "Retrieved 10-Q content for {}. First 200 characters:",
+                    input
+                );
+                // println!("{:?}", &content);
 
                 let messages = vec![Message {
                     role: Role::User,
-                    content: vec![ContentBlock::Text { 
-                        text: format!("Summarize this 10-Q report: {}", content) 
+                    content: vec![ContentBlock::Text {
+                        text: format!("Summarize this 10-Q report: {:?}", content),
                     }],
                 }];
 
@@ -59,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         println!("Claude's summary: {}", text);
                     }
                 }
-            },
+            }
             Err(e) => println!("Error retrieving 10-Q: {}", e),
         }
 
