@@ -1,10 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{Datelike, NaiveDate};
-use csv::{ReaderBuilder, WriterBuilder};
+use csv::WriterBuilder;
 use reqwest::Client;
 use std::path::{Path, PathBuf};
-use tokio::fs::{self, File};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, Write};
 use url::Url;
 
 struct Config {
@@ -31,18 +31,18 @@ async fn generate_folder_names_years_quarters(
     result
 }
 
-async fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
-    let input_file = File::open(filepath).await?;
+fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
+    let input_file = File::open(filepath)?;
     let reader = BufReader::new(input_file);
     let mut lines = reader.lines();
 
     // Skip the first 10 lines
     for _ in 0..10 {
-        lines.next_line().await?;
+        lines.next();
     }
 
     let output_path = filepath.with_extension("csv");
-    let output_file = File::create(&output_path).await?;
+    let output_file = File::create(&output_path)?;
     let mut writer = WriterBuilder::new()
         .has_headers(true)
         .from_writer(output_file);
@@ -58,7 +58,8 @@ async fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
 
     let mut records = Vec::new();
 
-    while let Some(line) = lines.next_line().await? {
+    for line in lines {
+        let line = line?;
         let fields: Vec<&str> = line.split('|').collect();
         if fields.len() == 5 && !fields[0].contains("---") {
             let date = NaiveDate::parse_from_str(fields[3], "%Y-%m-%d")?;
@@ -95,21 +96,21 @@ async fn merge_idx_files() -> Result<()> {
     Ok(())
 }
 
-async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
-    let response = client.get(url.as_str()).send().await?;
-    let content = response.bytes().await?;
-    let mut file = File::create(filepath).await?;
-    file.write_all(&content).await?;
+fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
+    let response = client.get(url.as_str()).send()?;
+    let content = response.bytes()?;
+    let mut file = File::create(filepath)?;
+    file.write_all(&content)?;
     Ok(())
 }
 
-async fn update_full_index_feed(config: &Config) -> Result<()> {
+fn update_full_index_feed(config: &Config) -> Result<()> {
     let dates_quarters =
-        generate_folder_names_years_quarters(config.index_start_date, config.index_end_date).await;
+        generate_folder_names_years_quarters(config.index_start_date, config.index_end_date);
     let latest_full_index_master = config.full_index_data_dir.join("master.idx");
 
     if latest_full_index_master.exists() {
-        fs::remove_file(&latest_full_index_master).await?;
+        fs::remove_file(&latest_full_index_master)?;
     }
 
     let client = Client::new();
@@ -117,9 +118,8 @@ async fn update_full_index_feed(config: &Config) -> Result<()> {
         &client,
         &config.edgar_full_master_url,
         &latest_full_index_master,
-    )
-    .await?;
-    convert_idx_to_csv(&latest_full_index_master).await?;
+    )?;
+    convert_idx_to_csv(&latest_full_index_master)?;
 
     for (year, qtr) in dates_quarters {
         for file in &config.index_files {
@@ -127,27 +127,27 @@ async fn update_full_index_feed(config: &Config) -> Result<()> {
             let csv_filepath = filepath.with_extension("csv");
 
             if filepath.exists() {
-                fs::remove_file(&filepath).await?;
+                fs::remove_file(&filepath)?;
             }
             if csv_filepath.exists() {
-                fs::remove_file(&csv_filepath).await?;
+                fs::remove_file(&csv_filepath)?;
             }
 
             if let Some(parent) = filepath.parent() {
-                fs::create_dir_all(parent).await?;
+                fs::create_dir_all(parent)?;
             }
             let url = config
                 .edgar_archives_url
                 .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
-            fetch_and_save(&client, &url, &filepath).await?;
+            fetch_and_save(&client, &url, &filepath)?;
 
             println!("\n\n\tConverting idx to csv\n\n");
-            convert_idx_to_csv(&filepath).await?;
+            convert_idx_to_csv(&filepath)?;
         }
     }
 
     println!("\n\n\tMerging IDX files\n\n");
-    merge_idx_files().await?;
+    merge_idx_files()?;
     println!("\n\n\tCompleted Index Download\n\n\t");
 
     Ok(())
