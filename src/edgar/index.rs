@@ -2,9 +2,9 @@ use anyhow::Result;
 use chrono::{Datelike, NaiveDate};
 use csv::WriterBuilder;
 use reqwest::Client;
-use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 use url::Url;
 
 struct Config {
@@ -91,22 +91,17 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn merge_idx_files() -> Result<()> {
-    // Implementation of merge_idx_files function
-    Ok(())
-}
-
-fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
-    let response = client.get(url.as_str()).send()?;
-    let content = response.bytes()?;
+async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
+    let response = client.get(url.as_str()).send().await?;
+    let content = response.bytes().await?;
     let mut file = File::create(filepath)?;
     file.write_all(&content)?;
     Ok(())
 }
 
-fn update_full_index_feed(config: &Config) -> Result<()> {
+async fn update_full_index_feed(config: &Config) -> Result<()> {
     let dates_quarters =
-        generate_folder_names_years_quarters(config.index_start_date, config.index_end_date);
+        generate_folder_names_years_quarters(config.index_start_date, config.index_end_date).await;
     let latest_full_index_master = config.full_index_data_dir.join("master.idx");
 
     if latest_full_index_master.exists() {
@@ -118,7 +113,8 @@ fn update_full_index_feed(config: &Config) -> Result<()> {
         &client,
         &config.edgar_full_master_url,
         &latest_full_index_master,
-    )?;
+    )
+    .await?;
     convert_idx_to_csv(&latest_full_index_master)?;
 
     for (year, qtr) in dates_quarters {
@@ -139,7 +135,7 @@ fn update_full_index_feed(config: &Config) -> Result<()> {
             let url = config
                 .edgar_archives_url
                 .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
-            fetch_and_save(&client, &url, &filepath)?;
+            fetch_and_save(&client, &url, &filepath).await?;
 
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
@@ -147,7 +143,7 @@ fn update_full_index_feed(config: &Config) -> Result<()> {
     }
 
     println!("\n\n\tMerging IDX files\n\n");
-    merge_idx_files()?;
+
     println!("\n\n\tCompleted Index Download\n\n\t");
 
     Ok(())
