@@ -50,6 +50,7 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     let output_file = File::create(&output_path)?;
     let mut writer = WriterBuilder::new()
         .has_headers(true)
+        .flexible(true)  // Allow flexible number of fields
         .from_writer(output_file);
 
     writer.write_record(&[
@@ -66,8 +67,8 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     for line in lines {
         let line = line?;
         let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() == 5 && !fields[0].contains("---") {
-            let date = NaiveDate::parse_from_str(fields[3], "%Y-%m-%d")?;
+        if fields.len() >= 5 && !fields[0].contains("---") {
+            let date = NaiveDate::parse_from_str(fields[3], "%Y-%m-%d").unwrap_or_default();
             records.push((
                 fields[0].to_string(),
                 fields[1].to_string(),
@@ -262,11 +263,13 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
 // This function is no longer needed as merging is done incrementally
 
 fn process_csv_file(file_path: &Path, db: &Db) -> Result<()> {
-    let mut reader = Reader::from_path(file_path)?;
+    let mut reader = ReaderBuilder::new()
+        .flexible(true)  // Allow flexible number of fields
+        .from_path(file_path)?;
 
     for result in reader.records() {
         let record = result?;
-        if record.len() >= 6 {
+        if record.len() >= 4 {
             let key = format!("{}:{}:{}", &record[0], &record[2], &record[3]); // CIK:FormType:Date
             let value = record.iter().collect::<Vec<&str>>().join("|");
             db.insert(key.as_bytes(), value.as_bytes())?;
