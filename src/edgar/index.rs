@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
-use csv::{WriterBuilder, ReaderBuilder};
+use csv::{ReaderBuilder, WriterBuilder};
 use futures::future::join_all;
 use reqwest::Client;
 use sled::Db;
@@ -50,7 +50,7 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     let output_file = File::create(&output_path)?;
     let mut writer = WriterBuilder::new()
         .has_headers(true)
-        .flexible(true)  // Allow flexible number of fields
+        .flexible(true) // Allow flexible number of fields
         .from_writer(output_file);
 
     writer.write_record(&[
@@ -172,10 +172,9 @@ async fn process_quarter_data(
             fetch_and_save(client, &url, &filepath, &config.user_agent).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
-            
+
             // Update sled database with the new data
-            println!("\n\n\tUpdating sled database\n\n");
-            process_csv_file(&csv_filepath, db)?;
+            println!("\n\n\tUpdating edgar database\n\n");
         } else {
             println!("File is up to date: {}", filepath.display());
         }
@@ -222,7 +221,6 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         )
         .await?;
         convert_idx_to_csv(&latest_full_index_master)?;
-        process_csv_file(&latest_full_index_master.with_extension("csv"), &db)?;
     } else {
         println!("master.idx is up to date, using local version.");
     }
@@ -256,25 +254,6 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
     db.flush()?;
 
     println!("\n\n\tCompleted Merging IDX files\n\n\t");
-
-    Ok(())
-}
-
-// This function is no longer needed as merging is done incrementally
-
-fn process_csv_file(file_path: &Path, db: &Db) -> Result<()> {
-    let mut reader = ReaderBuilder::new()
-        .flexible(true)  // Allow flexible number of fields
-        .from_path(file_path)?;
-
-    for result in reader.records() {
-        let record = result?;
-        if record.len() >= 4 {
-            let key = format!("{}:{}:{}", &record[0], &record[2], &record[3]); // CIK:FormType:Date
-            let value = record.iter().collect::<Vec<&str>>().join("|");
-            db.insert(key.as_bytes(), value.as_bytes())?;
-        }
-    }
 
     Ok(())
 }
