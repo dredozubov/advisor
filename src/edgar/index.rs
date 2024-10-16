@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
-use csv::{WriterBuilder, Reader};
+use csv::{WriterBuilder, ReaderBuilder};
 use futures::future::join_all;
 use reqwest::Client;
 use sled::Db;

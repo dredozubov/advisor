@@ -3,7 +3,6 @@ use std::io::{self, Write};
 
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
-use anthropic::types::Role;
 
 mod edgar;
 
