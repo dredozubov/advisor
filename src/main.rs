@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a Config instance
     let config = Config {
-        index_start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+        index_start_date: NaiveDate::from_ymd_opt(2022, 1, 1).unwrap(),
         index_end_date: NaiveDate::from_ymd_opt(2023, 12, 31).unwrap(),
         full_index_data_dir: PathBuf::from("edgar_data/"),
         edgar_full_master_url: Url::parse(
