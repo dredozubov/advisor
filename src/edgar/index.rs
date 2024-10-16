@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
-use csv::{ReaderBuilder, WriterBuilder};
+use csv::WriterBuilder;
 use futures::future::join_all;
 use reqwest::Client;
 use sled::Db;
@@ -140,11 +140,11 @@ async fn process_quarter_data(
     config: &Config,
     year: &str,
     qtr: &str,
-    db: &Db,
+    _db: &Db,
 ) -> Result<()> {
     for file in &config.index_files {
         let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
-        let csv_filepath = filepath.with_extension("csv");
+        let _csv_filepath = filepath.with_extension("csv");
 
         if let Some(parent) = filepath.parent() {
             fs::create_dir_all(parent)
