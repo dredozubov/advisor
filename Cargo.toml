@@ -15,4 +15,5 @@ chrono = "0.4.38"
 csv = "1.3.0"
 futures = "0.3"
 reqwest = { version = "0.12.8", features = ["json"]}
+sled = "0.34"
 url = "2.5.2"

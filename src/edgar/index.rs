@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
-use csv::WriterBuilder;
+use csv::{WriterBuilder, Reader};
 use futures::future::join_all;
 use reqwest::Client;
+use sled::Db;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -239,6 +240,56 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
     }
 
     println!("\n\n\tCompleted Index Update\n\n\t");
+
+    println!("\n\n\tMerging IDX files\n\n");
+    merge_idx_files(config)?;
+    println!("\n\n\tCompleted Merging IDX files\n\n\t");
+
+    Ok(())
+}
+
+pub fn merge_idx_files(config: &Config) -> Result<()> {
+    let mut files: Vec<PathBuf> = fs::read_dir(&config.full_index_data_dir)?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if path.extension()? == "csv" {
+                Some(path)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Sort files in reverse order
+    files.sort_by(|a, b| b.cmp(a));
+
+    // Open sled database in full_index_data_dir
+    let db_path = config.full_index_data_dir.join("merged_idx_files.sled");
+    let db = sled::open(db_path)?;
+
+    // Process each CSV file
+    for file in files {
+        process_csv_file(&file, &db)?;
+    }
+
+    // Flush the database to ensure all data is written
+    db.flush()?;
+
+    Ok(())
+}
+
+fn process_csv_file(file_path: &Path, db: &Db) -> Result<()> {
+    let mut reader = Reader::from_path(file_path)?;
+
+    for result in reader.records() {
+        let record = result?;
+        if record.len() >= 6 {
+            let key = format!("{}:{}:{}", &record[0], &record[2], &record[3]); // CIK:FormType:Date
+            let value = record.iter().collect::<Vec<&str>>().join("|");
+            db.insert(key.as_bytes(), value.as_bytes())?;
+        }
+    }
 
     Ok(())
 }
