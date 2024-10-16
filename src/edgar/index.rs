@@ -156,7 +156,8 @@ async fn process_quarter_data(
             let local_modified = fs::metadata(&filepath)?.modified()?;
             let local_modified: DateTime<Utc> = local_modified.into();
 
-            let remote_modified = check_remote_file_modified(client, &url, &config.user_agent).await?;
+            let remote_modified =
+                check_remote_file_modified(client, &url, &config.user_agent).await?;
 
             remote_modified > local_modified
         } else {
@@ -191,7 +192,9 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         let local_modified = fs::metadata(&latest_full_index_master)?.modified()?;
         let local_modified: DateTime<Utc> = local_modified.into();
 
-        let remote_modified = check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent).await?;
+        let remote_modified =
+            check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent)
+                .await?;
 
         remote_modified > local_modified
     } else {
