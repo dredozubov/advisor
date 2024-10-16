@@ -225,9 +225,10 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
             let config = config.clone();
             let year = year.to_string();
             let qtr = qtr.to_string();
-            let task = task::spawn(async move {
-                process_quarter_data(&client, &config, &year, &qtr).await
-            });
+            let task =
+                task::spawn(
+                    async move { process_quarter_data(&client, &config, &year, &qtr).await },
+                );
             tasks.push(task);
         }
 
