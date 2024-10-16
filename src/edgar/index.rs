@@ -136,12 +136,12 @@ async fn check_remote_file_modified(
 async fn process_quarter_data(
     client: &Client,
     config: &Config,
-    year: String,
-    qtr: String,
+    year: &str,
+    qtr: &str,
 ) -> Result<()> {
     for file in &config.index_files {
         let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
-        let csv_filepath = filepath.with_extension("csv");
+        let _csv_filepath = filepath.with_extension("csv");
 
         if let Some(parent) = filepath.parent() {
             fs::create_dir_all(parent)
@@ -217,13 +217,16 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
 
     // Process quarters in batches of 8
     for chunk in dates_quarters.chunks(8) {
+        let chunk_vec: Vec<_> = chunk.to_vec();
         let mut tasks = Vec::new();
 
-        for (year, qtr) in chunk {
+        for (year, qtr) in chunk_vec {
             let client = client.clone();
             let config = config.clone();
+            let year = year.to_string();
+            let qtr = qtr.to_string();
             let task = task::spawn(async move {
-                process_quarter_data(&client, &config, year.to_string(), qtr.to_string()).await
+                process_quarter_data(&client, &config, &year, &qtr).await
             });
             tasks.push(task);
         }

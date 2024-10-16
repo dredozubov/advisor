@@ -3,7 +3,7 @@ use std::io::{self, Write};
 
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
-use anthropic::types::{ContentBlock, Message, MessagesRequestBuilder, Role};
+use anthropic::types::Role;
 
 mod edgar;
 
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Build from configuration.
     let cfg = AnthropicConfig::new()?;
-    let client = Client::try_from(cfg)?;
+    let _client = Client::try_from(cfg)?;
 
     loop {
         print!("'quit' to exit\n> ");
