@@ -1,12 +1,15 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use csv::WriterBuilder;
+use futures::future::join_all;
 use reqwest::Client;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+use tokio::task;
 use url::Url;
 
+#[derive(Clone)]
 pub struct Config {
     pub index_start_date: NaiveDate,
     pub index_end_date: NaiveDate,
@@ -130,6 +133,49 @@ async fn check_remote_file_modified(
     Ok(last_modified.with_timezone(&Utc))
 }
 
+async fn process_quarter_data(
+    client: &Client,
+    config: &Config,
+    year: String,
+    qtr: String,
+) -> Result<()> {
+    for file in &config.index_files {
+        let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
+        let csv_filepath = filepath.with_extension("csv");
+
+        if let Some(parent) = filepath.parent() {
+            fs::create_dir_all(parent)
+                .context(format!("Failed to create directory: {:?}", parent))?;
+        }
+
+        let url = config
+            .edgar_archives_url
+            .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
+
+        let should_update = if filepath.exists() {
+            let local_modified = fs::metadata(&filepath)?.modified()?;
+            let local_modified: DateTime<Utc> = local_modified.into();
+
+            let remote_modified = check_remote_file_modified(client, &url, &config.user_agent).await?;
+
+            remote_modified > local_modified
+        } else {
+            true
+        };
+
+        if should_update {
+            println!("Updating file: {}", filepath.display());
+            fetch_and_save(client, &url, &filepath, &config.user_agent).await?;
+            println!("\n\n\tConverting idx to csv\n\n");
+            convert_idx_to_csv(&filepath)?;
+        } else {
+            println!("File is up to date: {}", filepath.display());
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn update_full_index_feed(config: &Config) -> Result<()> {
     fs::create_dir_all(&config.full_index_data_dir)
         .context("Failed to create full index data directory")?;
@@ -140,13 +186,12 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
 
     let client = Client::new();
 
+    // Check and update master.idx if necessary
     let should_update = if latest_full_index_master.exists() {
         let local_modified = fs::metadata(&latest_full_index_master)?.modified()?;
         let local_modified: DateTime<Utc> = local_modified.into();
 
-        let remote_modified =
-            check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent)
-                .await?;
+        let remote_modified = check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent).await?;
 
         remote_modified > local_modified
     } else {
@@ -167,40 +212,22 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         println!("master.idx is up to date, using local version.");
     }
 
-    for (year, qtr) in dates_quarters {
-        for file in &config.index_files {
-            let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
-            let csv_filepath = filepath.with_extension("csv");
+    // Process quarters in batches of 8
+    for chunk in dates_quarters.chunks(8) {
+        let mut tasks = Vec::new();
 
-            if let Some(parent) = filepath.parent() {
-                fs::create_dir_all(parent)
-                    .context(format!("Failed to create directory: {:?}", parent))?;
-            }
+        for (year, qtr) in chunk {
+            let client = client.clone();
+            let config = config.clone();
+            let task = task::spawn(async move {
+                process_quarter_data(&client, &config, year.to_string(), qtr.to_string()).await
+            });
+            tasks.push(task);
+        }
 
-            let url = config
-                .edgar_archives_url
-                .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
-
-            let should_update = if filepath.exists() {
-                let local_modified = fs::metadata(&filepath)?.modified()?;
-                let local_modified: DateTime<Utc> = local_modified.into();
-
-                let remote_modified =
-                    check_remote_file_modified(&client, &url, &config.user_agent).await?;
-
-                remote_modified > local_modified
-            } else {
-                true
-            };
-
-            if should_update {
-                println!("Updating file: {}", filepath.display());
-                fetch_and_save(&client, &url, &filepath, &config.user_agent).await?;
-                println!("\n\n\tConverting idx to csv\n\n");
-                convert_idx_to_csv(&filepath)?;
-            } else {
-                println!("File is up to date: {}", filepath.display());
-            }
+        let results = join_all(tasks).await;
+        for result in results {
+            result??;
         }
     }
 
