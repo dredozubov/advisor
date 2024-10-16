@@ -139,10 +139,11 @@ async fn process_quarter_data(
     config: &Config,
     year: &str,
     qtr: &str,
+    db: &Db,
 ) -> Result<()> {
     for file in &config.index_files {
         let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
-        let _csv_filepath = filepath.with_extension("csv");
+        let csv_filepath = filepath.with_extension("csv");
 
         if let Some(parent) = filepath.parent() {
             fs::create_dir_all(parent)
@@ -170,6 +171,10 @@ async fn process_quarter_data(
             fetch_and_save(client, &url, &filepath, &config.user_agent).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
+            
+            // Update sled database with the new data
+            println!("\n\n\tUpdating sled database\n\n");
+            process_csv_file(&csv_filepath, db)?;
         } else {
             println!("File is up to date: {}", filepath.display());
         }
@@ -187,6 +192,10 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
     let latest_full_index_master = config.full_index_data_dir.join("master.idx");
 
     let client = Client::new();
+
+    // Open sled database
+    let db_path = config.full_index_data_dir.join("merged_idx_files.sled");
+    let db = sled::open(db_path)?;
 
     // Check and update master.idx if necessary
     let should_update = if latest_full_index_master.exists() {
@@ -212,6 +221,7 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         )
         .await?;
         convert_idx_to_csv(&latest_full_index_master)?;
+        process_csv_file(&latest_full_index_master.with_extension("csv"), &db)?;
     } else {
         println!("master.idx is up to date, using local version.");
     }
@@ -226,10 +236,10 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
             let config = config.clone();
             let year = year.to_string();
             let qtr = qtr.to_string();
-            let task =
-                task::spawn(
-                    async move { process_quarter_data(&client, &config, &year, &qtr).await },
-                );
+            let db = db.clone();
+            let task = task::spawn(async move {
+                process_quarter_data(&client, &config, &year, &qtr, &db).await
+            });
             tasks.push(task);
         }
 
@@ -241,43 +251,15 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
 
     println!("\n\n\tCompleted Index Update\n\n\t");
 
-    println!("\n\n\tMerging IDX files\n\n");
-    merge_idx_files(config)?;
+    // Flush the database to ensure all data is written
+    db.flush()?;
+
     println!("\n\n\tCompleted Merging IDX files\n\n\t");
 
     Ok(())
 }
 
-pub fn merge_idx_files(config: &Config) -> Result<()> {
-    let mut files: Vec<PathBuf> = fs::read_dir(&config.full_index_data_dir)?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.extension()? == "csv" {
-                Some(path)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    // Sort files in reverse order
-    files.sort_by(|a, b| b.cmp(a));
-
-    // Open sled database in full_index_data_dir
-    let db_path = config.full_index_data_dir.join("merged_idx_files.sled");
-    let db = sled::open(db_path)?;
-
-    // Process each CSV file
-    for file in files {
-        process_csv_file(&file, &db)?;
-    }
-
-    // Flush the database to ensure all data is written
-    db.flush()?;
-
-    Ok(())
-}
+// This function is no longer needed as merging is done incrementally
 
 fn process_csv_file(file_path: &Path, db: &Db) -> Result<()> {
     let mut reader = Reader::from_path(file_path)?;
