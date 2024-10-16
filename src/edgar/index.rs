@@ -1,5 +1,5 @@
-use anyhow::Result;
-use chrono::{Datelike, NaiveDate};
+use anyhow::{Context, Result};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use csv::WriterBuilder;
 use reqwest::Client;
 use std::fs::{self, File};
@@ -7,13 +7,14 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use url::Url;
 
-struct Config {
-    index_start_date: NaiveDate,
-    index_end_date: NaiveDate,
-    full_index_data_dir: PathBuf,
-    edgar_full_master_url: Url,
-    edgar_archives_url: Url,
-    index_files: Vec<String>,
+pub struct Config {
+    pub index_start_date: NaiveDate,
+    pub index_end_date: NaiveDate,
+    pub full_index_data_dir: PathBuf,
+    pub edgar_full_master_url: Url,
+    pub edgar_archives_url: Url,
+    pub index_files: Vec<String>,
+    pub user_agent: String,
 }
 
 async fn generate_folder_names_years_quarters(
@@ -91,60 +92,119 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
-    let response = client.get(url.as_str()).send().await?;
+async fn fetch_and_save(
+    client: &Client,
+    url: &Url,
+    filepath: &Path,
+    user_agent: &str,
+) -> Result<()> {
+    let response = client
+        .get(url.as_str())
+        .header(reqwest::header::USER_AGENT, user_agent)
+        .send()
+        .await?;
     let content = response.bytes().await?;
     let mut file = File::create(filepath)?;
     file.write_all(&content)?;
     Ok(())
 }
 
-async fn update_full_index_feed(config: &Config) -> Result<()> {
+async fn check_remote_file_modified(
+    client: &Client,
+    url: &Url,
+    user_agent: &str,
+) -> Result<DateTime<Utc>> {
+    let response = client
+        .head(url.as_str())
+        .header(reqwest::header::USER_AGENT, user_agent)
+        .send()
+        .await?;
+
+    let last_modified = response
+        .headers()
+        .get(reqwest::header::LAST_MODIFIED)
+        .context("Last-Modified header not found")?
+        .to_str()?;
+
+    let last_modified = DateTime::parse_from_rfc2822(last_modified)?;
+    Ok(last_modified.with_timezone(&Utc))
+}
+
+pub async fn update_full_index_feed(config: &Config) -> Result<()> {
+    fs::create_dir_all(&config.full_index_data_dir)
+        .context("Failed to create full index data directory")?;
+
     let dates_quarters =
         generate_folder_names_years_quarters(config.index_start_date, config.index_end_date).await;
     let latest_full_index_master = config.full_index_data_dir.join("master.idx");
 
-    if latest_full_index_master.exists() {
-        fs::remove_file(&latest_full_index_master)?;
-    }
-
     let client = Client::new();
-    fetch_and_save(
-        &client,
-        &config.edgar_full_master_url,
-        &latest_full_index_master,
-    )
-    .await?;
-    convert_idx_to_csv(&latest_full_index_master)?;
+
+    let should_update = if latest_full_index_master.exists() {
+        let local_modified = fs::metadata(&latest_full_index_master)?.modified()?;
+        let local_modified: DateTime<Utc> = local_modified.into();
+
+        let remote_modified =
+            check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent)
+                .await?;
+
+        remote_modified > local_modified
+    } else {
+        true
+    };
+
+    if should_update {
+        println!("Updating master.idx file...");
+        fetch_and_save(
+            &client,
+            &config.edgar_full_master_url,
+            &latest_full_index_master,
+            &config.user_agent,
+        )
+        .await?;
+        convert_idx_to_csv(&latest_full_index_master)?;
+    } else {
+        println!("master.idx is up to date, using local version.");
+    }
 
     for (year, qtr) in dates_quarters {
         for file in &config.index_files {
             let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
             let csv_filepath = filepath.with_extension("csv");
 
-            if filepath.exists() {
-                fs::remove_file(&filepath)?;
-            }
-            if csv_filepath.exists() {
-                fs::remove_file(&csv_filepath)?;
+            if let Some(parent) = filepath.parent() {
+                fs::create_dir_all(parent)
+                    .context(format!("Failed to create directory: {:?}", parent))?;
             }
 
-            if let Some(parent) = filepath.parent() {
-                fs::create_dir_all(parent)?;
-            }
             let url = config
                 .edgar_archives_url
                 .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
-            fetch_and_save(&client, &url, &filepath).await?;
 
-            println!("\n\n\tConverting idx to csv\n\n");
-            convert_idx_to_csv(&filepath)?;
+            let should_update = if filepath.exists() {
+                let local_modified = fs::metadata(&filepath)?.modified()?;
+                let local_modified: DateTime<Utc> = local_modified.into();
+
+                let remote_modified =
+                    check_remote_file_modified(&client, &url, &config.user_agent).await?;
+
+                remote_modified > local_modified
+            } else {
+                true
+            };
+
+            if should_update {
+                println!("Updating file: {}", filepath.display());
+                fetch_and_save(&client, &url, &filepath, &config.user_agent).await?;
+                println!("\n\n\tConverting idx to csv\n\n");
+                convert_idx_to_csv(&filepath)?;
+            } else {
+                println!("File is up to date: {}", filepath.display());
+            }
         }
     }
 
-    println!("\n\n\tMerging IDX files\n\n");
-
-    println!("\n\n\tCompleted Index Download\n\n\t");
+    println!("\n\n\tCompleted Index Update\n\n\t");
 
     Ok(())
 }
