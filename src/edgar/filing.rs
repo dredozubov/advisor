@@ -69,7 +69,7 @@ pub fn generate_filepaths(sec_filing: &HashMap<String, String>) -> HashMap<Strin
     feed_item
 }
 
-pub async fn process(
+pub async fn process_filing(
     client: &Client,
     filing_meta: &HashMap<String, String>,
 ) -> Result<HashMap<String, serde_json::Value>> {
