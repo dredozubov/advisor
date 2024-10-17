@@ -53,7 +53,144 @@ pub async fn process(client: &Client, filing_meta: &HashMap<String, String>) -> 
     Ok(filing_content)
 }
 
-fn extract(_filing_filepaths: HashMap<String, String>) -> Result<String> {
-    // Implement extraction logic here
-    Ok("Extracted content".to_string())
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{self, BufReader, Read};
+use std::path::{Path, PathBuf};
+use anyhow::{Context, Result};
+use encoding_rs::Encoding;
+use encoding_rs_io::DecodeReaderBytesBuilder;
+use regex::Regex;
+use serde_json::json;
+use csv::Writer;
+use log::{info, error};
+
+pub fn extract(filing_json: &HashMap<String, String>) -> Result<HashMap<String, serde_json::Value>> {
+    let mut filing_contents = HashMap::new();
+    let extracted_filing_directory = Path::new(&filing_json["extracted_filing_directory"]);
+    let extracted_filing_directory_zip = extracted_filing_directory.with_extension("zip");
+
+    if !extracted_filing_directory.exists() && !extracted_filing_directory_zip.exists() {
+        info!("\n\n\n\n\tExtracting Filing Documents:\n");
+
+        match extract_complete_submission_filing(&filing_json["filing_filepath"], Some(extracted_filing_directory)) {
+            Ok(contents) => {
+                filing_contents = contents;
+            }
+            Err(e) => {
+                error!("\n\n\n\nError Decoding \n\n{}", e);
+            }
+        }
+
+        info!("\n\n\n\n\tExtraction Complete\n");
+    }
+
+    Ok(filing_contents)
+}
+
+fn extract_complete_submission_filing(filepath: &str, output_directory: Option<&Path>) -> Result<HashMap<String, serde_json::Value>> {
+    let elements_list = vec![
+        ("FILENAME", ".//filename"),
+        ("TYPE", ".//type"),
+        ("SEQUENCE", ".//sequence"),
+        ("DESCRIPTION", ".//description"),
+    ];
+
+    let output_directory = output_directory.unwrap_or_else(|| Path::new(""));
+    if !output_directory.exists() {
+        fs::create_dir_all(output_directory)?;
+    } else {
+        info!("Folder Already Exists {:?}", output_directory);
+        return Ok(HashMap::new());
+    }
+
+    info!("extracting documents to {:?}", output_directory);
+
+    let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
+    let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
+
+    let raw_text = fs::read(filepath)?;
+    let (text, encoding, _) = encoding_rs::detect(&raw_text);
+    let charenc = encoding.name();
+
+    let raw_text = DecodeReaderBytesBuilder::new()
+        .encoding(Some(encoding))
+        .build(BufReader::new(File::open(filepath)?));
+
+    let mut raw_text_string = String::new();
+    raw_text.read_to_string(&mut raw_text_string)?;
+
+    let filing_header = header_parser(&raw_text_string)?;
+    let header_filepath = output_directory.join(format!("{}_FILING_HEADER.csv", output_directory.file_name().unwrap().to_str().unwrap()));
+    let mut writer = Writer::from_path(header_filepath)?;
+    writer.serialize(filing_header)?;
+
+    let documents: Vec<_> = xbrl_doc.find_iter(&raw_text_string).map(|m| m.as_str()).collect();
+
+    let mut filing_documents = HashMap::new();
+
+    for (i, document) in documents.iter().enumerate() {
+        let mut filing_document = HashMap::new();
+
+        // TODO: Implement lxml.html equivalent in Rust
+        // For now, we'll use a simple string-based approach
+
+        for (element, element_path) in &elements_list {
+            filing_document.insert(element.to_string(), "".to_string());
+            // TODO: Implement XPath-like functionality
+        }
+
+        let raw_text = xbrl_text.captures(document)
+            .and_then(|cap| cap.get(2))
+            .map(|m| m.as_str())
+            .unwrap_or("")
+            .replace("<XBRL>", "")
+            .replace("</XBRL>", "")
+            .replace("<XML>", "")
+            .replace("</XML>", "")
+            .trim()
+            .to_string();
+
+        if raw_text.to_lowercase().starts_with("begin") || document.to_lowercase().starts_with("begin") {
+            // TODO: Implement UUEncoding handling
+        } else {
+            let doc_num = format!("{:04}", i + 1);
+            let output_filename = format!(
+                "{}-({}) {} {}",
+                doc_num,
+                filing_document.get("TYPE").unwrap_or(&"".to_string()),
+                filing_document.get("DESCRIPTION").unwrap_or(&"".to_string()),
+                filing_document.get("FILENAME").unwrap_or(&"".to_string())
+            );
+            let output_filename = format_filename(&output_filename);
+            let output_filepath = output_directory.join(&output_filename);
+
+            fs::write(&output_filepath, raw_text)?;
+
+            filing_document.insert("RELATIVE_FILEPATH".to_string(), output_filepath.to_str().unwrap().to_string());
+            filing_document.insert("DESCRIPTIVE_FILEPATH".to_string(), output_filename);
+            filing_document.insert("FILE_SIZE".to_string(), file_size(&output_filepath)?);
+            filing_document.insert("FILE_SIZE_BYTES".to_string(), fs::metadata(&output_filepath)?.len().to_string());
+        }
+
+        filing_documents.insert(i.to_string(), json!(filing_document));
+    }
+
+    Ok(filing_documents)
+}
+
+fn header_parser(raw_text: &str) -> Result<HashMap<String, String>> {
+    // TODO: Implement header parsing logic
+    Ok(HashMap::new())
+}
+
+fn format_filename(filename: &str) -> String {
+    filename.replace(" ", "_").replace(":", "").replace("__", "_")
+}
+
+fn file_size(filepath: &Path) -> Result<String> {
+    let metadata = fs::metadata(filepath)?;
+    let size = metadata.len();
+    Ok(format!("{:.2} KB", size as f64 / 1024.0))
+}
 }
