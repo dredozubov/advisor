@@ -12,7 +12,19 @@ use url::Url;
 use rustyline::completion::FilenameCompleter;
 use rustyline::error::ReadlineError;
 use rustyline::hint::HistoryHinter;
-use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor, Helper};
+use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
+use rustyline::validate::MatchingBracketValidator;
+use rustyline_derive::{Completer, Helper, Hinter, Validator};
+
+#[derive(Completer, Helper, Hinter, Validator)]
+struct MyHelper {
+    #[rustyline(Completer)]
+    completer: rustyline::completion::FilenameCompleter,
+    #[rustyline(Hinter)]
+    hinter: HistoryHinter,
+    #[rustyline(Validator)]
+    validator: MatchingBracketValidator,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -56,12 +68,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut rl = Editor::with_config(rustyline_config)?;
 
-    // Add multiple completers
-    rl.set_helper(Some(Helper::new(
-        (TickerCompleter, FilenameCompleter::new()),
-        HistoryHinter {},
-        HistoryHinter {},
-    )));
+    // Add helper
+    let helper = MyHelper {
+        completer: rustyline::completion::FilenameCompleter::new(),
+        hinter: HistoryHinter {},
+        validator: MatchingBracketValidator::new(),
+    };
+    rl.set_helper(Some(helper));
 
     println!("Enter 'quit' to exit");
     loop {
