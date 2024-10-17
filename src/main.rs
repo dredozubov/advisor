@@ -4,6 +4,7 @@ use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 
 use claude_api_interaction::edgar;
+use claude_api_interaction::edgar::completer::TickerCompleter;
 
 use chrono::NaiveDate;
 use edgar::index::{update_full_index_feed, Config};
@@ -11,7 +12,9 @@ use std::path::PathBuf;
 use url::Url;
 
 use rustyline::error::ReadlineError;
-use rustyline::{DefaultEditor, Editor};
+use rustyline::completion::FilenameCompleter;
+use rustyline::hint::HistoryHinter;
+use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -47,8 +50,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cfg = AnthropicConfig::new()?;
     let _client = Client::try_from(cfg)?;
 
-    // Create a rustyline Editor
-    let mut rl = DefaultEditor::new()?;
+    // Create a rustyline Editor with custom configuration
+    let rustyline_config = RustylineConfig::builder()
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
+
+    let mut rl = Editor::with_config(rustyline_config)?;
+
+    // Add multiple completers
+    rl.set_helper(Some(rustyline::Helper::new(
+        (TickerCompleter, FilenameCompleter::new()),
+        HistoryHinter {},
+        rustyline::hint::HistoryHinter {},
+    )));
 
     println!("Enter 'quit' to exit");
     loop {
