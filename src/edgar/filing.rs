@@ -1,17 +1,25 @@
+use anyhow::Result;
 use anyhow::{Context, Result};
 use chardet::detect;
 use csv::Writer;
+use csv::Writer;
+use encoding_rs::Encoding;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use encoding_rs_io::DecodeReaderBytesBuilder;
+use html_escape::decode_html_entities;
+use log::{error, info};
 use log::{error, info};
 use regex::Regex;
+use regex::Regex;
 use reqwest::Client;
+use scraper::{Html, Selector};
+use serde_json::json;
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{self, BufReader, Read};
-use std::path::{Path, PathBuf};
-use url::Url;
+use std::io::{BufReader, Read};
+use std::path::Path;
 
 use crate::edgar::utils::fetch_and_save;
 
@@ -165,7 +173,7 @@ fn extract_complete_submission_filing(
         // TODO: Implement lxml.html equivalent in Rust
         // For now, we'll use a simple string-based approach
 
-        for (element, element_path) in &elements_list {
+        for (element, _element_path) in &elements_list {
             filing_document.insert(element.to_string(), "".to_string());
             // TODO: Implement XPath-like functionality
         }
@@ -223,17 +231,17 @@ fn extract_complete_submission_filing(
 pub fn header_parser(raw_html: &str) -> Result<HashMap<String, String>> {
     let document = Html::parse_document(raw_html);
     let sec_header_selector = Selector::parse("sec-header").unwrap();
-    
+
     let mut data = HashMap::new();
-    
+
     if let Some(sec_header_element) = document.select(&sec_header_selector).next() {
         let sec_header_html = sec_header_element.inner_html();
         let re = Regex::new(r"<(SEC-HEADER|sec-header)>(.*?)</(SEC-HEADER|sec-header)>")?;
-        
+
         if let Some(captures) = re.captures(&sec_header_html) {
             if let Some(sec_header) = captures.get(2) {
                 let split_header: Vec<&str> = sec_header.as_str().split('\n').collect();
-                
+
                 let mut current_group = String::new();
                 for header_item in split_header.iter() {
                     let header_item = header_item.trim();
@@ -243,7 +251,9 @@ pub fn header_parser(raw_html: &str) -> Result<HashMap<String, String>> {
                         } else if !header_item.starts_with('\t') && !header_item.contains('<') {
                             if let Some(colon_index) = header_item.find(':') {
                                 let key = header_item[..colon_index].trim();
-                                let value = decode_html_entities(&header_item[colon_index+1..].trim()).into_owned();
+                                let value =
+                                    decode_html_entities(&header_item[colon_index + 1..].trim())
+                                        .into_owned();
                                 data.insert(format!("{}:{}", current_group, key), value);
                             }
                         }
@@ -252,7 +262,7 @@ pub fn header_parser(raw_html: &str) -> Result<HashMap<String, String>> {
             }
         }
     }
-    
+
     Ok(data)
 }
 
