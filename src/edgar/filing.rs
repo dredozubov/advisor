@@ -1,25 +1,20 @@
+use anyhow::Context;
 use anyhow::Result;
-use anyhow::{Context, Result};
 use chardet::detect;
 use csv::Writer;
-use csv::Writer;
 use encoding_rs::Encoding;
-use encoding_rs::Encoding;
-use encoding_rs_io::DecodeReaderBytesBuilder;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use html_escape::decode_html_entities;
 use log::{error, info};
-use log::{error, info};
-use regex::Regex;
 use regex::Regex;
 use reqwest::Client;
 use scraper::{Html, Selector};
-use serde_json::json;
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::Path;
+use url::Url;
 
 use crate::edgar::utils::fetch_and_save;
 
