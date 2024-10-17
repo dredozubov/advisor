@@ -1,7 +1,5 @@
-use anyhow::Context;
 use anyhow::Result;
 use chardet::detect;
-use csv::Writer;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use html_escape::decode_html_entities;
@@ -16,55 +14,9 @@ use std::io::Write;
 use std::io::{BufReader, Read};
 use std::path::Path;
 use url::Url;
+use uuencode::uudecode;
 
 use crate::edgar::utils::fetch_and_save;
-
-pub fn decode_uuencoded(content: &str) -> Result<Vec<u8>> {
-    let mut decoded = Vec::new();
-    let mut lines = content.lines();
-
-    // Skip the "begin" line
-    lines.next();
-
-    for line in lines {
-        if line.trim() == "end" {
-            break;
-        }
-        let len = uudecode_length(line.as_bytes()[0]);
-        if len == 0 {
-            continue;
-        }
-        decoded.extend(uudecode_line(&line[1..], len)?);
-    }
-
-    Ok(decoded)
-}
-
-fn uudecode_length(c: u8) -> usize {
-    (c as usize - 32) & 63
-}
-
-fn uudecode_line(line: &str, len: usize) -> Result<Vec<u8>> {
-    let mut decoded = Vec::with_capacity(len);
-    let mut chars = line.chars();
-
-    while decoded.len() < len {
-        let n1 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
-        let n2 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
-        let n3 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
-        let n4 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
-
-        decoded.push((n1 << 2 | n2 >> 4) & 0xff);
-        if decoded.len() < len {
-            decoded.push((n2 << 4 | n3 >> 2) & 0xff);
-        }
-        if decoded.len() < len {
-            decoded.push((n3 << 6 | n4) & 0xff);
-        }
-    }
-
-    Ok(decoded)
-}
 
 // Hardcoded values
 const FILING_DATA_DIR: &str = "/path/to/filing/data";
@@ -193,7 +145,7 @@ pub fn extract_complete_submission_filing(
     raw_text.read_to_string(&mut raw_text_string)?;
 
     let filing_header = header_parser(&raw_text_string)?;
-    
+
     let mut filing_documents = HashMap::new();
     filing_documents.insert("header".to_string(), json!(filing_header));
 
@@ -207,7 +159,11 @@ pub fn extract_complete_submission_filing(
 
         // Extract document information
         for (element, element_path) in &elements_list {
-            if let Some(value) = document.split(element_path).nth(1).and_then(|s| s.split('<').next()) {
+            if let Some(value) = document
+                .split(element_path)
+                .nth(1)
+                .and_then(|s| s.split('<').next())
+            {
                 filing_document.insert(element.to_string(), value.trim().to_string());
             }
         }
@@ -241,9 +197,10 @@ pub fn extract_complete_submission_filing(
             || document.to_lowercase().starts_with("begin")
         {
             // Handle UUEncoded content
-            let decoded_content = decode_uuencoded(&raw_text)?;
+            let decoded_content = uudecode(&raw_text)
+                .ok_or_else(|| anyhow::anyhow!("Failed to decode UUEncoded content"))?;
             let mut file = File::create(&output_filepath)?;
-            file.write_all(&decoded_content)?;
+            file.write_all(&decoded_content.0)?; // Write the Vec<u8> part
         } else {
             fs::write(&output_filepath, raw_text)?;
         }

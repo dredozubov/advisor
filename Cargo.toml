@@ -32,6 +32,7 @@ serde_json = "1.0.128"
 regex = "1.5"
 scraper = "0.12"
 html-escape = "0.2"
+uuencode = "0.1.5"
 
 [dev-dependencies]
 tempfile = "3.2"
