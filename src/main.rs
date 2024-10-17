@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::{self, Write};
 
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
@@ -10,6 +9,9 @@ use chrono::NaiveDate;
 use edgar::index::{update_full_index_feed, Config};
 use std::path::PathBuf;
 use url::Url;
+
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -45,54 +47,52 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cfg = AnthropicConfig::new()?;
     let _client = Client::try_from(cfg)?;
 
+    // Create a rustyline Editor
+    let mut rl = Editor::<()>::new()?;
+
+    println!("Enter 'quit' to exit");
     loop {
-        print!("'quit' to exit\n> ");
-        io::stdout().flush()?;
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                let input = line.trim();
+                if input.eq_ignore_ascii_case("quit") {
+                    break;
+                }
 
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+                // Add the input to history
+                rl.add_history_entry(input);
 
-        let input = input.trim();
+                // Process the input (you can add your logic here)
+                println!("You entered: {}", input);
 
-        if input.to_lowercase() == "quit" {
-            break;
+                // Uncomment and adapt this section when you're ready to process 10-Q reports
+                /*
+                match edgar::index::get_latest_10q(input) {
+                    Ok(content) => {
+                        println!(
+                            "Retrieved 10-Q content for {}. First 200 characters:",
+                            input
+                        );
+                        // Process the content...
+                    }
+                    Err(e) => println!("Error retrieving 10-Q: {}", e),
+                }
+                */
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
-
-        // match edgar::index::get_latest_10q(input) {
-        //     Ok(content) => {
-        //         println!(
-        //             "Retrieved 10-Q content for {}. First 200 characters:",
-        //             input
-        //         );
-        //         // println!("{:?}", &content);
-
-        //         let messages = vec![Message {
-        //             role: Role::User,
-        //             content: vec![ContentBlock::Text {
-        //                 text: format!("Summarize this 10-Q report: {:?}", content),
-        //             }],
-        //         }];
-
-        //         let messages_request = MessagesRequestBuilder::default()
-        //             .messages(messages.clone())
-        //             .model("claude-3-sonnet-20240229".to_string())
-        //             .max_tokens(1000usize)
-        //             .build()?;
-
-        //         // Send a completion request.
-        //         let messages_response = client.messages(messages_request).await?;
-
-        //         // Extract and print the assistant's response
-        //         if let Some(content) = messages_response.content.first() {
-        //             if let ContentBlock::Text { text } = content {
-        //                 println!("Claude's summary: {}", text);
-        //             }
-        //         }
-        //     }
-        //     Err(e) => println!("Error retrieving 10-Q: {}", e),
-        // }
-
-        println!(); // Add a blank line for readability
     }
 
     println!("Goodbye!");
