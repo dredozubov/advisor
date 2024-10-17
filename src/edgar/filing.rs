@@ -49,17 +49,17 @@ fn uudecode_line(line: &str, len: usize) -> Result<Vec<u8>> {
     let mut chars = line.chars();
 
     while decoded.len() < len {
-        let n1 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
-        let n2 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
-        let n3 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
-        let n4 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
+        let n1 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
+        let n2 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
+        let n3 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
+        let n4 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
 
-        decoded.push(((n1 - 32) << 2 | (n2 - 32) >> 4) & 0xff);
+        decoded.push((n1 << 2 | n2 >> 4) & 0xff);
         if decoded.len() < len {
-            decoded.push(((n2 - 32) << 4 | (n3 - 32) >> 2) & 0xff);
+            decoded.push((n2 << 4 | n3 >> 2) & 0xff);
         }
         if decoded.len() < len {
-            decoded.push(((n3 - 32) << 6 | (n4 - 32)) & 0xff);
+            decoded.push((n3 << 6 | n4) & 0xff);
         }
     }
 
@@ -196,19 +196,14 @@ pub fn extract_complete_submission_filing(
     raw_text.read_to_string(&mut raw_text_string)?;
 
     let filing_header = header_parser(&raw_text_string)?;
-    let header_filepath = output_directory.join(format!(
-        "{}_FILING_HEADER.csv",
-        output_directory.file_name().unwrap().to_str().unwrap()
-    ));
-    let mut writer = Writer::from_path(header_filepath)?;
-    writer.serialize(filing_header)?;
+    
+    let mut filing_documents = HashMap::new();
+    filing_documents.insert("header".to_string(), json!(filing_header));
 
     let documents: Vec<_> = xbrl_doc
         .find_iter(&raw_text_string)
         .map(|m| m.as_str())
         .collect();
-
-    let mut filing_documents = HashMap::new();
 
     for (i, document) in documents.iter().enumerate() {
         let mut filing_document = HashMap::new();
@@ -274,11 +269,11 @@ pub fn extract_complete_submission_filing(
     Ok(filing_documents)
 }
 
-pub fn header_parser(raw_html: &str) -> Result<HashMap<String, String>> {
+pub fn header_parser(raw_html: &str) -> Result<Vec<(String, String)>> {
     let document = Html::parse_document(raw_html);
     let sec_header_selector = Selector::parse("sec-header").unwrap();
 
-    let mut data = HashMap::new();
+    let mut data = Vec::new();
 
     if let Some(sec_header_element) = document.select(&sec_header_selector).next() {
         let sec_header_html = sec_header_element.inner_html();
@@ -300,7 +295,7 @@ pub fn header_parser(raw_html: &str) -> Result<HashMap<String, String>> {
                                 let value =
                                     decode_html_entities(&header_item[colon_index + 1..].trim())
                                         .into_owned();
-                                data.insert(format!("{}:{}", current_group, key), value);
+                                data.push((format!("{}:{}", current_group, key), value));
                             }
                         }
                     }

@@ -18,7 +18,12 @@ end
 fn test_extract_complete_submission_filing_with_uuencoded_content() {
     let temp_dir = tempdir().unwrap();
     let input_file = temp_dir.path().join("input.txt");
-    let uuencoded_content = r#"<DOCUMENT>
+    let uuencoded_content = r#"<SEC-HEADER>COMPANY CONFORMED NAME:   Test Company
+CENTRAL INDEX KEY:   0000000000
+STANDARD INDUSTRIAL CLASSIFICATION:   Some Industry [1234]
+IRS NUMBER:   123456789
+</SEC-HEADER>
+<DOCUMENT>
 <TYPE>EX-101.INS
 <FILENAME>uuencoded_content.txt
 <DESCRIPTION>XBRL INSTANCE DOCUMENT
@@ -34,7 +39,9 @@ end
     let output_dir = temp_dir.path().join("output");
     let result = extract_complete_submission_filing(input_file.to_str().unwrap(), Some(&output_dir)).unwrap();
 
-    assert_eq!(result.len(), 1);
+    assert!(result.contains_key("header"));
+    assert!(result.contains_key("0"));
+    
     let extracted_file = output_dir.join("0001-(EX-101.INS) XBRL_INSTANCE_DOCUMENT uuencoded_content.txt");
     assert!(extracted_file.exists());
 
