@@ -4,14 +4,15 @@ use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 
 use chrono::NaiveDate;
-use edgar::index::{update_full_index_feed, Config};
+use claude_api_interaction::edgar::index::{update_full_index_feed, Config};
+use claude_api_interaction::completer::TickerCompleter;
 use std::path::PathBuf;
 use url::Url;
 
 use rustyline::completion::FilenameCompleter;
 use rustyline::error::ReadlineError;
 use rustyline::hint::HistoryHinter;
-use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
+use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor, Helper};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -56,10 +57,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut rl = Editor::with_config(rustyline_config)?;
 
     // Add multiple completers
-    rl.set_helper(Some(rustyline::Helper::new(
+    rl.set_helper(Some(Helper::new(
         (TickerCompleter, FilenameCompleter::new()),
         HistoryHinter {},
-        rustyline::hint::HistoryHinter {},
+        HistoryHinter {},
     )));
 
     println!("Enter 'quit' to exit");
