@@ -15,8 +15,56 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::Path;
 use url::Url;
+use std::io::Write;
 
 use crate::edgar::utils::fetch_and_save;
+
+fn decode_uuencoded(content: &str) -> Result<Vec<u8>> {
+    let mut decoded = Vec::new();
+    let mut lines = content.lines();
+
+    // Skip the "begin" line
+    lines.next();
+
+    for line in lines {
+        if line.trim() == "end" {
+            break;
+        }
+        let len = uudecode_length(line.as_bytes()[0]);
+        if len == 0 {
+            continue;
+        }
+        decoded.extend(uudecode_line(&line[1..], len)?);
+    }
+
+    Ok(decoded)
+}
+
+fn uudecode_length(c: u8) -> usize {
+    ((c as char).to_digit(64).unwrap_or(0) as usize - 32) % 64
+}
+
+fn uudecode_line(line: &str, len: usize) -> Result<Vec<u8>> {
+    let mut decoded = Vec::with_capacity(len);
+    let mut chars = line.chars();
+
+    while decoded.len() < len {
+        let n1 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
+        let n2 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
+        let n3 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
+        let n4 = chars.next().and_then(|c| c.to_digit(64)).unwrap_or(0) as u8;
+
+        decoded.push(((n1 - 32) << 2 | (n2 - 32) >> 4) & 0xff);
+        if decoded.len() < len {
+            decoded.push(((n2 - 32) << 4 | (n3 - 32) >> 2) & 0xff);
+        }
+        if decoded.len() < len {
+            decoded.push(((n3 - 32) << 6 | (n4 - 32)) & 0xff);
+        }
+    }
+
+    Ok(decoded)
+}
 
 // Hardcoded values
 const FILING_DATA_DIR: &str = "/path/to/filing/data";
@@ -185,37 +233,40 @@ fn extract_complete_submission_filing(
             .trim()
             .to_string();
 
+        let doc_num = format!("{:04}", i + 1);
+        let output_filename = format!(
+            "{}-({}) {} {}",
+            doc_num,
+            filing_document.get("TYPE").unwrap_or(&"".to_string()),
+            filing_document
+                .get("DESCRIPTION")
+                .unwrap_or(&"".to_string()),
+            filing_document.get("FILENAME").unwrap_or(&"".to_string())
+        );
+        let output_filename = format_filename(&output_filename);
+        let output_filepath = output_directory.join(&output_filename);
+
         if raw_text.to_lowercase().starts_with("begin")
             || document.to_lowercase().starts_with("begin")
         {
-            // TODO: Implement UUEncoding handling
+            // Handle UUEncoded content
+            let decoded_content = decode_uuencoded(&raw_text)?;
+            let mut file = File::create(&output_filepath)?;
+            file.write_all(&decoded_content)?;
         } else {
-            let doc_num = format!("{:04}", i + 1);
-            let output_filename = format!(
-                "{}-({}) {} {}",
-                doc_num,
-                filing_document.get("TYPE").unwrap_or(&"".to_string()),
-                filing_document
-                    .get("DESCRIPTION")
-                    .unwrap_or(&"".to_string()),
-                filing_document.get("FILENAME").unwrap_or(&"".to_string())
-            );
-            let output_filename = format_filename(&output_filename);
-            let output_filepath = output_directory.join(&output_filename);
-
             fs::write(&output_filepath, raw_text)?;
-
-            filing_document.insert(
-                "RELATIVE_FILEPATH".to_string(),
-                output_filepath.to_str().unwrap().to_string(),
-            );
-            filing_document.insert("DESCRIPTIVE_FILEPATH".to_string(), output_filename);
-            filing_document.insert("FILE_SIZE".to_string(), file_size(&output_filepath)?);
-            filing_document.insert(
-                "FILE_SIZE_BYTES".to_string(),
-                fs::metadata(&output_filepath)?.len().to_string(),
-            );
         }
+
+        filing_document.insert(
+            "RELATIVE_FILEPATH".to_string(),
+            output_filepath.to_str().unwrap().to_string(),
+        );
+        filing_document.insert("DESCRIPTIVE_FILEPATH".to_string(), output_filename);
+        filing_document.insert("FILE_SIZE".to_string(), file_size(&output_filepath)?);
+        filing_document.insert(
+            "FILE_SIZE_BYTES".to_string(),
+            fs::metadata(&output_filepath)?.len().to_string(),
+        );
 
         filing_documents.insert(i.to_string(), json!(filing_document));
     }
