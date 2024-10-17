@@ -41,7 +41,7 @@ pub fn decode_uuencoded(content: &str) -> Result<Vec<u8>> {
 }
 
 fn uudecode_length(c: u8) -> usize {
-    ((c as char).to_digit(64).unwrap_or(0) as usize - 32) % 64
+    (c as usize - 32) & 63
 }
 
 fn uudecode_line(line: &str, len: usize) -> Result<Vec<u8>> {
@@ -166,10 +166,10 @@ pub fn extract_complete_submission_filing(
     output_directory: Option<&Path>,
 ) -> Result<HashMap<String, serde_json::Value>> {
     let elements_list = vec![
-        ("FILENAME", ".//filename"),
-        ("TYPE", ".//type"),
-        ("SEQUENCE", ".//sequence"),
-        ("DESCRIPTION", ".//description"),
+        ("FILENAME", "<FILENAME>"),
+        ("TYPE", "<TYPE>"),
+        ("SEQUENCE", "<SEQUENCE>"),
+        ("DESCRIPTION", "<DESCRIPTION>"),
     ];
 
     let output_directory = output_directory.unwrap_or_else(|| Path::new(""));
@@ -208,12 +208,11 @@ pub fn extract_complete_submission_filing(
     for (i, document) in documents.iter().enumerate() {
         let mut filing_document = HashMap::new();
 
-        // TODO: Implement lxml.html equivalent in Rust
-        // For now, we'll use a simple string-based approach
-
-        for (element, _element_path) in &elements_list {
-            filing_document.insert(element.to_string(), "".to_string());
-            // TODO: Implement XPath-like functionality
+        // Extract document information
+        for (element, element_path) in &elements_list {
+            if let Some(value) = document.split(element_path).nth(1).and_then(|s| s.split('<').next()) {
+                filing_document.insert(element.to_string(), value.trim().to_string());
+            }
         }
 
         let raw_text = xbrl_text
