@@ -12,14 +12,14 @@ use scraper::{Html, Selector};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, File};
+use std::io::Write;
 use std::io::{BufReader, Read};
 use std::path::Path;
 use url::Url;
-use std::io::Write;
 
 use crate::edgar::utils::fetch_and_save;
 
-fn decode_uuencoded(content: &str) -> Result<Vec<u8>> {
+pub fn decode_uuencoded(content: &str) -> Result<Vec<u8>> {
     let mut decoded = Vec::new();
     let mut lines = content.lines();
 
@@ -161,7 +161,7 @@ pub fn extract(
     Ok(filing_contents)
 }
 
-fn extract_complete_submission_filing(
+pub fn extract_complete_submission_filing(
     filepath: &str,
     output_directory: Option<&Path>,
 ) -> Result<HashMap<String, serde_json::Value>> {
