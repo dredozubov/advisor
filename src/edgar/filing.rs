@@ -49,10 +49,10 @@ fn uudecode_line(line: &str, len: usize) -> Result<Vec<u8>> {
     let mut chars = line.chars();
 
     while decoded.len() < len {
-        let n1 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
-        let n2 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
-        let n3 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
-        let n4 = chars.next().map(|c| c as u8).unwrap_or(0) - 32;
+        let n1 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
+        let n2 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
+        let n3 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
+        let n4 = chars.next().map(|c| c as u8).unwrap_or(32).wrapping_sub(32);
 
         decoded.push((n1 << 2 | n2 >> 4) & 0xff);
         if decoded.len() < len {
@@ -175,9 +175,6 @@ pub fn extract_complete_submission_filing(
     let output_directory = output_directory.unwrap_or_else(|| Path::new(""));
     if !output_directory.exists() {
         fs::create_dir_all(output_directory)?;
-    } else {
-        info!("Folder Already Exists {:?}", output_directory);
-        return Ok(HashMap::new());
     }
 
     info!("extracting documents to {:?}", output_directory);
