@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{DefaultEditor, Editor};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _client = Client::try_from(cfg)?;
 
     // Create a rustyline Editor
-    let mut rl = Editor::<()>::new()?;
+    let mut rl = DefaultEditor::new()?;
 
     println!("Enter 'quit' to exit");
     loop {
