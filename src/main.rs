@@ -3,16 +3,13 @@ use std::error::Error;
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 
-use claude_api_interaction::edgar;
-use claude_api_interaction::edgar::completer::TickerCompleter;
-
 use chrono::NaiveDate;
 use edgar::index::{update_full_index_feed, Config};
 use std::path::PathBuf;
 use url::Url;
 
-use rustyline::error::ReadlineError;
 use rustyline::completion::FilenameCompleter;
+use rustyline::error::ReadlineError;
 use rustyline::hint::HistoryHinter;
 use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
 
