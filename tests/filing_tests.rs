@@ -1,4 +1,4 @@
-use super::*;
+use claude_api_interaction::edgar::filing::{decode_uuencoded, extract_complete_submission_filing};
 use std::fs;
 use tempfile::tempdir;
 

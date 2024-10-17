@@ -3,6 +3,14 @@ name = "claude-api-interaction"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "claude-api-interaction"
+path = "src/main.rs"
+
+[lib]
+name = "claude_api_interaction"
+path = "src/lib.rs"
+
 [dependencies]                                                             
 security-framework = "3.0.0" 
 anthropic = { version = "0.0.8", features = ["native-tls"], default-features = false }
@@ -24,3 +32,6 @@ serde_json = "1.0.128"
 regex = "1.5"
 scraper = "0.12"
 html-escape = "0.2"
+
+[dev-dependencies]
+tempfile = "3.2"

@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 
-mod edgar;
+use claude_api_interaction::edgar;
 
 use chrono::NaiveDate;
 use edgar::index::{update_full_index_feed, Config};
