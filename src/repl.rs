@@ -31,8 +31,9 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             let candidates: Vec<Pair> = TICKER_TREE
-                .get()
-                .prefix_iter(prefix)
+                .get("")
+                .map(|tree| tree.prefix_iter(prefix))
+                .unwrap_or_default()
                 .map(|(key, _)| Pair {
                     display: key.to_string(),
                     replacement: key.to_string(),
@@ -52,8 +53,9 @@ impl Hinter for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             TICKER_TREE
-                .get()
-                .prefix_iter(prefix)
+                .get("")
+                .map(|tree| tree.prefix_iter(prefix))
+                .unwrap_or_default()
                 .next()
                 .map(|(key, _)| key[prefix.len()..].to_string())
         } else {
