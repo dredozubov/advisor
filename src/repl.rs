@@ -1,4 +1,4 @@
-use crate::edgar::tickers::TICKERS;
+use crate::edgar::tickers::TICKER_DATA;
 use once_cell::sync::Lazy;
 use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
@@ -8,9 +8,9 @@ use rustyline::validate::Validator;
 use rustyline::{Context, Result};
 use std::borrow::Cow;
 
-static TICKER_TREE: Lazy<RadixTree<String>> = Lazy::new(|| {
-    let mut tree = RadixTree::new();
-    for (ticker, _) in TICKERS.iter() {
+static TICKER_TREE: Lazy<RadixTree> = Lazy::new(|| {
+    let mut tree = RadixTree::default();
+    for (ticker, _) in TICKER_DATA.iter() {
         tree.insert(ticker, ticker.to_string());
     }
     tree
@@ -27,12 +27,7 @@ impl ReplHelper {
 impl Completer for ReplHelper {
     type Candidate = Pair;
 
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &Context<'_>,
-    ) -> Result<(usize, Vec<Pair>)> {
+    fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             let candidates: Vec<Pair> = TICKER_TREE
