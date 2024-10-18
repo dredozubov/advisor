@@ -1,35 +1,45 @@
-use crate::edgar::{self, tickers};
+use crate::edgar::tickers::TICKERS;
 use once_cell::sync::Lazy;
 use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
-use rustyline::Context;
-use rustyline::Result;
-use rustyline_derive::{Completer, Helper, Highlighter, Hinter, Validator};
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::validate::Validator;
+use rustyline::{Context, Result};
+use std::borrow::Cow;
 
-static CANDIDATES: Lazy<Vec<String>> = Lazy::new(|| {
-    let mut dict = RadixTree::default();
-    tickers::TICKER_DATA
-        .iter()
-        .map(|(t, _)| t.to_string())
-        .collect();
-    dict
+static TICKER_TREE: Lazy<RadixTree<String>> = Lazy::new(|| {
+    let mut tree = RadixTree::new();
+    for (ticker, _) in TICKERS.iter() {
+        tree.insert(ticker, ticker.to_string());
+    }
+    tree
 });
 
-pub struct TickerCompleter;
+pub struct ReplHelper;
 
-impl Completer for TickerCompleter {
+impl ReplHelper {
+    pub fn new() -> Self {
+        ReplHelper
+    }
+}
+
+impl Completer for ReplHelper {
     type Candidate = Pair;
 
-    fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &Context<'_>,
+    ) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
-            let candidates_list = CANDIDATES;
-            let candidates: Vec<Pair> = candidates_list
-                .iter()
-                .filter(|(ticker, _)| ticker.starts_with(prefix))
-                .map(|(ticker, _)| Pair {
-                    display: ticker.to_string(),
-                    replacement: ticker.to_string(),
+            let candidates: Vec<Pair> = TICKER_TREE
+                .get_prefix_matches(prefix)
+                .map(|(key, _)| Pair {
+                    display: key.to_string(),
+                    replacement: key.to_string(),
                 })
                 .collect();
             Ok((at_pos + 1, candidates))
@@ -39,14 +49,50 @@ impl Completer for TickerCompleter {
     }
 }
 
-pub struct HistoryAndTickerHinter;
+impl Hinter for ReplHelper {
+    type Hint = String;
 
-#[derive(Completer, Hinter, Helper, Validator, Highlighter)]
-pub struct ReplHelper {
-    #[rustyline(Completer)]
-    pub completer: TickerCompleter,
-    #[rustyline(TickerHinter)]
-    pub hinter: HistoryAndTickerHinter,
-    #[rustyline(Validator)]
-    pub validator: (),
+    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<String> {
+        if let Some(at_pos) = line[..pos].rfind('@') {
+            let prefix = &line[at_pos + 1..pos].to_uppercase();
+            TICKER_TREE
+                .get_prefix_matches(prefix)
+                .next()
+                .map(|(key, _)| key[prefix.len()..].to_string())
+        } else {
+            None
+        }
+    }
 }
+
+impl Highlighter for ReplHelper {
+    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+        let mut highlighted = String::new();
+        let mut in_ticker = false;
+        for (i, c) in line.char_indices() {
+            if c == '@' {
+                in_ticker = true;
+                highlighted.push(c);
+            } else if in_ticker && !c.is_alphanumeric() {
+                in_ticker = false;
+                highlighted.push_str("\x1b[0m"); // Reset color
+                highlighted.push(c);
+            } else if in_ticker {
+                highlighted.push_str("\x1b[32m"); // Green color for tickers
+                highlighted.push(c);
+            } else {
+                highlighted.push(c);
+            }
+        }
+        if in_ticker {
+            highlighted.push_str("\x1b[0m"); // Reset color at the end if needed
+        }
+        Cow::Owned(highlighted)
+    }
+
+    fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
+        true
+    }
+}
+
+impl Validator for ReplHelper {}
