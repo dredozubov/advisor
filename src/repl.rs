@@ -31,7 +31,8 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             let candidates: Vec<Pair> = TICKER_TREE
-                .get_prefix_matches(prefix)
+                .get()
+                .prefix_iter(prefix)
                 .map(|(key, _)| Pair {
                     display: key.to_string(),
                     replacement: key.to_string(),
@@ -51,7 +52,8 @@ impl Hinter for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             TICKER_TREE
-                .get_prefix_matches(prefix)
+                .get()
+                .prefix_iter(prefix)
                 .next()
                 .map(|(key, _)| key[prefix.len()..].to_string())
         } else {
@@ -64,7 +66,7 @@ impl Highlighter for ReplHelper {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let mut highlighted = String::new();
         let mut in_ticker = false;
-        for (i, c) in line.char_indices() {
+        for (_i, c) in line.char_indices() {
             if c == '@' {
                 in_ticker = true;
                 highlighted.push(c);
@@ -85,7 +87,7 @@ impl Highlighter for ReplHelper {
         Cow::Owned(highlighted)
     }
 
-    fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
+    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
         true
     }
 }
