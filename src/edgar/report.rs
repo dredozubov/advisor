@@ -1,4 +1,7 @@
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Deserializer};
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(from = "String")]
 pub enum ReportType {
     Form10K,
     Form10Q,

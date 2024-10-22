@@ -1,13 +1,15 @@
 use crate::edgar::report;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub start_date: NaiveDate,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub end_date: NaiveDate,
     pub report_types: Vec<report::ReportType>,
 }
