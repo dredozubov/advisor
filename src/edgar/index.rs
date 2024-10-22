@@ -28,6 +28,22 @@ pub struct Config {
     pub user_agent: String,
 }
 
+impl Config {
+    pub fn load() -> Result<Self> {
+        // This is a placeholder implementation. You should replace this with your actual
+        // configuration loading logic, e.g., reading from a file or environment variables.
+        Ok(Config {
+            index_start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
+            index_end_date: Utc::now().date_naive(),
+            full_index_data_dir: PathBuf::from("edgar_data"),
+            edgar_full_master_url: Url::parse("https://www.sec.gov/Archives/edgar/full-index/master.idx")?,
+            edgar_archives_url: Url::parse("https://www.sec.gov/Archives/")?,
+            index_files: vec!["master.idx".to_string()],
+            user_agent: "software@example.com".to_string(),
+        })
+    }
+}
+
 async fn generate_folder_names_years_quarters(
     start_date: NaiveDate,
     end_date: NaiveDate,
