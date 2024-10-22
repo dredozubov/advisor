@@ -38,6 +38,7 @@ radixdb = "0.2.5"
 rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.20.0"
+tokenizers = "0.13.2"
 
 
 [dev-dependencies]
