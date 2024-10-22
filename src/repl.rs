@@ -4,9 +4,11 @@ use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::validate::{ValidationContext, ValidationResult, Validator};
-use rustyline::{CompletionType, Config as RustylineConfig, Context, EditMode, Editor, Helper, Result};
 use rustyline::history::FileHistory;
+use rustyline::validate::{ValidationContext, ValidationResult, Validator};
+use rustyline::{
+    CompletionType, Config as RustylineConfig, Context, EditMode, Editor, Helper, Result,
+};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
@@ -43,7 +45,6 @@ pub struct ReplHelper;
 
 impl ReplHelper {
     pub fn new() -> Self {
-        // print_all_tickers();
         ReplHelper
     }
 }
@@ -145,9 +146,9 @@ pub fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
 
     let home_dir = env::var("HOME").expect("HOME environment variable not set");
     let history_path = format!("{}/.ask-edgar.history", home_dir);
-    
+
     let mut rl = Editor::<ReplHelper, FileHistory>::with_config(rustyline_config)?;
-    
+
     if rl.load_history(&history_path).is_err() {
         println!("No previous history.");
     }
