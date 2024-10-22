@@ -5,21 +5,30 @@ use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::{Context, Result, Helper};
+use rustyline::{Context, Helper, Result};
 use std::borrow::Cow;
 
 static TICKER_TREE: Lazy<RadixTree> = Lazy::new(|| {
     let mut tree = RadixTree::default();
     for (ticker, _) in TICKER_DATA.iter() {
-        tree.insert(ticker, ticker.to_string());
+        tree.insert(ticker, ticker.to_uppercase().to_string());
     }
     tree
 });
+
+fn print_all_tickers() {
+    println!("Available tickers for auto-completion:");
+    for (ticker, _) in TICKER_DATA.iter() {
+        println!("  {}", ticker);
+    }
+    println!("Total number of tickers: {}", TICKER_DATA.len());
+}
 
 pub struct ReplHelper;
 
 impl ReplHelper {
     pub fn new() -> Self {
+        print_all_tickers();
         ReplHelper
     }
 }
@@ -29,7 +38,9 @@ impl Completer for ReplHelper {
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
+            println!("HERE at pos: {}", at_pos);
             let prefix = &line[at_pos + 1..pos].to_uppercase();
+            println!("PREFIX: {}", prefix);
             let candidates: Vec<Pair> = TICKER_TREE
                 .scan_prefix(prefix)
                 .map(|(i, val)| Pair {
@@ -37,6 +48,16 @@ impl Completer for ReplHelper {
                     replacement: String::from_utf8_lossy(val.as_ref()).into_owned(),
                 })
                 .collect();
+            let str_candidates: Vec<(String, String)> = candidates
+                .iter()
+                .map(
+                    |Pair {
+                         display,
+                         replacement,
+                     }| (display.to_string(), replacement.to_string()),
+                )
+                .collect();
+            println!("CANDIDATES: {:?}", str_candidates);
             Ok((at_pos + 1, candidates))
         } else {
             Ok((pos, vec![]))
