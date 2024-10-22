@@ -38,23 +38,16 @@ impl Completer for ReplHelper {
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
-            println!("Completion triggered at pos: {}", at_pos);
             let prefix = &line[at_pos + 1..pos].to_lowercase();
-            println!("Searching with prefix: '{}'", prefix);
             
             let candidates: Vec<Pair> = TICKER_MAP
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
                 .map(|(_, val)| Pair {
-                    display: val.clone(),
+                    display: format!("{} ({})", val, TICKER_DATA.get(val).unwrap_or(&"Unknown")),
                     replacement: val.clone(),
                 })
                 .collect();
-
-            println!("Number of candidates: {}", candidates.len());
-            for (i, candidate) in candidates.iter().enumerate() {
-                println!("Candidate {}: {}", i, candidate.display);
-            }
 
             Ok((at_pos + 1, candidates))
         } else {
