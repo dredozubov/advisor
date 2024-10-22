@@ -1,27 +1,29 @@
-use crate::edgar::tickers::{TickerData, load_tickers};
+use crate::edgar::tickers::{load_tickers, TickerData};
 use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::validate::{Validator, ValidationContext, ValidationResult};
+use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{Context, Helper, Result};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-static TICKER_DATA: Lazy<AnyhowResult<Vec<TickerData>>> = Lazy::new(|| {
-    load_tickers()
-});
+static TICKER_DATA: Lazy<AnyhowResult<Vec<TickerData>>> = Lazy::new(|| load_tickers());
 
-static TICKER_MAP: Lazy<HashMap<String, (String, String, String)>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    if let Ok(tickers) = TICKER_DATA.as_ref() {
-        for (ticker, company, cik) in tickers {
-            map.insert(ticker.to_lowercase(), (ticker.clone(), company.clone(), cik.clone()));
+static TICKER_MAP: Lazy<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>> =
+    Lazy::new(|| {
+        let mut map = HashMap::new();
+        if let Ok(tickers) = TICKER_DATA.as_ref() {
+            for (ticker, company, cik) in tickers {
+                map.insert(
+                    ticker.to_string(),
+                    (ticker.clone(), company.clone(), cik.clone()),
+                );
+            }
         }
-    }
-    map
-});
+        map
+    });
 
 fn print_all_tickers() {
     if let Ok(tickers) = TICKER_DATA.as_ref() {
@@ -39,7 +41,7 @@ pub struct ReplHelper;
 
 impl ReplHelper {
     pub fn new() -> Self {
-        print_all_tickers();
+        // print_all_tickers();
         ReplHelper
     }
 }
@@ -50,15 +52,13 @@ impl Completer for ReplHelper {
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_lowercase();
-            
+
             let candidates: Vec<Pair> = TICKER_MAP
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
-                .map(|(_, (ticker, company, _))| {
-                    Pair {
-                        display: format!("{} ({})", ticker, company),
-                        replacement: ticker.clone(),
-                    }
+                .map(|(_, (ticker, company, _))| Pair {
+                    display: format!("{} ({})", ticker, company),
+                    replacement: ticker.to_string(),
                 })
                 .collect();
 
@@ -103,16 +103,22 @@ impl Validator for ReplHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         let input = ctx.input();
         let words: Vec<&str> = input.split_whitespace().collect();
-        
+
         for word in words {
             if word.starts_with('@') {
                 let ticker = &word[1..].to_uppercase(); // Remove the '@' prefix and convert to uppercase
-                if !TICKER_MAP.values().any(|(t, _, _)| t == ticker) {
-                    return Ok(ValidationResult::Invalid(Some(format!("Invalid ticker: {}", ticker))));
+                if !TICKER_MAP
+                    .values()
+                    .any(|(t, _, _)| &t.to_string() == ticker)
+                {
+                    return Ok(ValidationResult::Invalid(Some(format!(
+                        "Invalid ticker: {}",
+                        ticker
+                    ))));
                 }
             }
         }
-        
+
         Ok(ValidationResult::Valid(None))
     }
 }
