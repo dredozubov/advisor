@@ -157,7 +157,38 @@ pub async fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
     })?;
     rl.set_helper(Some(helper));
 
-    Ok(rl)
+    // Wrap the editor in a custom type that adds history entries
+    Ok(EditorWithHistory::new(rl))
+}
+
+pub struct EditorWithHistory {
+    inner: Editor<ReplHelper, FileHistory>,
+}
+
+impl EditorWithHistory {
+    fn new(editor: Editor<ReplHelper, FileHistory>) -> Self {
+        EditorWithHistory { inner: editor }
+    }
+
+    pub fn readline(&mut self, prompt: &str) -> Result<String> {
+        let line = self.inner.readline(prompt)?;
+        let _ = self.inner.add_history_entry(line.as_str());
+        Ok(line)
+    }
+}
+
+impl std::ops::Deref for EditorWithHistory {
+    type Target = Editor<ReplHelper, FileHistory>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for EditorWithHistory {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 pub fn save_history(rl: &mut Editor<ReplHelper, FileHistory>) -> Result<()> {

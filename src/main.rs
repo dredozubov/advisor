@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _client = Client::try_from(cfg)?;
 
     // Create a rustyline Editor
-    let mut rl = repl::create_editor().await?;
+    let mut rl: repl::EditorWithHistory = repl::create_editor().await?;
 
     println!("Enter 'quit' to exit");
     loop {
@@ -50,9 +50,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if input.eq_ignore_ascii_case("quit") {
                     break;
                 }
-
-                // Add the input to history
-                rl.add_history_entry(input);
 
                 // Process the input using the eval function
                 match eval::eval(input, &config).await {
