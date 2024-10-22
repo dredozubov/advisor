@@ -43,6 +43,12 @@ impl std::fmt::Display for Ticker {
     }
 }
 
+impl ToString for Ticker {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 static USER_AGENT: Lazy<String> = Lazy::new(|| {
     Config::load()
         .map(|config| config.user_agent)
