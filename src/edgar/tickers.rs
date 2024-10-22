@@ -6,18 +6,24 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use crate::edgar::utils::fetch_and_save;
-use crate::Config;
+use crate::edgar::index::Config;
 
 const TICKER_URL: &str = "https://www.sec.gov/files/company_tickers.json";
 
 pub type TickerData = (String, String, String); // (ticker, company name, CIK)
 
-pub async fn fetch_tickers(config: &Config) -> Result<Vec<TickerData>> {
+static USER_AGENT: Lazy<String> = Lazy::new(|| {
+    Config::load()
+        .map(|config| config.user_agent)
+        .unwrap_or_else(|_| "software@example.com".to_string())
+});
+
+pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     let client = Client::new();
     let url = Url::parse(TICKER_URL)?;
     let path = Path::new("edgar_data/tickers.json");
 
-    fetch_and_save(&client, &url, path, &config.user_agent).await?;
+    fetch_and_save(&client, &url, path, &USER_AGENT).await?;
 
     // Load and parse the saved JSON file
     let json_string = fs::read_to_string(path)?;
