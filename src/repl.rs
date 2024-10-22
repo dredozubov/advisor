@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Result, Helper};
 use std::borrow::Cow;
@@ -74,5 +75,15 @@ impl Highlighter for ReplHelper {
 }
 
 impl Validator for ReplHelper {}
+
+impl Hinter for ReplHelper {
+    type Hint = String;
+
+    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+        // For now, we'll return None (no hints)
+        // You can implement more sophisticated hinting logic here in the future
+        None
+    }
+}
 
 impl Helper for ReplHelper {}
