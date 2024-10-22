@@ -1,4 +1,4 @@
-use crate::edgar::tickers::{fetch_tickers, TickerData};
+use crate::edgar::tickers::fetch_tickers;
 use anyhow::Result as AnyhowResult;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -16,16 +16,13 @@ use tokio::sync::RwLock;
 
 type TickerMap = Arc<RwLock<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>>;
 
-fn print_all_tickers() {
-    if let Ok(tickers) = TICKER_DATA.as_ref() {
-        println!("Available tickers for auto-completion:");
-        for (ticker, company, _) in tickers {
-            println!("  {} - {}", ticker, company);
-        }
-        println!("Total number of tickers: {}", tickers.len());
-    } else {
-        println!("Failed to load tickers data.");
+async fn print_all_tickers(ticker_map: &TickerMap) {
+    let tickers = ticker_map.read().await;
+    println!("Available tickers for auto-completion:");
+    for (ticker, (_, company, _)) in tickers.iter() {
+        println!("  {} - {}", ticker, company);
     }
+    println!("Total number of tickers: {}", tickers.len());
 }
 
 pub struct ReplHelper {
@@ -55,7 +52,7 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_lowercase();
 
-            let ticker_map = self.ticker_map.read().unwrap();
+            let ticker_map = futures::executor::block_on(self.ticker_map.read());
             let candidates: Vec<Pair> = ticker_map
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
@@ -107,7 +104,7 @@ impl Validator for ReplHelper {
         let input = ctx.input();
         let words: Vec<&str> = input.split_whitespace().collect();
 
-        let ticker_map = self.ticker_map.read().unwrap();
+        let ticker_map = futures::executor::block_on(self.ticker_map.read());
         for word in words {
             if word.starts_with('@') {
                 let ticker = &word[1..].to_uppercase(); // Remove the '@' prefix and convert to uppercase
@@ -154,7 +151,9 @@ pub async fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
         println!("No previous history.");
     }
 
-    let helper = ReplHelper::new().await?;
+    let helper = ReplHelper::new().await.map_err(|e| {
+        ReadlineError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    })?;
     rl.set_helper(Some(helper));
 
     Ok(rl)
