@@ -4,7 +4,7 @@ use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::validate::Validator;
-use rustyline::{Context, Result};
+use rustyline::{Context, Result, Helper};
 use std::borrow::Cow;
 
 static TICKER_TREE: Lazy<RadixTree> = Lazy::new(|| {
@@ -74,3 +74,5 @@ impl Highlighter for ReplHelper {
 }
 
 impl Validator for ReplHelper {}
+
+impl Helper for ReplHelper {}
