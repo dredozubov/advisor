@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
+use rustyline::validate::{Validator, ValidationContext, ValidationResult};
 use rustyline::{Context, Helper, Result};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -93,7 +93,23 @@ impl Highlighter for ReplHelper {
     }
 }
 
-impl Validator for ReplHelper {}
+impl Validator for ReplHelper {
+    fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
+        let input = ctx.input();
+        let words: Vec<&str> = input.split_whitespace().collect();
+        
+        for word in words {
+            if word.starts_with('@') {
+                let ticker = &word[1..]; // Remove the '@' prefix
+                if !TICKER_MAP.values().any(|v| v == ticker) {
+                    return Ok(ValidationResult::Invalid(Some(format!("Invalid ticker: {}", ticker))));
+                }
+            }
+        }
+        
+        Ok(ValidationResult::Valid(None))
+    }
+}
 
 impl Hinter for ReplHelper {
     type Hint = String;
