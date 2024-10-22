@@ -5,7 +5,9 @@ use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::repl;
 use claude_api_interaction::eval;
 use rustyline::error::ReadlineError;
+use rustyline::history::FileHistory;
 use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
+use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use url::Url;
@@ -45,7 +47,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .edit_mode(EditMode::Emacs)
         .build();
 
-    let mut rl = Editor::with_config(rustyline_config)?;
+    // Set up history file
+    let home_dir = env::var("HOME").expect("HOME environment variable not set");
+    let history_path = format!("{}/.ask-edgar.history", home_dir);
+    
+    let mut rl = Editor::<repl::ReplHelper, FileHistory>::with_config(rustyline_config)?;
+    
+    // Load history
+    if rl.load_history(&history_path).is_err() {
+        println!("No previous history.");
+    }
 
     // Add helper
     let helper = repl::ReplHelper::new();
@@ -86,5 +97,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     println!("Goodbye!");
+    
+    // Save history
+    rl.save_history(&history_path)?;
+    
     Ok(())
 }
