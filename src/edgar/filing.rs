@@ -16,7 +16,7 @@ use std::path::Path;
 use url::Url;
 use uuencode::uudecode;
 
-use crate::edgar::utils::fetch_and_save;
+use super::utils::fetch_and_save;
 
 // Hardcoded values
 const FILING_DATA_DIR: &str = "/path/to/filing/data";
@@ -78,7 +78,7 @@ pub async fn process_filing(
     let filing_url = Url::parse(&filing_filepaths["filing_url"])?;
     let filepath = Path::new(&filing_filepaths["filing_filepath"]);
 
-    fetch_and_save(client, &filing_url, filepath, USER_AGENT).await?;
+    super::utils::fetch_and_save(client, &filing_url, filepath, USER_AGENT).await?;
 
     let filing_content = extract(&filing_filepaths)?;
 

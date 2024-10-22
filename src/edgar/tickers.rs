@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use crate::edgar::utils::fetch_and_save;
+use super::utils::fetch_and_save;
 use crate::edgar::index::Config;
 
 const TICKER_URL: &str = "https://www.sec.gov/files/company_tickers.json";
@@ -49,7 +49,7 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     let path = Path::new("edgar_data/tickers.json");
 
     if !path.exists() {
-        fetch_and_save(&client, &url, path, &USER_AGENT).await?;
+        super::utils::fetch_and_save(&client, &url, path, &USER_AGENT).await?;
     }
 
     load_tickers()

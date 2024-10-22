@@ -189,7 +189,7 @@ async fn process_quarter_data(
 
         if should_update {
             println!("Updating file: {}", filepath.display());
-            fetch_and_save(client, &url, &filepath).await?;
+            super::utils::fetch_and_save(client, &url, &filepath).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
 
