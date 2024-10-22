@@ -1,4 +1,3 @@
-use crate::edgar::index::Config;
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use reqwest::{Client, Url};
