@@ -1,7 +1,7 @@
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(from = "String")]
+#[serde(try_from = "String")]
 pub enum ReportType {
     Form10K,
     Form10Q,
@@ -23,6 +23,14 @@ pub enum ReportType {
     FormNPORT,
     FormNQ,
     Other(String),
+}
+
+impl TryFrom<String> for ReportType {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Ok(ReportType::from_str(&s))
+    }
 }
 
 impl ReportType {
