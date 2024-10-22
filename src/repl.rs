@@ -108,10 +108,12 @@ impl Validator for ReplHelper {
         let ticker_map = futures::executor::block_on(self.ticker_map.read());
         for word in words {
             if word.starts_with('@') {
-                let ticker = &word[1..].to_uppercase(); // Remove the '@' prefix and convert to uppercase
+                let ticker_with_punctuation = &word[1..]; // Remove the '@' prefix
+                let ticker = ticker_with_punctuation.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-');
+                let ticker = ticker.to_uppercase();
                 if !ticker_map
                     .values()
-                    .any(|(t, _, _)| &t.to_string() == ticker)
+                    .any(|(t, _, _)| t.as_str() == ticker)
                 {
                     return Ok(ValidationResult::Invalid(Some(format!(
                         "Invalid ticker: {}",
