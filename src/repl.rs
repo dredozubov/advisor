@@ -47,8 +47,8 @@ impl Completer for ReplHelper {
                     let company_name = TICKER_DATA
                         .iter()
                         .find(|&&(ticker, _)| ticker == val)
-                        .map(|&(_, name)| name)
-                        .unwrap_or("Unknown");
+                        .map(|&(_, name)| name.to_string())
+                        .unwrap_or_else(|| "Unknown".to_string());
                     Pair {
                         display: format!("{} ({})", val, company_name),
                         replacement: val.clone(),
@@ -98,7 +98,7 @@ impl Validator for ReplHelper {}
 impl Hinter for ReplHelper {
     type Hint = String;
 
-    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
         // For now, we'll return None (no hints)
         // You can implement more sophisticated hinting logic here in the future
         None
