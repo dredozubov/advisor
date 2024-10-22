@@ -4,6 +4,7 @@ use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::{update_full_index_feed, Config};
 use claude_api_interaction::edgar::tickers::fetch_tickers;
 use claude_api_interaction::repl;
+use claude_api_interaction::eval;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
 use std::error::Error;
@@ -72,8 +73,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 // Add the input to history
                 rl.add_history_entry(input);
 
-                // Process the input (you can add your logic here)
-                println!("You entered: {}", input);
+                // Process the input using the eval function
+                match eval::eval(input).await {
+                    Ok(result) => println!("{}", result),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
