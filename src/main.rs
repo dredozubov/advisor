@@ -36,14 +36,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Build from configuration.
     let cfg = AnthropicConfig::new()?;
-    let _client = Client::try_from(cfg)?;
+    let client = Client::try_from(cfg)?;
 
     // Create a rustyline Editor
     let mut rl = repl::create_editor().await?;
 
     println!("Enter 'quit' to exit");
+    let mut thread_id = None;
     loop {
-        let readline = rl.readline(">> ");
+        let prompt = thread_id.as_ref().map_or(">> ".to_string(), |id| format!("{}> ", id));
+        let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
                 let input = line.trim();
@@ -52,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config).await {
+                match eval::eval(input, &config, &client, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }
