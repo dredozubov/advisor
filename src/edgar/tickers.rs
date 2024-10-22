@@ -47,6 +47,8 @@ impl std::fmt::Display for Ticker {
     }
 }
 
+use crate::edgar::index::Config;
+
 static USER_AGENT: Lazy<String> = Lazy::new(|| {
     Config::load()
         .map(|config| config.user_agent)

@@ -18,7 +18,6 @@ static USER_AGENT: Lazy<String> = Lazy::new(|| {
 });
 
 #[derive(Clone)]
-#[derive(Clone)]
 pub struct Config {
     pub index_start_date: NaiveDate,
     pub index_end_date: NaiveDate,
