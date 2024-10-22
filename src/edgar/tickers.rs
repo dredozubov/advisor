@@ -1,12 +1,11 @@
-use anyhow::{Result, anyhow};
+use crate::edgar::index::Config;
+use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use reqwest::{Client, Url};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use super::utils::fetch_and_save;
-use crate::edgar::index::Config;
 
 const TICKER_URL: &str = "https://www.sec.gov/files/company_tickers.json";
 
@@ -61,8 +60,7 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
         let json_string = fs::read_to_string(path)?;
         let json: HashMap<String, Value> = serde_json::from_str(&json_string)?;
 
-        json
-            .values()
+        json.values()
             .map(|v| {
                 let ticker = Ticker::new(v["ticker"].as_str().unwrap().to_string())?;
                 Ok((
@@ -73,6 +71,8 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
             })
             .collect()
     } else {
-        Err(anyhow!("Tickers file not found. Run fetch_latest_tickers() first."))
+        Err(anyhow!(
+            "Tickers file not found. Run fetch_latest_tickers() first."
+        ))
     }
 }
