@@ -1,6 +1,5 @@
 use crate::edgar::tickers::TICKER_DATA;
 use once_cell::sync::Lazy;
-use radixdb::node::IterKey;
 use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
