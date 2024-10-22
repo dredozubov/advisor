@@ -5,26 +5,12 @@ use anthropic::config::AnthropicConfig;
 
 use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::{update_full_index_feed, Config};
-use claude_api_interaction::completer::TickerCompleter;
+use claude_api_interaction::repl;
 use std::path::PathBuf;
 use url::Url;
 
-use rustyline::completion::FilenameCompleter;
 use rustyline::error::ReadlineError;
-use rustyline::hint::HistoryHinter;
 use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
-use rustyline::validate::MatchingBracketValidator;
-use rustyline_derive::{Completer, Helper, Hinter, Validator};
-
-#[derive(Completer, Helper, Hinter, Validator)]
-struct MyHelper {
-    #[rustyline(Completer)]
-    completer: rustyline::completion::FilenameCompleter,
-    #[rustyline(Hinter)]
-    hinter: HistoryHinter,
-    #[rustyline(Validator)]
-    validator: MatchingBracketValidator,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -69,11 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut rl = Editor::with_config(rustyline_config)?;
 
     // Add helper
-    let helper = MyHelper {
-        completer: rustyline::completion::FilenameCompleter::new(),
-        hinter: HistoryHinter {},
-        validator: MatchingBracketValidator::new(),
-    };
+    let helper = repl::ReplHelper::new();
     rl.set_helper(Some(helper));
 
     println!("Enter 'quit' to exit");
