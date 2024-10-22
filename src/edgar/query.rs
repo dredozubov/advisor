@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
     pub start_date: NaiveDate,
@@ -97,8 +97,14 @@ mod tests {
         let query = Query::from_json(json_str).unwrap();
 
         assert_eq!(query.tickers, vec!["AAPL", "GOOGL"]);
-        assert_eq!(query.start_date, NaiveDate::from_ymd_opt(2023, 1, 1).unwrap());
-        assert_eq!(query.end_date, NaiveDate::from_ymd_opt(2023, 12, 31).unwrap());
+        assert_eq!(
+            query.start_date,
+            NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()
+        );
+        assert_eq!(
+            query.end_date,
+            NaiveDate::from_ymd_opt(2023, 12, 31).unwrap()
+        );
         assert_eq!(
             query.report_types,
             vec![report::ReportType::Form10K, report::ReportType::Form10Q]
