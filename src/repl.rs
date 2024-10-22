@@ -56,10 +56,10 @@ impl Completer for ReplHelper {
             let ticker_map = futures::executor::block_on(self.ticker_map.read());
             let candidates: Vec<Pair> = ticker_map
                 .iter()
-                .filter(|(key, _)| key.starts_with(prefix))
+                .filter(|(key, _)| key.to_lowercase().starts_with(prefix))
                 .map(|(_, (ticker, company, _))| Pair {
-                    display: format!("{} ({})", ticker, company),
-                    replacement: ticker.to_string(),
+                    display: format!("{} ({})", ticker.as_str(), company),
+                    replacement: ticker.as_str().to_string(),
                 })
                 .collect();
 
