@@ -20,8 +20,8 @@ impl Ticker {
         if uppercase_ticker.is_empty() {
             return Err(anyhow!("Ticker cannot be empty"));
         }
-        if !uppercase_ticker.chars().all(|c| c.is_ascii_alphanumeric()) {
-            return Err(anyhow!("Ticker must contain only alphanumeric characters"));
+        if !uppercase_ticker.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err(anyhow!("Ticker must contain only alphanumeric characters or hyphens"));
         }
         Ok(Ticker(uppercase_ticker))
     }
