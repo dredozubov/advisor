@@ -1,9 +1,9 @@
 use crate::edgar::tickers::TICKER_DATA;
 use once_cell::sync::Lazy;
+use radixdb::node::IterKey;
 use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
-use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Result};
 use std::borrow::Cow;
@@ -31,31 +31,15 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_uppercase();
             let candidates: Vec<Pair> = TICKER_TREE
-                .prefix_iter(prefix)
-                .map(|(key, _)| Pair {
-                    display: key.to_string(),
-                    replacement: key.to_string(),
+                .scan_prefix(prefix)
+                .map(|(i, val)| Pair {
+                    display: String::from_utf8_lossy(i.as_ref()).into_owned(),
+                    replacement: String::from_utf8_lossy(val.as_ref()).into_owned(),
                 })
                 .collect();
             Ok((at_pos + 1, candidates))
         } else {
             Ok((pos, vec![]))
-        }
-    }
-}
-
-impl Hinter for ReplHelper {
-    type Hint = String;
-
-    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<String> {
-        if let Some(at_pos) = line[..pos].rfind('@') {
-            let prefix = &line[at_pos + 1..pos].to_uppercase();
-            TICKER_TREE
-                .prefix_iter(prefix)
-                .next()
-                .map(|(key, _)| key[prefix.len()..].to_string())
-        } else {
-            None
         }
     }
 }
