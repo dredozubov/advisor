@@ -1,19 +1,19 @@
 use crate::edgar::tickers::TICKER_DATA;
 use once_cell::sync::Lazy;
-use radixdb::RadixTree;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Helper, Result};
 use std::borrow::Cow;
+use std::collections::HashMap;
 
-static TICKER_TREE: Lazy<RadixTree> = Lazy::new(|| {
-    let mut tree = RadixTree::default();
+static TICKER_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    let mut map = HashMap::new();
     for (ticker, _) in TICKER_DATA.iter() {
-        tree.insert(ticker, ticker.to_uppercase().to_string());
+        map.insert(ticker.to_lowercase(), ticker.to_string());
     }
-    tree
+    map
 });
 
 fn print_all_tickers() {
@@ -38,26 +38,24 @@ impl Completer for ReplHelper {
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         if let Some(at_pos) = line[..pos].rfind('@') {
-            println!("HERE at pos: {}", at_pos);
-            let prefix = &line[at_pos + 1..pos].to_uppercase();
-            println!("PREFIX: {}", prefix);
-            let candidates: Vec<Pair> = TICKER_TREE
-                .scan_prefix(prefix)
-                .map(|(i, val)| Pair {
-                    display: String::from_utf8_lossy(i.as_ref()).into_owned(),
-                    replacement: String::from_utf8_lossy(val.as_ref()).into_owned(),
+            println!("Completion triggered at pos: {}", at_pos);
+            let prefix = &line[at_pos + 1..pos].to_lowercase();
+            println!("Searching with prefix: '{}'", prefix);
+            
+            let candidates: Vec<Pair> = TICKER_MAP
+                .iter()
+                .filter(|(key, _)| key.starts_with(prefix))
+                .map(|(_, val)| Pair {
+                    display: val.clone(),
+                    replacement: val.clone(),
                 })
                 .collect();
-            let str_candidates: Vec<(String, String)> = candidates
-                .iter()
-                .map(
-                    |Pair {
-                         display,
-                         replacement,
-                     }| (display.to_string(), replacement.to_string()),
-                )
-                .collect();
-            println!("CANDIDATES: {:?}", str_candidates);
+
+            println!("Number of candidates: {}", candidates.len());
+            for (i, candidate) in candidates.iter().enumerate() {
+                println!("Candidate {}: {}", i, candidate.display);
+            }
+
             Ok((at_pos + 1, candidates))
         } else {
             Ok((pos, vec![]))
