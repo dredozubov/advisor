@@ -1,6 +1,5 @@
-use crate::edgar::tickers::{load_tickers, TickerData};
+use crate::edgar::tickers::{fetch_tickers, TickerData};
 use anyhow::Result as AnyhowResult;
-use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -12,22 +11,10 @@ use rustyline::{
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-static TICKER_DATA: Lazy<AnyhowResult<Vec<TickerData>>> = Lazy::new(|| load_tickers());
-
-static TICKER_MAP: Lazy<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>> =
-    Lazy::new(|| {
-        let mut map = HashMap::new();
-        if let Ok(tickers) = TICKER_DATA.as_ref() {
-            for (ticker, company, cik) in tickers {
-                map.insert(
-                    ticker.to_string(),
-                    (ticker.clone(), company.clone(), cik.clone()),
-                );
-            }
-        }
-        map
-    });
+type TickerMap = Arc<RwLock<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>>;
 
 fn print_all_tickers() {
     if let Ok(tickers) = TICKER_DATA.as_ref() {
@@ -41,11 +28,23 @@ fn print_all_tickers() {
     }
 }
 
-pub struct ReplHelper;
+pub struct ReplHelper {
+    ticker_map: TickerMap,
+}
 
 impl ReplHelper {
-    pub fn new() -> Self {
-        ReplHelper
+    pub async fn new() -> AnyhowResult<Self> {
+        let tickers = fetch_tickers().await?;
+        let mut map = HashMap::new();
+        for (ticker, company, cik) in tickers {
+            map.insert(
+                ticker.to_string(),
+                (ticker.clone(), company.clone(), cik.clone()),
+            );
+        }
+        Ok(ReplHelper {
+            ticker_map: Arc::new(RwLock::new(map)),
+        })
     }
 }
 
@@ -56,7 +55,8 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_lowercase();
 
-            let candidates: Vec<Pair> = TICKER_MAP
+            let ticker_map = self.ticker_map.read().unwrap();
+            let candidates: Vec<Pair> = ticker_map
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
                 .map(|(_, (ticker, company, _))| Pair {
@@ -107,10 +107,11 @@ impl Validator for ReplHelper {
         let input = ctx.input();
         let words: Vec<&str> = input.split_whitespace().collect();
 
+        let ticker_map = self.ticker_map.read().unwrap();
         for word in words {
             if word.starts_with('@') {
                 let ticker = &word[1..].to_uppercase(); // Remove the '@' prefix and convert to uppercase
-                if !TICKER_MAP
+                if !ticker_map
                     .values()
                     .any(|(t, _, _)| &t.to_string() == ticker)
                 {
@@ -138,7 +139,7 @@ impl Hinter for ReplHelper {
 
 impl Helper for ReplHelper {}
 
-pub fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
+pub async fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
     let rustyline_config = RustylineConfig::builder()
         .completion_type(CompletionType::List)
         .edit_mode(EditMode::Emacs)
@@ -153,7 +154,7 @@ pub fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
         println!("No previous history.");
     }
 
-    let helper = ReplHelper::new();
+    let helper = ReplHelper::new().await?;
     rl.set_helper(Some(helper));
 
     Ok(rl)
