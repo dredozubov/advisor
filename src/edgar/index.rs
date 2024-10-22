@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use csv::WriterBuilder;
 use futures::future::join_all;
+use once_cell::sync::Lazy;
 use reqwest::Client;
 use sled::Db;
 use std::fs::{self, File};
@@ -9,6 +10,12 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use tokio::task;
 use url::Url;
+
+static USER_AGENT: Lazy<String> = Lazy::new(|| {
+    Config::load()
+        .map(|config| config.user_agent)
+        .unwrap_or_else(|_| "software@example.com".to_string())
+});
 
 #[derive(Clone)]
 pub struct Config {
@@ -101,11 +108,10 @@ async fn fetch_and_save(
     client: &Client,
     url: &Url,
     filepath: &Path,
-    user_agent: &str,
 ) -> Result<()> {
     let response = client
         .get(url.as_str())
-        .header(reqwest::header::USER_AGENT, user_agent)
+        .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
         .send()
         .await?;
     let content = response.bytes().await?;
@@ -117,11 +123,10 @@ async fn fetch_and_save(
 async fn check_remote_file_modified(
     client: &Client,
     url: &Url,
-    user_agent: &str,
 ) -> Result<DateTime<Utc>> {
     let response = client
         .head(url.as_str())
-        .header(reqwest::header::USER_AGENT, user_agent)
+        .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
         .send()
         .await?;
 
@@ -159,8 +164,7 @@ async fn process_quarter_data(
             let local_modified = fs::metadata(&filepath)?.modified()?;
             let local_modified: DateTime<Utc> = local_modified.into();
 
-            let remote_modified =
-                check_remote_file_modified(client, &url, &config.user_agent).await?;
+            let remote_modified = check_remote_file_modified(client, &url).await?;
 
             remote_modified > local_modified
         } else {
@@ -169,7 +173,7 @@ async fn process_quarter_data(
 
         if should_update {
             println!("Updating file: {}", filepath.display());
-            fetch_and_save(client, &url, &filepath, &config.user_agent).await?;
+            fetch_and_save(client, &url, &filepath).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
 
@@ -203,7 +207,7 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         let local_modified: DateTime<Utc> = local_modified.into();
 
         let remote_modified =
-            check_remote_file_modified(&client, &config.edgar_full_master_url, &config.user_agent)
+            check_remote_file_modified(&client, &config.edgar_full_master_url)
                 .await?;
 
         remote_modified > local_modified
@@ -217,7 +221,6 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
             &client,
             &config.edgar_full_master_url,
             &latest_full_index_master,
-            &config.user_agent,
         )
         .await?;
         convert_idx_to_csv(&latest_full_index_master)?;
