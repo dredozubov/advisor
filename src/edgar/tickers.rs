@@ -23,24 +23,11 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     let url = Url::parse(TICKER_URL)?;
     let path = Path::new("edgar_data/tickers.json");
 
-    fetch_and_save(&client, &url, path, &USER_AGENT).await?;
+    if !path.exists() {
+        fetch_and_save(&client, &url, path, &USER_AGENT).await?;
+    }
 
-    // Load and parse the saved JSON file
-    let json_string = fs::read_to_string(path)?;
-    let json: HashMap<String, Value> = serde_json::from_str(&json_string)?;
-
-    let tickers: Vec<TickerData> = json
-        .values()
-        .map(|v| {
-            (
-                v["ticker"].as_str().unwrap().to_string(),
-                v["title"].as_str().unwrap().to_string(),
-                format!("{:010}", v["cik_str"].as_u64().unwrap()),
-            )
-        })
-        .collect();
-
-    Ok(tickers)
+    load_tickers()
 }
 
 pub fn load_tickers() -> Result<Vec<TickerData>> {

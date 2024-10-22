@@ -1,8 +1,7 @@
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
 use chrono::NaiveDate;
-use claude_api_interaction::edgar::index::{update_full_index_feed, Config};
-use claude_api_interaction::edgar::tickers::fetch_tickers;
+use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::repl;
 use claude_api_interaction::eval;
 use rustyline::error::ReadlineError;
@@ -36,14 +35,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         user_agent: "Example@example.com".to_string(),
     };
 
-    let tickers = fetch_tickers().await?;
-    println!("Fetched {} tickers", tickers.len());
-
-    // Call update_full_index_feed
-    println!("Updating full index feed...");
-    update_full_index_feed(&config).await?;
-    println!("Full index feed updated successfully.");
-
     // Build from configuration.
     let cfg = AnthropicConfig::new()?;
     let _client = Client::try_from(cfg)?;
@@ -74,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 rl.add_history_entry(input);
 
                 // Process the input using the eval function
-                match eval::eval(input).await {
+                match eval::eval(input, &config).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }
