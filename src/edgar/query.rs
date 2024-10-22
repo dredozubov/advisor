@@ -1,7 +1,7 @@
 use crate::edgar::report;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use serde::{Deserialize};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Query {
