@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _client = Client::try_from(cfg)?;
 
     // Create a rustyline Editor
-    let mut rl: repl::EditorWithHistory = repl::create_editor().await?;
+    let mut rl = repl::create_editor().await?;
 
     println!("Enter 'quit' to exit");
     loop {

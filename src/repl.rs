@@ -137,7 +137,7 @@ impl Hinter for ReplHelper {
 
 impl Helper for ReplHelper {}
 
-pub async fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
+pub async fn create_editor() -> Result<EditorWithHistory> {
     let rustyline_config = RustylineConfig::builder()
         .completion_type(CompletionType::List)
         .edit_mode(EditMode::Emacs)
