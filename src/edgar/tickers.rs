@@ -69,7 +69,9 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
 
         json.values()
             .map(|v| {
-                let ticker = Ticker::new(v["ticker"].as_str().unwrap().to_string())?;
+                let ticker_str = v["ticker"].as_str().unwrap().to_string();
+                println!("Attempting to create Ticker with: '{}'", ticker_str);
+                let ticker = Ticker::new(ticker_str)?;
                 Ok((
                     ticker,
                     v["title"].as_str().unwrap().to_string(),
