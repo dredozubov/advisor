@@ -1,5 +1,4 @@
-use anthropic::client::Client;
-use anthropic::config::AnthropicConfig;
+use anthropic::{Client, ClientConfig};
 use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::repl;
@@ -35,8 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Build from configuration.
-    let cfg = AnthropicConfig::new()?;
-    let client = Client::try_from(cfg)?;
+    let cfg = ClientConfig::new().with_api_key(api_key);
+    let client = Client::new(cfg);
 
     // Create a rustyline Editor
     let mut rl = repl::create_editor().await?;

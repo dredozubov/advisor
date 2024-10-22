@@ -1,4 +1,4 @@
-use crate::edgar::report;
+use crate::edgar::report::ReportType;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use serde::Deserialize;
@@ -10,7 +10,7 @@ pub struct Query {
     pub start_date: NaiveDate,
     #[serde(with = "date_format")]
     pub end_date: NaiveDate,
-    pub report_types: Vec<report::ReportType>,
+    pub report_types: Vec<ReportType>,
 }
 
 mod date_format {
