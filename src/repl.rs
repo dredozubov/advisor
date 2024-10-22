@@ -40,9 +40,9 @@ impl ReplHelper {
                 (ticker.clone(), company.clone(), cik.clone()),
             );
         }
-        Ok(ReplHelper {
-            ticker_map: Arc::new(RwLock::new(map)),
-        })
+        let ticker_map = Arc::new(RwLock::new(map));
+        // print_all_tickers(&ticker_map).await;
+        Ok(ReplHelper { ticker_map })
     }
 }
 
