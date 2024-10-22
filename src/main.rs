@@ -1,16 +1,14 @@
-use std::error::Error;
-
 use anthropic::client::Client;
 use anthropic::config::AnthropicConfig;
-
 use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::{update_full_index_feed, Config};
+use claude_api_interaction::edgar::tickers::fetch_tickers;
 use claude_api_interaction::repl;
-use std::path::PathBuf;
-use url::Url;
-
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as RustylineConfig, EditMode, Editor};
+use std::error::Error;
+use std::path::PathBuf;
+use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -36,6 +34,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ],
         user_agent: "Example@example.com".to_string(),
     };
+
+    let tickers = fetch_tickers().await?;
+    println!("Fetched {} tickers", tickers.len());
 
     // Call update_full_index_feed
     println!("Updating full index feed...");
@@ -73,20 +74,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 // Process the input (you can add your logic here)
                 println!("You entered: {}", input);
-
-                // Uncomment and adapt this section when you're ready to process 10-Q reports
-                /*
-                match edgar::index::get_latest_10q(input) {
-                    Ok(content) => {
-                        println!(
-                            "Retrieved 10-Q content for {}. First 200 characters:",
-                            input
-                        );
-                        // Process the content...
-                    }
-                    Err(e) => println!("Error retrieving 10-Q: {}", e),
-                }
-                */
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
