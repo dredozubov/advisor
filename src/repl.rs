@@ -43,9 +43,16 @@ impl Completer for ReplHelper {
             let candidates: Vec<Pair> = TICKER_MAP
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
-                .map(|(_, val)| Pair {
-                    display: format!("{} ({})", val, TICKER_DATA.get(val).unwrap_or(&"Unknown")),
-                    replacement: val.clone(),
+                .map(|(_, val)| {
+                    let company_name = TICKER_DATA
+                        .iter()
+                        .find(|&&(ticker, _)| ticker == val)
+                        .map(|&(_, name)| name)
+                        .unwrap_or("Unknown");
+                    Pair {
+                        display: format!("{} ({})", val, company_name),
+                        replacement: val.clone(),
+                    }
                 })
                 .collect();
 
