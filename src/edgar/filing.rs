@@ -16,8 +16,6 @@ use std::path::Path;
 use url::Url;
 use uuencode::uudecode;
 
-use super::utils::fetch_and_save;
-
 // Hardcoded values
 const FILING_DATA_DIR: &str = "/path/to/filing/data";
 const EDGAR_ARCHIVES_URL: &str = "https://www.sec.gov/Archives/";

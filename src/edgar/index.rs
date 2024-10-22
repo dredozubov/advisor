@@ -36,7 +36,9 @@ impl Config {
             index_start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
             index_end_date: Utc::now().date_naive(),
             full_index_data_dir: PathBuf::from("edgar_data"),
-            edgar_full_master_url: Url::parse("https://www.sec.gov/Archives/edgar/full-index/master.idx")?,
+            edgar_full_master_url: Url::parse(
+                "https://www.sec.gov/Archives/edgar/full-index/master.idx",
+            )?,
             edgar_archives_url: Url::parse("https://www.sec.gov/Archives/")?,
             index_files: vec!["master.idx".to_string()],
             user_agent: "software@example.com".to_string(),
@@ -120,11 +122,7 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn fetch_and_save(
-    client: &Client,
-    url: &Url,
-    filepath: &Path,
-) -> Result<()> {
+async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
     let response = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
@@ -136,10 +134,7 @@ async fn fetch_and_save(
     Ok(())
 }
 
-async fn check_remote_file_modified(
-    client: &Client,
-    url: &Url,
-) -> Result<DateTime<Utc>> {
+async fn check_remote_file_modified(client: &Client, url: &Url) -> Result<DateTime<Utc>> {
     let response = client
         .head(url.as_str())
         .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
@@ -189,7 +184,7 @@ async fn process_quarter_data(
 
         if should_update {
             println!("Updating file: {}", filepath.display());
-            super::utils::fetch_and_save(client, &url, &filepath).await?;
+            super::utils::fetch_and_save(client, &url, &filepath, &USER_AGENT).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
 
@@ -223,8 +218,7 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         let local_modified: DateTime<Utc> = local_modified.into();
 
         let remote_modified =
-            check_remote_file_modified(&client, &config.edgar_full_master_url)
-                .await?;
+            check_remote_file_modified(&client, &config.edgar_full_master_url).await?;
 
         remote_modified > local_modified
     } else {

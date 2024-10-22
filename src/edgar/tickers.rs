@@ -20,8 +20,13 @@ impl Ticker {
         if uppercase_ticker.is_empty() {
             return Err(anyhow!("Ticker cannot be empty"));
         }
-        if !uppercase_ticker.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-            return Err(anyhow!("Ticker must contain only alphanumeric characters or hyphens"));
+        if !uppercase_ticker
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        {
+            return Err(anyhow!(
+                "Ticker must contain only alphanumeric characters or hyphens"
+            ));
         }
         Ok(Ticker(uppercase_ticker))
     }
@@ -70,7 +75,6 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
         json.values()
             .map(|v| {
                 let ticker_str = v["ticker"].as_str().unwrap().to_string();
-                println!("Attempting to create Ticker with: '{}'", ticker_str);
                 let ticker = Ticker::new(ticker_str)?;
                 Ok((
                     ticker,

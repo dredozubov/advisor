@@ -1,10 +1,11 @@
+use crate::edgar::report;
 use chrono::NaiveDate;
 
 pub struct Query {
     pub tickers: Vec<String>,
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
-    pub report_types: Vec<String>,
+    pub report_types: Vec<report::ReportType>,
 }
 
 impl Query {
@@ -12,7 +13,7 @@ impl Query {
         tickers: Vec<String>,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        report_types: Vec<String>,
+        report_types: Vec<report::ReportType>,
     ) -> Self {
         Query {
             tickers,
