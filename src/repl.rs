@@ -5,9 +5,11 @@ use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
-use rustyline::{Context, Helper, Result};
+use rustyline::{CompletionType, Config as RustylineConfig, Context, EditMode, Editor, Helper, Result};
+use rustyline::history::FileHistory;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::env;
 
 static TICKER_DATA: Lazy<AnyhowResult<Vec<TickerData>>> = Lazy::new(|| load_tickers());
 
@@ -134,3 +136,30 @@ impl Hinter for ReplHelper {
 }
 
 impl Helper for ReplHelper {}
+
+pub fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
+    let rustyline_config = RustylineConfig::builder()
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
+
+    let home_dir = env::var("HOME").expect("HOME environment variable not set");
+    let history_path = format!("{}/.ask-edgar.history", home_dir);
+    
+    let mut rl = Editor::<ReplHelper, FileHistory>::with_config(rustyline_config)?;
+    
+    if rl.load_history(&history_path).is_err() {
+        println!("No previous history.");
+    }
+
+    let helper = ReplHelper::new();
+    rl.set_helper(Some(helper));
+
+    Ok(rl)
+}
+
+pub fn save_history(rl: &mut Editor<ReplHelper, FileHistory>) -> Result<()> {
+    let home_dir = env::var("HOME").expect("HOME environment variable not set");
+    let history_path = format!("{}/.ask-edgar.history", home_dir);
+    rl.save_history(&history_path)
+}
