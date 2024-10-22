@@ -1,6 +1,7 @@
 use crate::edgar::tickers::fetch_tickers;
 use anyhow::Result as AnyhowResult;
 use rustyline::completion::{Completer, Pair};
+use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::history::FileHistory;
