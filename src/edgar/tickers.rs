@@ -16,13 +16,14 @@ pub struct Ticker(String);
 
 impl Ticker {
     pub fn new(ticker: String) -> Result<Self> {
-        if ticker.is_empty() {
+        let uppercase_ticker = ticker.to_uppercase();
+        if uppercase_ticker.is_empty() {
             return Err(anyhow!("Ticker cannot be empty"));
         }
-        if !ticker.chars().all(|c| c.is_ascii_alphanumeric()) {
+        if !uppercase_ticker.chars().all(|c| c.is_ascii_alphanumeric()) {
             return Err(anyhow!("Ticker must contain only alphanumeric characters"));
         }
-        Ok(Ticker(ticker.to_uppercase()))
+        Ok(Ticker(uppercase_ticker))
     }
 
     pub fn as_str(&self) -> &str {
