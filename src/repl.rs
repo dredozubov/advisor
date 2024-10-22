@@ -1,4 +1,5 @@
-use crate::edgar::tickers::TICKER_DATA;
+use crate::edgar::tickers::{TickerData, load_tickers};
+use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -8,20 +9,30 @@ use rustyline::{Context, Helper, Result};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-static TICKER_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static TICKER_DATA: Lazy<AnyhowResult<Vec<TickerData>>> = Lazy::new(|| {
+    load_tickers()
+});
+
+static TICKER_MAP: Lazy<HashMap<String, (String, String, String)>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    for (ticker, _) in TICKER_DATA.iter() {
-        map.insert(ticker.to_lowercase(), ticker.to_string());
+    if let Ok(tickers) = TICKER_DATA.as_ref() {
+        for (ticker, company, cik) in tickers {
+            map.insert(ticker.to_lowercase(), (ticker.clone(), company.clone(), cik.clone()));
+        }
     }
     map
 });
 
 fn print_all_tickers() {
-    println!("Available tickers for auto-completion:");
-    for (ticker, _) in TICKER_DATA.iter() {
-        println!("  {}", ticker);
+    if let Ok(tickers) = TICKER_DATA.as_ref() {
+        println!("Available tickers for auto-completion:");
+        for (ticker, company, _) in tickers {
+            println!("  {} - {}", ticker, company);
+        }
+        println!("Total number of tickers: {}", tickers.len());
+    } else {
+        println!("Failed to load tickers data.");
     }
-    println!("Total number of tickers: {}", TICKER_DATA.len());
 }
 
 pub struct ReplHelper;
@@ -43,15 +54,10 @@ impl Completer for ReplHelper {
             let candidates: Vec<Pair> = TICKER_MAP
                 .iter()
                 .filter(|(key, _)| key.starts_with(prefix))
-                .map(|(_, val)| {
-                    let company_name = TICKER_DATA
-                        .iter()
-                        .find(|&&(ticker, _)| ticker == val)
-                        .map(|&(_, name)| name.to_string())
-                        .unwrap_or_else(|| "Unknown".to_string());
+                .map(|(_, (ticker, company, _))| {
                     Pair {
-                        display: format!("{} ({})", val, company_name),
-                        replacement: val.clone(),
+                        display: format!("{} ({})", ticker, company),
+                        replacement: ticker.clone(),
                     }
                 })
                 .collect();
@@ -70,13 +76,13 @@ impl Highlighter for ReplHelper {
         for (_i, c) in line.char_indices() {
             if c == '@' {
                 in_ticker = true;
+                highlighted.push_str("\x1b[32m"); // Green color for tickers
                 highlighted.push(c);
             } else if in_ticker && !c.is_alphanumeric() {
                 in_ticker = false;
                 highlighted.push_str("\x1b[0m"); // Reset color
                 highlighted.push(c);
             } else if in_ticker {
-                highlighted.push_str("\x1b[32m"); // Green color for tickers
                 highlighted.push(c);
             } else {
                 highlighted.push(c);
@@ -100,8 +106,8 @@ impl Validator for ReplHelper {
         
         for word in words {
             if word.starts_with('@') {
-                let ticker = &word[1..]; // Remove the '@' prefix
-                if !TICKER_MAP.values().any(|v| v == ticker) {
+                let ticker = &word[1..].to_uppercase(); // Remove the '@' prefix and convert to uppercase
+                if !TICKER_MAP.values().any(|(t, _, _)| t == ticker) {
                     return Ok(ValidationResult::Invalid(Some(format!("Invalid ticker: {}", ticker))));
                 }
             }
