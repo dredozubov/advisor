@@ -36,6 +36,12 @@ impl AsRef<str> for Ticker {
     }
 }
 
+impl std::fmt::Display for Ticker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 static USER_AGENT: Lazy<String> = Lazy::new(|| {
     Config::load()
         .map(|config| config.user_agent)
