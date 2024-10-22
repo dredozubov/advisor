@@ -153,7 +153,10 @@ pub async fn create_editor() -> Result<Editor<ReplHelper, FileHistory>> {
     }
 
     let helper = ReplHelper::new().await.map_err(|e| {
-        ReadlineError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        ReadlineError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            e.to_string(),
+        ))
     })?;
     rl.set_helper(Some(helper));
 
