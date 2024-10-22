@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use once_cell::sync::Lazy;
 use reqwest::{Client, Url};
 use serde_json::Value;
@@ -10,7 +10,32 @@ use crate::edgar::index::Config;
 
 const TICKER_URL: &str = "https://www.sec.gov/files/company_tickers.json";
 
-pub type TickerData = (String, String, String); // (ticker, company name, CIK)
+pub type TickerData = (Ticker, String, String); // (ticker, company name, CIK)
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Ticker(String);
+
+impl Ticker {
+    pub fn new(ticker: String) -> Result<Self> {
+        if ticker.is_empty() {
+            return Err(anyhow!("Ticker cannot be empty"));
+        }
+        if !ticker.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Err(anyhow!("Ticker must contain only alphanumeric characters"));
+        }
+        Ok(Ticker(ticker.to_uppercase()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for Ticker {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
 
 static USER_AGENT: Lazy<String> = Lazy::new(|| {
     Config::load()
@@ -36,19 +61,18 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
         let json_string = fs::read_to_string(path)?;
         let json: HashMap<String, Value> = serde_json::from_str(&json_string)?;
 
-        Ok(json
+        json
             .values()
             .map(|v| {
-                (
-                    v["ticker"].as_str().unwrap().to_string(),
+                let ticker = Ticker::new(v["ticker"].as_str().unwrap().to_string())?;
+                Ok((
+                    ticker,
                     v["title"].as_str().unwrap().to_string(),
                     format!("{:010}", v["cik_str"].as_u64().unwrap()),
-                )
+                ))
             })
-            .collect())
+            .collect()
     } else {
-        Err(anyhow::anyhow!(
-            "Tickers file not found. Run fetch_latest_tickers() first."
-        ))
+        Err(anyhow!("Tickers file not found. Run fetch_latest_tickers() first."))
     }
 }
