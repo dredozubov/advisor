@@ -63,7 +63,7 @@ async fn extract_query_params(client: &Client, input: &str) -> Result<String> {
     let complete_request = CompleteRequestBuilder::default()
         .prompt(format!("{HUMAN_PROMPT}{{&user_message}}{AI_PROMPT}"))
         .model("claude-3-haiku-20240307".to_string())
-        .max_tokens_to_sample(1000)
+        .max_tokens_to_sample(1000_usize)
         .stream(false)
         .stop_sequences(vec![HUMAN_PROMPT.to_string()])
         .build()?;
