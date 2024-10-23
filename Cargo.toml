@@ -14,7 +14,6 @@ path = "src/lib.rs"
 [dependencies]                                                             
 security-framework = "3.0.0" 
 anthropic = { version = "0.0.8", features = ["native-tls"], default-features = false }
-tokenizers = "0.13"
 tokio = { version = "1.25.0", features = ["full"] }
 env_logger = "0.11.5"
 log = "0.4.17"
@@ -38,7 +37,7 @@ radixdb = "0.2.5"
 rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.20.0"
-tokenizers = "0.13.2"
+tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
 
 
 [dev-dependencies]

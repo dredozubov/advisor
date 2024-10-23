@@ -3,6 +3,8 @@ use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use serde::Deserialize;
 
+use super::report;
+
 #[derive(Debug, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
@@ -17,7 +19,7 @@ mod date_format {
     use chrono::NaiveDate;
     use serde::{self, Deserialize, Deserializer};
 
-    const FORMAT: &'static str = "%Y-%m-%d";
+    const FORMAT: &str = "%Y-%m-%d";
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
     where

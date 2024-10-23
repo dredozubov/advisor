@@ -86,11 +86,13 @@ pub fn generate_filepaths(sec_filing: &HashMap<String, String>) -> HashMap<Strin
     feed_item
 }
 
-pub async fn process_filing(
-    client: &Client,
-    filing_meta: &[(&str, &str)],
-) -> Result<Filing> {
-    let filing_filepaths = generate_filepaths(&filing_meta.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());
+pub async fn process_filing(client: &Client, filing_meta: &[(&str, &str)]) -> Result<Filing> {
+    let filing_filepaths = generate_filepaths(
+        &filing_meta
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
+    );
 
     let filing_url = Url::parse(&filing_filepaths["filing_url"])?;
     let filepath = Path::new(&filing_filepaths["filing_filepath"]);
