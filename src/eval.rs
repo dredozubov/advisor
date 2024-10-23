@@ -45,16 +45,20 @@ pub async fn eval(
 }
 
 async fn extract_query_params(client: &Client, input: &str) -> Result<String> {
+    println!("Starting extract_query_params with input: {}", input);
+
     let user_message = format!("You are an AI assistant that extracts query parameters from user input. \
                              Return a JSON object with 'tickers', 'start_date', 'end_date', and 
     'report_types' fields. \
                              Use ISO date format (YYYY-MM-DD) for dates. Infer reasonable defaults if 
     information is missing. Extract query parameters from: {}", input);
+    println!("Formatted user message: {}", user_message);
 
     let messages = vec![Message {
         role: Role::User,
         content: vec![ContentBlock::Text { text: user_message }],
     }];
+    println!("Created messages vector");
 
     let complete_request = CompleteRequestBuilder::default()
         .prompt(format!("{HUMAN_PROMPT}{{&user_message}}{AI_PROMPT}"))
@@ -62,8 +66,12 @@ async fn extract_query_params(client: &Client, input: &str) -> Result<String> {
         .stream(false)
         .stop_sequences(vec![HUMAN_PROMPT.to_string()])
         .build()?;
+    println!("Built complete request");
 
+    println!("Sending request to Anthropic API...");
     let response = client.complete(complete_request).await?;
+    println!("Received response from Anthropic API: {}", response.completion);
+    
     Ok(response.completion)
 }
 
