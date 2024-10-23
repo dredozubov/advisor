@@ -41,39 +41,27 @@ pub async fn eval(
     Ok(response)
 }
 
-async fn extract_query_params(client: &Client, input: &str) -> Result<String> {
+async fn extract_query_params(client: &ChatGPT, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
 
-    let user_message = format!("You are an AI assistant that extracts query parameters from user input. \
-                             Return a JSON object with 'tickers', 'start_date', 'end_date', and 
-    'report_types' fields. \
-                             Use ISO date format (YYYY-MM-DD) for dates. Infer reasonable defaults if 
-    information is missing. Extract query parameters from: {}", input);
-    println!("Formatted user message: {}", user_message);
-
-    let messages = vec![Message {
-        role: Role::User,
-        content: vec![ContentBlock::Text { text: user_message }],
-    }];
-    println!("Created messages vector");
-
-    let complete_request = CompleteRequestBuilder::default()
-        .prompt(format!("{HUMAN_PROMPT}{{&user_message}}{AI_PROMPT}"))
-        .model("claude-3-haiku-20240307".to_string())
-        .max_tokens_to_sample(1000_usize)
-        .stream(false)
-        .stop_sequences(vec![HUMAN_PROMPT.to_string()])
-        .build()?;
-    println!("Built complete request");
-
-    println!("Sending request to Anthropic API...");
-    let response = client.complete(complete_request).await?;
-    println!(
-        "Received response from Anthropic API: {}",
-        response.completion
+    let prompt = prompt!(
+        "You are an AI assistant that extracts query parameters from user input. 
+         Return a JSON object with 'tickers', 'start_date', 'end_date', and 'report_types' fields.
+         Use ISO date format (YYYY-MM-DD) for dates. Infer reasonable defaults if information is missing.
+         
+         Extract query parameters from: {{input}}"
     );
 
-    Ok(response.completion)
+    let chain = LLMChain::new(prompt);
+    let params = parameters!({
+        "input" => input
+    });
+
+    println!("Sending request to ChatGPT API...");
+    let response = chain.run(client, &params).await?;
+    println!("Received response from ChatGPT API: {}", response);
+
+    Ok(response)
 }
 
 async fn fetch_filings(
