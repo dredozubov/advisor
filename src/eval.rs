@@ -5,18 +5,15 @@ use crate::edgar::{
     index::{update_full_index_feed, Config},
     query::Query,
 };
-use anthropic::{
-    client::Client,
-    types::{CompleteRequest, CompleteRequestBuilder, ContentBlock, Message, Role},
-    AI_PROMPT, HUMAN_PROMPT,
-};
+use llm_chain::{executor, parameters, prompt, chains::{Chain, LLMChain}, traits::Executor};
+use llm_chain_openai::chatgpt::Executor as ChatGPT;
 use anyhow::Result;
 use tokenizers::Tokenizer;
 
 pub async fn eval(
     input: &str,
     config: &Config,
-    llm_client: &Client,
+    llm_client: &ChatGPT,
     http_client: &reqwest::Client,
     thread_id: &mut Option<String>,
 ) -> Result<String> {
