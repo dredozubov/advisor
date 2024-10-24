@@ -287,6 +287,16 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
 
     println!("\n\n\tCompleted Index Update\n\n\t");
 
+    // Create or open sled database
+    println!("DEBUG: Creating/Opening sled database");
+    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
+    if db_path.exists() {
+        println!("DEBUG: Removing old sled database");
+        fs::remove_dir_all(&db_path)?;
+    }
+    let db = sled::open(&db_path)?;
+    println!("DEBUG: Successfully created new sled database");
+
     // Store the date range in the database
     println!("DEBUG: Storing new date range in database");
     store_date_range(&db, index_start_date, index_end_date)?;
