@@ -30,22 +30,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Data directory created successfully");
 
     // Initialize ChatGPT executor with API key from environment
+    log::debug!("Initializing OpenAI client");
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
     let open_ai = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
+    log::debug!("OpenAI client initialized successfully");
 
     // Create a rustyline Editor
+    log::debug!("Creating rustyline editor");
     let mut rl = repl::create_editor().await?;
+    log::debug!("Rustyline editor created successfully");
 
     // You can also include timeouts and other settings
+    log::debug!("Building HTTP client");
     let http_client = reqwest::Client::builder()
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("Failed to create client");
+    log::debug!("HTTP client built successfully");
 
+    log::debug!("Starting REPL loop");
     println!("Enter 'quit' to exit");
     let mut thread_id = None;
     loop {
@@ -84,7 +91,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Goodbye!");
 
     // Save history
+    log::debug!("Saving REPL history");
     repl::save_history(&mut rl)?;
+    log::debug!("REPL history saved successfully");
 
     Ok(())
 }
