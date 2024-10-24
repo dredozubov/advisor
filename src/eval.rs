@@ -47,7 +47,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string.
     
     Construct it from the user input:
-    {input}"#, edgar::report::REPORT_TYPES
+    {input}"#, *edgar::report::REPORT_TYPES
     )
     .to_string();
 
