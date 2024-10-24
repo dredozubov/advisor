@@ -138,29 +138,41 @@ impl Hinter for ReplHelper {
 impl Helper for ReplHelper {}
 
 pub async fn create_editor() -> Result<EditorWithHistory> {
+    log::debug!("Creating rustyline editor configuration");
     let rustyline_config = RustylineConfig::builder()
         .completion_type(CompletionType::List)
         .edit_mode(EditMode::Emacs)
         .build();
 
+    log::debug!("Getting home directory for history file");
     let home_dir = env::var("HOME").expect("HOME environment variable not set");
     let history_path = format!("{}/.ask-edgar.history", home_dir);
+    log::debug!("History file path: {}", history_path);
 
+    log::debug!("Creating editor with config");
     let mut rl = Editor::<ReplHelper, FileHistory>::with_config(rustyline_config)?;
 
+    log::debug!("Loading editor history");
     if rl.load_history(&history_path).is_err() {
+        log::debug!("No previous history file found");
         println!("No previous history.");
+    } else {
+        log::debug!("History loaded successfully");
     }
 
+    log::debug!("Creating ReplHelper");
     let helper = ReplHelper::new().await.map_err(|e| {
+        log::error!("Failed to create ReplHelper: {}", e);
         ReadlineError::Io(std::io::Error::new(
             std::io::ErrorKind::Other,
             e.to_string(),
         ))
     })?;
+    log::debug!("Setting helper for editor");
     rl.set_helper(Some(helper));
 
     // Wrap the editor in a custom type that adds history entries
+    log::debug!("Creating EditorWithHistory wrapper");
     Ok(EditorWithHistory::new(rl))
 }
 
