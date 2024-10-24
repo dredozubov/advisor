@@ -6,7 +6,10 @@ use crate::edgar::{
     query::Query,
 };
 use anyhow::Result;
-use llm_chain::{executor, options, parameters, prompt, traits::Executor};
+use llm_chain::{
+    chains::{map_reduce, sequential},
+    executor, options, parameters, prompt, step::Step, traits::Executor,
+};
 use tokenizers::Tokenizer;
 
 pub async fn eval<E: Executor>(
@@ -22,20 +25,7 @@ pub async fn eval<E: Executor>(
 
     // // Step 2: Construct Query and fetch data
     let query = Query::from_json(&query_json)?;
-    let filings = fetch_filings(&query, config, http_client).await?;
-
-    // // Step 3: Tokenize fetched data
-    // let tokenized_data = tokenize_filings(&filings)?;
-
-    // // Step 4: Augment user input with tokenized data and get LLM response
-    // let augmented_input = format!("{}\n\nContext:\n{}", input, tokenized_data);
-    // let response = get_llm_response(llm_client, &augmented_input, thread_id).await?;
-
-    // // Step 5: Update prompt
-    // if let Some(id) = thread_id {
-    //     println!("Thread ID: {}", id);
-    // }
-    let response = "".to_string();
+    let response = fetch_filings(&query, config, http_client, llm_client).await?;
 
     Ok(response)
 }
@@ -67,18 +57,34 @@ async fn fetch_filings(
     query: &Query,
     config: &Config,
     client: &reqwest::Client,
-) -> Result<Vec<filing::Filing>> {
+    executor: &impl Executor,
+) -> Result<String> {
     // Update index if necessary
     crate::edgar::index::update_full_index_feed(config).await?;
 
-    // Fetch filings based on the query
-    let mut filings = Vec::new();
+    // Create map-reduce chain for processing filings
+    let map_prompt = Step::for_prompt_template(prompt!(
+        "You are a financial document analyzer. Analyze this filing and extract key information.",
+        "Analyze this SEC filing and provide key points:\n{{text}}"
+    ));
+
+    let reduce_prompt = Step::for_prompt_template(prompt!(
+        "You are a financial report summarizer. Combine multiple filing analyses into a cohesive summary.",
+        "Combine these filing analyses into a single comprehensive summary:\n{{text}}"
+    ));
+
+    let chain = map_reduce::Chain::new(map_prompt, reduce_prompt);
+
+    // Fetch and process filings
+    let mut filing_params = Vec::new();
     for ticker in &query.tickers {
         let filing = filing::process_filing(client, &[("ticker", ticker.as_str())]).await?;
-        filings.push(filing);
+        filing_params.push(parameters!(filing.content()));
     }
 
-    Ok(filings)
+    // Run map-reduce chain
+    let result = chain.run(filing_params, parameters!(), executor).await?;
+    Ok(result.to_immediate().await?.as_content())
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
