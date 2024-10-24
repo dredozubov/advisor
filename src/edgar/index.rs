@@ -3,6 +3,7 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use csv::WriterBuilder;
 use futures::future::join_all;
 use once_cell::sync::Lazy;
+use std::path::PathBuf;
 use reqwest::Client;
 use sled::{Db, IVec};
 use std::fs::{self, File};
@@ -16,6 +17,8 @@ pub const EDGAR_ARCHIVES_URL: &str = "https://www.sec.gov/Archives/";
 pub const INDEX_FILES: &[&str] = &["master.idx", "form.idx", "company.idx"];
 pub const USER_AGENT: &str = "Example@example.com";
 pub const FULL_INDEX_DATA_DIR: &str = "edgar_data/";
+
+static DB_PATH: Lazy<PathBuf> = Lazy::new(|| get_full_index_data_dir().join("merged_idx_files.sled"));
 
 pub fn get_edgar_full_master_url() -> Url {
     Url::parse(EDGAR_FULL_MASTER_URL).expect("Invalid EDGAR master URL")
@@ -201,8 +204,7 @@ pub async fn update_full_index_feed(
     index_end_date: NaiveDate,
 ) -> Result<()> {
     println!("DEBUG: Opening sled database for update check");
-    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
-    let db = sled::open(db_path.clone())?;
+    let db = sled::open(&*DB_PATH)?;
     println!("DEBUG: Successfully opened sled database");
 
     // Check if we need to update
@@ -295,12 +297,11 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
 
     // Create or open sled database
     println!("DEBUG: Creating/Opening sled database");
-    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
-    if db_path.exists() {
+    if DB_PATH.exists() {
         println!("DEBUG: Removing old sled database");
-        fs::remove_dir_all(&db_path)?;
+        fs::remove_dir_all(&*DB_PATH)?;
     }
-    let db = sled::open(&db_path)?;
+    let db = sled::open(&*DB_PATH)?;
     println!("DEBUG: Successfully created new sled database");
 
     // Store the date range in the database
