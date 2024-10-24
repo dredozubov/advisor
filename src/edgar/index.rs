@@ -4,7 +4,7 @@ use csv::WriterBuilder;
 use futures::future::join_all;
 use once_cell::sync::Lazy;
 use reqwest::Client;
-use sled::Db;
+use sled::{Db, IVec};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -174,6 +174,28 @@ async fn process_quarter_data(client: &Client, year: &str, qtr: &str, _db: &Db) 
     Ok(())
 }
 
+fn store_date_range(db: &Db, start_date: NaiveDate, end_date: NaiveDate) -> Result<()> {
+    db.insert("index_start_date", start_date.to_string().as_bytes())?;
+    db.insert("index_end_date", end_date.to_string().as_bytes())?;
+    Ok(())
+}
+
+fn get_date_range(db: &Db) -> Result<Option<(NaiveDate, NaiveDate)>> {
+    let start = db.get("index_start_date")?;
+    let end = db.get("index_end_date")?;
+    
+    match (start, end) {
+        (Some(start), Some(end)) => {
+            let start_str = String::from_utf8(start.to_vec())?;
+            let end_str = String::from_utf8(end.to_vec())?;
+            let start_date = NaiveDate::parse_from_str(&start_str, "%Y-%m-%d")?;
+            let end_date = NaiveDate::parse_from_str(&end_str, "%Y-%m-%d")?;
+            Ok(Some((start_date, end_date)))
+        }
+        _ => Ok(None),
+    }
+}
+
 pub async fn update_full_index_feed(
     index_start_date: NaiveDate,
     index_end_date: NaiveDate,
@@ -239,6 +261,9 @@ pub async fn update_full_index_feed(
     }
 
     println!("\n\n\tCompleted Index Update\n\n\t");
+
+    // Store the date range in the database
+    store_date_range(&db, index_start_date, index_end_date)?;
 
     // Flush the database to ensure all data is written
     db.flush()?;

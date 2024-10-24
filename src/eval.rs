@@ -84,11 +84,24 @@ async fn fetch_filings(
 ) -> Result<String> {
     use edgar::index::{self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir};
 
-    // Update index if necessary based on query date range
-    index::update_full_index_feed(query.start_date, query.end_date).await?;
+    // Open sled database
+    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
+    let db = sled::open(db_path)?;
+
+    // Check if we need to update the index
+    let should_update = if let Ok(Some((start, end))) = index::get_date_range(&db) {
+        query.start_date < start || query.end_date > end
+    } else {
+        true // No date range stored, need to update
+    };
+
+    if should_update {
+        // Update index if query date range is wider than stored range
+        index::update_full_index_feed(query.start_date, query.end_date).await?;
+    }
 
     // TODO: Implement filing retrieval logic
-    Ok("Index updated successfully".to_string())
+    Ok("Index checked/updated successfully".to_string())
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
