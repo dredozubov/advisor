@@ -79,14 +79,27 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
 
 async fn fetch_filings(
     query: &Query,
-    config: &Config,
     client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
 ) -> Result<String> {
-    // Update index if necessary
+    use edgar::index::{self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir};
 
-    // Combine results
-    Ok(results.join("\n\n"))
+    // Create config for index update
+    let config = index::Config {
+        index_start_date: query.start_date,
+        index_end_date: query.end_date,
+        full_index_data_dir: get_full_index_data_dir(),
+        edgar_full_master_url: get_edgar_full_master_url(),
+        edgar_archives_url: get_edgar_archives_url(),
+        index_files: vec!["master.idx".to_string()],
+        user_agent: USER_AGENT.to_string(),
+    };
+
+    // Update index if necessary based on query date range
+    index::update_full_index_feed(&config).await?;
+
+    // TODO: Implement filing retrieval logic
+    Ok("Index updated successfully".to_string())
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
