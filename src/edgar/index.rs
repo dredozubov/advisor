@@ -47,66 +47,6 @@ async fn generate_folder_names_years_quarters(
     result
 }
 
-fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
-    let input_file = File::open(filepath)?;
-    let reader = BufReader::new(input_file);
-    let mut lines = reader.lines();
-
-    // Skip the first 10 lines
-    for _ in 0..10 {
-        lines.next();
-    }
-
-    let output_path = filepath.with_extension("csv");
-    let output_file = File::create(&output_path)?;
-    let mut writer = WriterBuilder::new()
-        .has_headers(true)
-        .flexible(true) // Allow flexible number of fields
-        .from_writer(output_file);
-
-    writer.write_record(&[
-        "CIK",
-        "Company Name",
-        "Form Type",
-        "Date Filed",
-        "Filename",
-        "published",
-    ])?;
-
-    let mut records = Vec::new();
-
-    for line in lines {
-        let line = line?;
-        let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() >= 5 && !fields[0].contains("---") {
-            let date = NaiveDate::parse_from_str(fields[3], "%Y-%m-%d").unwrap_or_default();
-            records.push((
-                fields[0].to_string(),
-                fields[1].to_string(),
-                fields[2].to_string(),
-                date,
-                fields[4].to_string(),
-            ));
-        }
-    }
-
-    // Sort by date in descending order
-    records.sort_by(|a, b| b.3.cmp(&a.3));
-
-    for (cik, company, form_type, date, filename) in records {
-        writer.write_record(&[
-            &cik,
-            &company,
-            &form_type,
-            &date.to_string(),
-            &filename,
-            &date.to_string(),
-        ])?;
-    }
-
-    writer.flush()?;
-    Ok(())
-}
 
 async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
     let response = client
@@ -164,10 +104,6 @@ async fn process_quarter_data(client: &Client, year: &str, qtr: &str) -> Result<
         if should_update {
             println!("Updating file: {}", filepath.display());
             super::utils::fetch_and_save(client, &url, &filepath, USER_AGENT).await?;
-            println!("\n\n\tConverting idx to csv\n\n");
-            convert_idx_to_csv(&filepath)?;
-
-            // Update sled database with the new data
             println!("\n\n\tUpdating edgar database\n\n");
         } else {
             println!("File is up to date: {}", filepath.display());
@@ -273,7 +209,6 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
             &latest_full_index_master,
         )
         .await?;
-        convert_idx_to_csv(&latest_full_index_master)?;
     } else {
         println!("master.idx is up to date, using local version.");
     }
