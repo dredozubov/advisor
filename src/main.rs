@@ -1,8 +1,12 @@
-use anthropic::client as llm;
 use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::eval;
 use claude_api_interaction::repl;
+use llm_chain::parameters;
+use llm_chain::step::Step;
+use llm_chain::traits::Executor as ExecutorTrait;
+use llm_chain::{chains::sequential::Chain, prompt};
+use llm_chain_openai::chatgpt::Executor;
 use rustyline::error::ReadlineError;
 use std::error::Error;
 use std::path::PathBuf;
@@ -13,11 +17,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
-    let anthropic_api_key =
-        std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
-    let llm_client = llm::ClientBuilder::default()
-        .api_key(anthropic_api_key)
-        .build()?;
+    // Create a new ChatGPT executor with the default settings
+    let exec = Executor::new()?;
 
     // Create a Config instance
     let config = Config {
@@ -62,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &llm_client, &http_client, &mut thread_id).await {
+                match eval::eval(input, &config, &exec, &http_client, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }
