@@ -196,15 +196,7 @@ fn get_date_range(db: &Db) -> Result<Option<(NaiveDate, NaiveDate)>> {
     }
 }
 
-pub fn should_update_index(db: &Db, start_date: NaiveDate, end_date: NaiveDate) -> Result<bool> {
-    Ok(if let Some((stored_start, stored_end)) = get_date_range(db)? {
-        start_date < stored_start || end_date > stored_end
-    } else {
-        true // No date range stored, need to update
-    })
-}
-
-pub async fn update_full_index_feed(
+async fn update_index_feed(
     index_start_date: NaiveDate,
     index_end_date: NaiveDate,
 ) -> Result<()> {

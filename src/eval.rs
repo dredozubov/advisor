@@ -85,14 +85,8 @@ async fn fetch_filings(
         self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir,
     };
 
-    // Open sled database
-    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
-    let db = sled::open(db_path)?;
-
-    if index::should_update_index(&db, query.start_date, query.end_date)? {
-        // Update index if query date range is wider than stored range
-        index::update_full_index_feed(query.start_date, query.end_date).await?;
-    }
+    // Update index if necessary
+    index::update_full_index_feed(query.start_date, query.end_date).await?;
 
     // TODO: Implement filing retrieval logic
     Ok("Index checked/updated successfully".to_string())
