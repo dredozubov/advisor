@@ -203,14 +203,14 @@ pub async fn update_full_index_feed(
     index_start_date: NaiveDate,
     index_end_date: NaiveDate,
 ) -> Result<()> {
-    println!("DEBUG: Opening sled database for update check");
+    log::debug!("Opening sled database for update check at {:?}", &*DB_PATH);
     let db = sled::open(&*DB_PATH)?;
-    println!("DEBUG: Successfully opened sled database");
+    log::debug!("Successfully opened sled database");
 
     // Check if we need to update
-    println!("DEBUG: Checking if update is needed");
+    log::debug!("Checking if update is needed");
     let should_update = if !DB_PATH.exists() {
-        println!("DEBUG: No index database found");
+        log::debug!("No index database found at {:?}", &*DB_PATH);
         false // No database, don't try to update
     } else if let Some((stored_start, stored_end)) = get_date_range(&db)? {
         println!(
@@ -218,10 +218,10 @@ pub async fn update_full_index_feed(
             stored_start, stored_end
         );
         let needs_update = index_start_date < stored_start || index_end_date > stored_end;
-        println!("DEBUG: Update needed: {}", needs_update);
+        log::debug!("Update needed: {}", needs_update);
         needs_update
     } else {
-        println!("DEBUG: No stored date range found in existing database");
+        log::debug!("No stored date range found in existing database");
         true // Database exists but no date range stored, need to update
     };
 
@@ -296,27 +296,27 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     println!("\n\n\tCompleted Index Update\n\n\t");
 
     // Create or open sled database
-    println!("DEBUG: Creating/Opening sled database");
+    log::debug!("Creating/Opening sled database at {:?}", &*DB_PATH);
     if DB_PATH.exists() {
-        println!("DEBUG: Removing old sled database");
+        log::debug!("Removing old sled database at {:?}", &*DB_PATH);
         fs::remove_dir_all(&*DB_PATH)?;
     }
     let db = sled::open(&*DB_PATH)?;
-    println!("DEBUG: Successfully created new sled database");
+    log::debug!("Successfully created new sled database");
 
     // Store the date range in the database
-    println!("DEBUG: Storing new date range in database");
+    log::debug!("Storing new date range in database");
     store_date_range(&db, index_start_date, index_end_date)?;
-    println!("DEBUG: Successfully stored date range");
+    log::debug!("Successfully stored date range");
 
     // Flush the database to ensure all data is written
-    println!("DEBUG: Flushing database");
+    log::debug!("Flushing database");
     println!(
         "DEBUG: Date range stored: {} to {}",
         index_start_date, index_end_date
     );
     db.flush()?;
-    println!("DEBUG: Successfully flushed database");
+    log::debug!("Successfully flushed database");
 
     println!("\n\n\tCompleted Merging IDX files\n\n\t");
 

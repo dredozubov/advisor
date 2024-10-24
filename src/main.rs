@@ -23,8 +23,11 @@ use url::Url;
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
+    log::debug!("Logger initialized");
 
+    log::debug!("Creating data directory at {}", index::FULL_INDEX_DATA_DIR);
     fs::create_dir_all(index::FULL_INDEX_DATA_DIR)?;
+    log::debug!("Data directory created successfully");
 
     // Initialize ChatGPT executor with API key from environment
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
