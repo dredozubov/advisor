@@ -19,13 +19,11 @@ pub async fn eval(
     input: &str,
     config: &Config,
     http_client: &reqwest::Client,
+    llm_client: &impl Executor,
     thread_id: &mut Option<String>,
 ) -> Result<String> {
-    // Initialize ChatGPT executor with API key from environment
-    let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
-    let llm_client = chatgpt::Executor::new_with_key(&api_key)?;
     // Step 1: Extract date ranges and report types using Anthropic LLM
-    let query_json = extract_query_params(llm_client, input).await?;
+    let query_json = extract_query_params(&llm_client, input).await?;
     println!("{}", query_json);
 
     // // Step 2: Construct Query and fetch data

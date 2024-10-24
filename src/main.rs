@@ -17,8 +17,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
-    // Create a new ChatGPT executor with the default settings
-    let exec = Executor::new()?;
+    // Initialize ChatGPT executor with API key from environment
+    let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+    let llm_client = Executor::new_with_key(&api_key)?;
 
     // Create a Config instance
     let config = Config {
@@ -63,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &exec, &http_client, &mut thread_id).await {
+                match eval::eval(input, &config, &http_client, &llm_client, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }
