@@ -1,11 +1,12 @@
 use crate::edgar::{filing, index::Config, query::Query};
 use anyhow::Result;
-use langchain::{
-    chains::{Chain, SequentialChain},
-    prompts::PromptTemplate,
-    schema::{Messages, SystemMessage, UserMessage},
+use llm_chain::{
+    chains::{sequential, Chain},
+    parameters, prompt,
+    step::Step,
+    traits::Executor,
 };
-use langchain_openai::chatgpt::ChatGPT;
+use llm_chain_openai::chatgpt::Executor as ChatGPT;
 
 pub async fn eval(
     input: &str,

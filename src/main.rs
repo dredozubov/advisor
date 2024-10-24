@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::eval;
 use claude_api_interaction::repl;
-use langchain_openai::chatgpt::ChatGPT;
+use llm_chain_openai::chatgpt::Executor as ChatGPT;
 use rustyline::error::ReadlineError;
 use std::env;
 use std::error::Error;
