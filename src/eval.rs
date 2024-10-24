@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::edgar::{filing, index::Config, query::Query};
+use crate::edgar::{self, filing, index::Config, query::Query};
 use anyhow::Result;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -42,12 +42,12 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     - 'tickers': array of strings
     - 'start_date': ISO date (YYYY-MM-DD)
     - 'end_date': ISO date (YYYY-MM-DD)
-    - 'report_types': array of strings
+    - 'report_types': array of strings, possible values are {}
     
     Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string.
     
     Construct it from the user input:
-    {input}"#
+    {input}"#, edgar::report::REPORT_TYPES
     )
     .to_string();
 
