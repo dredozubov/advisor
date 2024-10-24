@@ -88,31 +88,31 @@ async fn fetch_filings(
 
     // Create a list of tasks to retrieve filings
     let mut filing_tasks = Vec::new();
-    
+
     // For each ticker in the query
     for ticker in &query.tickers {
         // For each report type
         for report_type in &query.report_types {
-            log::debug!(
-                "Creating task to fetch {} filings for {} between {} and {}", 
-                report_type, 
-                ticker,
-                query.start_date,
-                query.end_date
+            println!(
+                "Creating task to fetch {} filings for {} between {} and {}",
+                report_type, ticker, query.start_date, query.end_date
             );
-            
+
             // Add task to retrieve filings for this ticker/report type combination
             filing_tasks.push((
                 ticker.clone(),
                 report_type.clone(),
                 query.start_date,
-                query.end_date
+                query.end_date,
             ));
         }
     }
 
     log::debug!("Created {} filing retrieval tasks", filing_tasks.len());
-    Ok(format!("Created {} filing retrieval tasks", filing_tasks.len()))
+    Ok(format!(
+        "Created {} filing retrieval tasks",
+        filing_tasks.len()
+    ))
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
