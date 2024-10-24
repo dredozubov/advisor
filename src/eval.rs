@@ -67,7 +67,6 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
         .build()
         .unwrap();
 
-    // Create sequential chain
     match chain.invoke(prompt_args! {}).await {
         Ok(result) => {
             println!("Result: {:?}", result);
@@ -82,7 +81,9 @@ async fn fetch_filings(
     client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
 ) -> Result<String> {
-    use edgar::index::{self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir};
+    use edgar::index::{
+        self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir,
+    };
 
     // Open sled database
     let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
