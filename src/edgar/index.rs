@@ -207,14 +207,17 @@ pub async fn update_full_index_feed(
 
     // Check if we need to update
     println!("DEBUG: Checking if update is needed");
-    let should_update = if let Some((stored_start, stored_end)) = get_date_range(&db)? {
+    let should_update = if !db_path.exists() {
+        println!("DEBUG: No index database found");
+        false // No database, don't try to update
+    } else if let Some((stored_start, stored_end)) = get_date_range(&db)? {
         println!("DEBUG: Found stored date range: {} to {}", stored_start, stored_end);
         let needs_update = index_start_date < stored_start || index_end_date > stored_end;
         println!("DEBUG: Update needed: {}", needs_update);
         needs_update
     } else {
-        println!("DEBUG: No stored date range found");
-        true // No date range stored, need to update
+        println!("DEBUG: No stored date range found in existing database");
+        true // Database exists but no date range stored, need to update
     };
 
     if should_update {
