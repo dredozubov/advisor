@@ -89,14 +89,7 @@ async fn fetch_filings(
     let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
     let db = sled::open(db_path)?;
 
-    // Check if we need to update the index
-    let should_update = if let Ok(Some((start, end))) = index::get_date_range(&db) {
-        query.start_date < start || query.end_date > end
-    } else {
-        true // No date range stored, need to update
-    };
-
-    if should_update {
+    if index::should_update_index(&db, query.start_date, query.end_date)? {
         // Update index if query date range is wider than stored range
         index::update_full_index_feed(query.start_date, query.end_date).await?;
     }
