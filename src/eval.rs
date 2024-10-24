@@ -8,7 +8,9 @@ use crate::edgar::{
 use anyhow::Result;
 use llm_chain::{
     chains::{map_reduce, sequential},
-    executor, options, parameters, prompt, step::Step, traits::Executor,
+    executor, options, parameters, prompt,
+    step::Step,
+    traits::Executor,
 };
 use tokenizers::Tokenizer;
 
