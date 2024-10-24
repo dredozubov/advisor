@@ -47,7 +47,6 @@ async fn generate_folder_names_years_quarters(
     result
 }
 
-
 async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
     let response = client
         .get(url.as_str())
@@ -102,9 +101,9 @@ async fn process_quarter_data(client: &Client, year: &str, qtr: &str) -> Result<
         };
 
         if should_update {
-            log::debug!("Downloading index file from {}", url);
+            println!("Updating file: {}", filepath.display());
             super::utils::fetch_and_save(client, &url, &filepath, USER_AGENT).await?;
-            println!("Downloaded index file: {}", filepath.display());
+            println!("\n\n\tUpdating edgar database\n\n");
         } else {
             println!("File is up to date: {}", filepath.display());
         }
@@ -146,11 +145,12 @@ pub async fn update_full_index_feed(
     } else {
         let db = sled::open(&*DB_PATH)?;
         log::debug!("Successfully opened sled database");
-        
+
         let needs_update = if let Some((stored_start, stored_end)) = get_date_range(&db)? {
             log::debug!(
                 "Found stored date range: {} to {}",
-                stored_start, stored_end
+                stored_start,
+                stored_end
             );
             let needs_update = index_start_date < stored_start || index_end_date > stored_end;
             log::debug!("Update needed: {}", needs_update);
@@ -159,7 +159,7 @@ pub async fn update_full_index_feed(
             log::debug!("No stored date range found in existing database");
             true // Database exists but no date range stored, need to update
         };
-        
+
         // Explicitly close the database
         drop(db);
         needs_update
@@ -202,7 +202,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     };
 
     if should_update {
-        println!("Downloading master index file...");
+        println!("Updating master.idx file...");
         fetch_and_save(
             &client,
             &get_edgar_full_master_url(),
@@ -210,7 +210,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
         )
         .await?;
     } else {
-        println!("Master index file is up to date, using local version");
+        println!("master.idx is up to date, using local version.");
     }
 
     // Process quarters in batches of 8
@@ -232,7 +232,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
         }
     }
 
-    println!("Completed downloading all index files");
+    println!("\n\n\tCompleted Index Update\n\n\t");
 
     // Create or open sled database
     log::debug!("Creating/Opening sled database at {:?}", &*DB_PATH);
@@ -249,15 +249,11 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     log::debug!("Successfully stored date range");
 
     // Flush the database to ensure all data is written
-    log::debug!("Flushing database");
-    println!(
-        "DEBUG: Date range stored: {} to {}",
-        index_start_date, index_end_date
-    );
+    log::debug!("Writing to index database");
     db.flush()?;
     log::debug!("Successfully flushed database");
 
-    println!("Successfully updated index database with new date range");
+    println!("\n\n\tCompleted Merging IDX files\n\n\t");
 
     Ok(())
 }
