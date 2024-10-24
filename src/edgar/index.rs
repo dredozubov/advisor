@@ -183,7 +183,7 @@ fn store_date_range(db: &Db, start_date: NaiveDate, end_date: NaiveDate) -> Resu
 fn get_date_range(db: &Db) -> Result<Option<(NaiveDate, NaiveDate)>> {
     let start = db.get("index_start_date")?;
     let end = db.get("index_end_date")?;
-    
+
     match (start, end) {
         (Some(start), Some(end)) => {
             let start_str = String::from_utf8(start.to_vec())?;
@@ -220,10 +220,7 @@ pub async fn update_full_index_feed(
     Ok(())
 }
 
-async fn update_index_feed(
-    index_start_date: NaiveDate,
-    index_end_date: NaiveDate,
-) -> Result<()> {
+async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDate) -> Result<()> {
     fs::create_dir_all(get_full_index_data_dir())
         .context("Failed to create full index data directory")?;
 
@@ -272,8 +269,7 @@ async fn update_index_feed(
             let client = client.clone();
             let year = year.to_string();
             let qtr = qtr.to_string();
-            let task =
-                task::spawn(async move { process_quarter_data(&client, &year, &qtr).await });
+            let task = task::spawn(async move { process_quarter_data(&client, &year, &qtr).await });
             tasks.push(task);
         }
 
