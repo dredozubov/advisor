@@ -200,14 +200,20 @@ pub async fn update_full_index_feed(
     index_start_date: NaiveDate,
     index_end_date: NaiveDate,
 ) -> Result<()> {
-    // Open sled database
+    println!("DEBUG: Opening sled database for update check");
     let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
     let db = sled::open(db_path)?;
+    println!("DEBUG: Successfully opened sled database");
 
     // Check if we need to update
+    println!("DEBUG: Checking if update is needed");
     let should_update = if let Some((stored_start, stored_end)) = get_date_range(&db)? {
-        index_start_date < stored_start || index_end_date > stored_end
+        println!("DEBUG: Found stored date range: {} to {}", stored_start, stored_end);
+        let needs_update = index_start_date < stored_start || index_end_date > stored_end;
+        println!("DEBUG: Update needed: {}", needs_update);
+        needs_update
     } else {
+        println!("DEBUG: No stored date range found");
         true // No date range stored, need to update
     };
 
@@ -282,10 +288,14 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     println!("\n\n\tCompleted Index Update\n\n\t");
 
     // Store the date range in the database
+    println!("DEBUG: Storing new date range in database");
     store_date_range(&db, index_start_date, index_end_date)?;
+    println!("DEBUG: Successfully stored date range");
 
     // Flush the database to ensure all data is written
+    println!("DEBUG: Flushing database");
     db.flush()?;
+    println!("DEBUG: Successfully flushed database");
 
     println!("\n\n\tCompleted Merging IDX files\n\n\t");
 
