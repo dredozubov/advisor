@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::eval;
 use claude_api_interaction::repl;
-use llm_chain::executor;
+use langchain_openai::chatgpt::ChatGPT;
 use rustyline::error::ReadlineError;
 use std::env;
 use std::error::Error;
@@ -14,9 +14,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
-    // Initialize ChatGPT executor with API key from environment
+    // Initialize ChatGPT client
     let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
-    let llm_exec = llm_chain_openai::chatgpt::Executor::for_client(openai_client, openai_options);
+    let llm = ChatGPT::new(api_key)?;
 
     // Create a Config instance
     let config = Config {

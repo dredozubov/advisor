@@ -1,17 +1,17 @@
 use crate::edgar::{filing, index::Config, query::Query};
 use anyhow::Result;
-use llm_chain::{
-    chains::sequential,
-    parameters, prompt,
-    step::Step,
-    traits::Executor,
+use langchain::{
+    chains::{Chain, SequentialChain},
+    prompts::PromptTemplate,
+    schema::{Messages, SystemMessage, UserMessage},
 };
+use langchain_openai::chatgpt::ChatGPT;
 
-pub async fn eval<E: Executor>(
+pub async fn eval(
     input: &str,
     config: &Config,
     http_client: &reqwest::Client,
-    llm_exec: &E,
+    llm: &ChatGPT,
     _thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
@@ -25,36 +25,41 @@ pub async fn eval<E: Executor>(
     Ok(response)
 }
 
-async fn extract_query_params<E: Executor>(client: &E, input: &str) -> Result<String> {
+async fn extract_query_params(llm: &ChatGPT, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
 
-    // Create a chain of steps for parameter extraction
-    let chain = sequential::Chain::new(vec![
-        // First step: Extract raw parameters
-        Step::for_prompt_template(prompt!(
-            "You are an AI assistant that extracts query parameters from user input.",
-            "Extract the following parameters from the input text:\n- Company tickers\n- Date ranges\n- Report types\n\nInput: {{input}}"
-        )),
-        // Second step: Format as JSON
-        Step::for_prompt_template(prompt!(
-            "You are an AI assistant that formats extracted parameters as JSON.",
-            r#"Format these parameters as a JSON object with fields:
-            - 'tickers': array of strings
-            - 'start_date': ISO date (YYYY-MM-DD)
-            - 'end_date': ISO date (YYYY-MM-DD)
-            - 'report_types': array of strings
-            
-            Use reasonable defaults for missing values.
-            
-            Parameters to format:
-            {{text}}"#
-        ))
+    // Create prompt templates
+    let extract_prompt = PromptTemplate::new(
+        "Extract the following parameters from the input text:\n- Company tickers\n- Date ranges\n- Report types\n\nInput: {input}".to_string(),
+        vec!["input".to_string()]
+    );
+
+    let format_prompt = PromptTemplate::new(
+        r#"Format these parameters as a JSON object with fields:
+        - 'tickers': array of strings
+        - 'start_date': ISO date (YYYY-MM-DD)
+        - 'end_date': ISO date (YYYY-MM-DD)
+        - 'report_types': array of strings
+        
+        Use reasonable defaults for missing values.
+        
+        Parameters to format:
+        {text}"#.to_string(),
+        vec!["text".to_string()]
+    );
+
+    // Create sequential chain
+    let chain = SequentialChain::new(vec![
+        Box::new(extract_prompt),
+        Box::new(format_prompt),
     ]);
 
-    // Run the chain
-    let params = parameters!("input" => input);
-    let response = chain.run(params, client).await?;
-    let result = response.to_immediate().await?.as_content().to_string();
+    // Run chain with system context
+    let messages = Messages::new()
+        .with_system("You are an AI assistant that extracts and formats query parameters.")
+        .with_user(input);
+    
+    let result = chain.run(messages, llm).await?;
 
     println!("Extracted parameters: {}", result);
     Ok(result)
