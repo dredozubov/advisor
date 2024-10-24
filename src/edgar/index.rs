@@ -29,34 +29,6 @@ pub fn get_full_index_data_dir() -> PathBuf {
     PathBuf::from(FULL_INDEX_DATA_DIR)
 }
 
-#[derive(Clone)]
-pub struct Config {
-    pub index_start_date: NaiveDate,
-    pub index_end_date: NaiveDate,
-    pub full_index_data_dir: PathBuf,
-    pub edgar_full_master_url: Url,
-    pub edgar_archives_url: Url,
-    pub index_files: Vec<String>,
-    pub user_agent: String,
-}
-
-impl Config {
-    pub fn load() -> Result<Self> {
-        // This is a placeholder implementation. You should replace this with your actual
-        // configuration loading logic, e.g., reading from a file or environment variables.
-        Ok(Config {
-            index_start_date: NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
-            index_end_date: Utc::now().date_naive(),
-            full_index_data_dir: PathBuf::from("edgar_data"),
-            edgar_full_master_url: Url::parse(
-                "https://www.sec.gov/Archives/edgar/full-index/master.idx",
-            )?,
-            edgar_archives_url: Url::parse("https://www.sec.gov/Archives/")?,
-            index_files: vec!["master.idx".to_string()],
-            user_agent: "software@example.com".to_string(),
-        })
-    }
-}
 
 async fn generate_folder_names_years_quarters(
     start_date: NaiveDate,
@@ -165,13 +137,12 @@ async fn check_remote_file_modified(client: &Client, url: &Url) -> Result<DateTi
 
 async fn process_quarter_data(
     client: &Client,
-    config: &Config,
     year: &str,
     qtr: &str,
     _db: &Db,
 ) -> Result<()> {
-    for file in &config.index_files {
-        let filepath = config.full_index_data_dir.join(&year).join(&qtr).join(file);
+    for file in INDEX_FILES {
+        let filepath = get_full_index_data_dir().join(&year).join(&qtr).join(file);
         let _csv_filepath = filepath.with_extension("csv");
 
         if let Some(parent) = filepath.parent() {
@@ -179,8 +150,7 @@ async fn process_quarter_data(
                 .context(format!("Failed to create directory: {:?}", parent))?;
         }
 
-        let url = config
-            .edgar_archives_url
+        let url = get_edgar_archives_url()
             .join(&format!("edgar/full-index/{}/{}/{}", year, qtr, file))?;
 
         let should_update = if filepath.exists() {
@@ -210,18 +180,21 @@ async fn process_quarter_data(
     Ok(())
 }
 
-pub async fn update_full_index_feed(config: &Config) -> Result<()> {
-    fs::create_dir_all(&config.full_index_data_dir)
+pub async fn update_full_index_feed(
+    index_start_date: NaiveDate,
+    index_end_date: NaiveDate,
+) -> Result<()> {
+    fs::create_dir_all(get_full_index_data_dir())
         .context("Failed to create full index data directory")?;
 
     let dates_quarters =
-        generate_folder_names_years_quarters(config.index_start_date, config.index_end_date).await;
-    let latest_full_index_master = config.full_index_data_dir.join("master.idx");
+        generate_folder_names_years_quarters(index_start_date, index_end_date).await;
+    let latest_full_index_master = get_full_index_data_dir().join("master.idx");
 
     let client = Client::new();
 
     // Open sled database
-    let db_path = config.full_index_data_dir.join("merged_idx_files.sled");
+    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
     let db = sled::open(db_path)?;
 
     // Check and update master.idx if necessary
@@ -230,7 +203,7 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         let local_modified: DateTime<Utc> = local_modified.into();
 
         let remote_modified =
-            check_remote_file_modified(&client, &config.edgar_full_master_url).await?;
+            check_remote_file_modified(&client, &get_edgar_full_master_url()).await?;
 
         remote_modified > local_modified
     } else {
@@ -241,7 +214,7 @@ pub async fn update_full_index_feed(config: &Config) -> Result<()> {
         println!("Updating master.idx file...");
         fetch_and_save(
             &client,
-            &config.edgar_full_master_url,
+            &get_edgar_full_master_url(),
             &latest_full_index_master,
         )
         .await?;

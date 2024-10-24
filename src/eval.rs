@@ -84,19 +84,8 @@ async fn fetch_filings(
 ) -> Result<String> {
     use edgar::index::{self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir};
 
-    // Create config for index update
-    let config = index::Config {
-        index_start_date: query.start_date,
-        index_end_date: query.end_date,
-        full_index_data_dir: get_full_index_data_dir(),
-        edgar_full_master_url: get_edgar_full_master_url(),
-        edgar_archives_url: get_edgar_archives_url(),
-        index_files: vec!["master.idx".to_string()],
-        user_agent: USER_AGENT.to_string(),
-    };
-
     // Update index if necessary based on query date range
-    index::update_full_index_feed(&config).await?;
+    index::update_full_index_feed(query.start_date, query.end_date).await?;
 
     // TODO: Implement filing retrieval logic
     Ok("Index updated successfully".to_string())
