@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize ChatGPT executor with API key from environment
     let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
-    let llm_exec = executor!()?;
+    let llm_exec = llm_chain_openai::chatgpt::Executor::for_client(openai_client, openai_options);
 
     // Create a Config instance
     let config = Config {
