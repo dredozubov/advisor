@@ -26,7 +26,7 @@ pub async fn eval(
 
     // // Step 2: Construct Query and fetch data
     let query = Query::from_json(&query_json)?;
-    // let response = fetch_filings(&query, config, http_client, llm).await?;
+    let response = fetch_filings(&query, config, http_client, llm).await?;
 
     Ok("".to_string())
 }
