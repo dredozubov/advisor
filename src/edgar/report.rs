@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 use serde::Deserialize;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
@@ -34,13 +35,59 @@ impl TryFrom<String> for ReportType {
     }
 }
 
+impl fmt::Display for ReportType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReportType::Form10K => write!(f, "10-K"),
+            ReportType::Form10Q => write!(f, "10-Q"),
+            ReportType::Form8K => write!(f, "8-K"),
+            ReportType::Form4 => write!(f, "4"),
+            ReportType::Form5 => write!(f, "5"),
+            ReportType::FormS1 => write!(f, "S-1"),
+            ReportType::FormS3 => write!(f, "S-3"),
+            ReportType::FormS4 => write!(f, "S-4"),
+            ReportType::FormDEF14A => write!(f, "DEF 14A"),
+            ReportType::Form13F => write!(f, "13F"),
+            ReportType::Form13G => write!(f, "13G"),
+            ReportType::Form13D => write!(f, "13D"),
+            ReportType::FormSD => write!(f, "SD"),
+            ReportType::Form6K => write!(f, "6-K"),
+            ReportType::Form20F => write!(f, "20-F"),
+            ReportType::FormN1A => write!(f, "N-1A"),
+            ReportType::FormNCSR => write!(f, "N-CSR"),
+            ReportType::FormNPORT => write!(f, "N-PORT"),
+            ReportType::FormNQ => write!(f, "N-Q"),
+            ReportType::Other(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 pub static REPORT_TYPES: Lazy<String> = Lazy::new(|| {
     let types = vec![
-        "10-K", "10-Q", "8-K", "4", "5", "S-1", "S-3", "S-4",
-        "DEF 14A", "13F", "13G", "13D", "SD", "6-K", "20-F",
-        "N-1A", "N-CSR", "N-PORT", "N-Q"
+        ReportType::Form10K,
+        ReportType::Form10Q,
+        ReportType::Form8K,
+        ReportType::Form4,
+        ReportType::Form5,
+        ReportType::FormS1,
+        ReportType::FormS3,
+        ReportType::FormS4,
+        ReportType::FormDEF14A,
+        ReportType::Form13F,
+        ReportType::Form13G,
+        ReportType::Form13D,
+        ReportType::FormSD,
+        ReportType::Form6K,
+        ReportType::Form20F,
+        ReportType::FormN1A,
+        ReportType::FormNCSR,
+        ReportType::FormNPORT,
+        ReportType::FormNQ,
     ];
-    types.join(", ")
+    types.iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 });
 
 impl ReportType {
