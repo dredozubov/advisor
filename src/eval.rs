@@ -72,7 +72,7 @@ async fn fetch_filings(
     config: &Config,
     client: &reqwest::Client,
     executor: &impl Executor,
-) -> Result<Report> {
+) -> Result<String> {
     // Update index if necessary
     crate::edgar::index::update_full_index_feed(config).await?;
 
@@ -83,7 +83,7 @@ async fn fetch_filings(
         filing_params.push(parameters!(filing.content()));
     }
 
-    Ok(filing_params)
+    Ok("".to_string())
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
