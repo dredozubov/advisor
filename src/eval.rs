@@ -62,7 +62,7 @@ async fn extract_query_params<E: Executor>(client: &E, input: &str) -> Result<St
     let params = parameters!("input" => input);
     let response = chain.run(params, client).await?;
     let result = response.to_immediate().await?.as_content();
-    
+
     println!("Extracted parameters: {}", result);
     Ok(result)
 }
@@ -72,36 +72,9 @@ async fn fetch_filings(
     config: &Config,
     client: &reqwest::Client,
     executor: &impl Executor,
-) -> Result<String> {
+) -> Result<Report> {
     // Update index if necessary
     crate::edgar::index::update_full_index_feed(config).await?;
-
-    // Create map-reduce chain for processing filings
-    let map_prompt = Step::for_prompt_template(prompt!(
-        "You are a financial document analyzer specialized in SEC filings. Focus on key metrics, material changes, and risk factors.",
-        r#"Analyze this SEC filing and extract key information in bullet points:
-        - Financial metrics and changes
-        - Material business updates
-        - Risk factors and concerns
-        - Notable disclosures
-        
-        Filing text:
-        {{text}}"#
-    ));
-
-    let reduce_prompt = Step::for_prompt_template(prompt!(
-        "You are a financial report summarizer specialized in creating executive summaries.",
-        r#"Create a comprehensive summary of these filing analyses. Structure it as:
-        1. Key Financial Highlights
-        2. Business Updates
-        3. Risk Assessment
-        4. Notable Disclosures
-        
-        Analyses to combine:
-        {{text}}"#
-    ));
-
-    let chain = map_reduce::Chain::new(map_prompt, reduce_prompt);
 
     // Fetch and process filings
     let mut filing_params = Vec::new();
@@ -110,9 +83,7 @@ async fn fetch_filings(
         filing_params.push(parameters!(filing.content()));
     }
 
-    // Run map-reduce chain
-    let result = chain.run(filing_params, parameters!(), executor).await?;
-    Ok(result.to_immediate().await?.as_content())
+    Ok(filing_params)
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
