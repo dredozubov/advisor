@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use crate::edgar::{
     filing,
@@ -12,15 +12,18 @@ use llm_chain::{
     step::Step,
     traits::Executor,
 };
+use llm_chain_openai::chatgpt;
 use tokenizers::Tokenizer;
 
-pub async fn eval<E: Executor>(
+pub async fn eval(
     input: &str,
     config: &Config,
-    llm_client: &E,
     http_client: &reqwest::Client,
     thread_id: &mut Option<String>,
 ) -> Result<String> {
+    // Initialize ChatGPT executor with API key from environment
+    let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+    let llm_client = chatgpt::Executor::new_with_key(&api_key)?;
     // Step 1: Extract date ranges and report types using Anthropic LLM
     let query_json = extract_query_params(llm_client, input).await?;
     println!("{}", query_json);
