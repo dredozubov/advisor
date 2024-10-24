@@ -202,7 +202,7 @@ pub async fn update_full_index_feed(
 ) -> Result<()> {
     println!("DEBUG: Opening sled database for update check");
     let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
-    let db = sled::open(db_path)?;
+    let db = sled::open(db_path.clone())?;
     println!("DEBUG: Successfully opened sled database");
 
     // Check if we need to update
