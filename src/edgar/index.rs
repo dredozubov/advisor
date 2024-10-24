@@ -29,7 +29,6 @@ pub fn get_full_index_data_dir() -> PathBuf {
     PathBuf::from(FULL_INDEX_DATA_DIR)
 }
 
-
 #[derive(Clone)]
 pub struct Config {
     pub index_start_date: NaiveDate,
