@@ -7,6 +7,7 @@ use reqwest::Client;
 use sled::{Db, IVec};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use log;
 use std::path::{Path, PathBuf};
 use tokio::task;
 use url::Url;
@@ -132,6 +133,88 @@ fn get_date_range(db: &Db) -> Result<Option<(NaiveDate, NaiveDate)>> {
         }
         _ => Ok(None),
     }
+}
+
+/// Represents a filing entry from an index file
+#[derive(Debug, Clone)]
+pub struct IndexEntry {
+    pub cik: String,
+    pub company_name: String,
+    pub form_type: String,
+    pub date_filed: NaiveDate,
+    pub filename: String,
+}
+
+pub async fn lookup_filings(
+    ticker: &str,
+    form_type: &str,
+    start_date: NaiveDate,
+    end_date: NaiveDate,
+) -> Result<Vec<IndexEntry>> {
+    let mut entries = Vec::new();
+    
+    // Read through index files in the date range
+    let dates_quarters = generate_folder_names_years_quarters(start_date, end_date).await;
+    
+    for (year, qtr) in dates_quarters {
+        let idx_path = get_full_index_data_dir()
+            .join(&year)
+            .join(&qtr)
+            .join("form.idx");
+            
+        if !idx_path.exists() {
+            log::debug!("Index file not found: {:?}", idx_path);
+            continue;
+        }
+
+        log::debug!("Reading index file: {:?}", idx_path);
+        
+        let file = File::open(&idx_path)?;
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+
+        // Skip header lines (first 10 lines)
+        for _ in 0..10 {
+            let _ = lines.next();
+        }
+
+        // Process each line
+        for line in lines {
+            let line = line?;
+            let fields: Vec<&str> = line.split('|').collect();
+            
+            if fields.len() >= 5 {
+                let entry_form_type = fields[2].trim();
+                if entry_form_type == form_type {
+                    let cik = fields[0].trim();
+                    let company_name = fields[1].trim();
+                    let date_filed = NaiveDate::parse_from_str(fields[3].trim(), "%Y-%m-%d")?;
+                    let filename = fields[4].trim();
+
+                    if date_filed >= start_date && date_filed <= end_date {
+                        entries.push(IndexEntry {
+                            cik: cik.to_string(),
+                            company_name: company_name.to_string(),
+                            form_type: entry_form_type.to_string(),
+                            date_filed,
+                            filename: filename.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    log::debug!(
+        "Found {} {} filings for ticker {} between {} and {}", 
+        entries.len(),
+        form_type,
+        ticker,
+        start_date,
+        end_date
+    );
+
+    Ok(entries)
 }
 
 pub async fn update_full_index_feed(
