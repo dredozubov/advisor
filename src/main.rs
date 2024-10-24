@@ -2,7 +2,18 @@ use chrono::NaiveDate;
 use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::eval;
 use claude_api_interaction::repl;
-use llm_chain_openai::chatgpt::Executor as ChatGPT;
+use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::{
+    chain::{Chain, LLMChainBuilder},
+    fmt_message, fmt_placeholder, fmt_template,
+    language_models::llm::LLM,
+    llm::openai::{OpenAI, OpenAIModel},
+    message_formatter,
+    prompt::HumanMessagePromptTemplate,
+    prompt_args,
+    schemas::messages::Message,
+    template_fstring,
+};
 use rustyline::error::ReadlineError;
 use std::env;
 use std::error::Error;
@@ -14,10 +25,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
-    // Initialize ChatGPT client
-    let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
-    let llm = ChatGPT::new(api_key)?;
-
+    // Initialize ChatGPT executor with API key from environment
+    let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+    let open_ai = OpenAI::default()
+        .with_config(OpenAIConfig::default().with_api_key(openai_key))
+        .with_model(OpenAIModel::Gpt4oMini.to_string());
     // Create a Config instance
     let config = Config {
         index_start_date: NaiveDate::from_ymd_opt(2022, 1, 1).unwrap(),
@@ -61,7 +73,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &http_client, &llm, &mut thread_id).await {
+                match eval::eval(input, &config, &http_client, &open_ai, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }

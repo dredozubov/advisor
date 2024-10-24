@@ -109,12 +109,10 @@ impl Validator for ReplHelper {
         for word in words {
             if word.starts_with('@') {
                 let ticker_with_punctuation = &word[1..]; // Remove the '@' prefix
-                let ticker = ticker_with_punctuation.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-');
+                let ticker = ticker_with_punctuation
+                    .trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-');
                 let ticker = ticker.to_uppercase();
-                if !ticker_map
-                    .values()
-                    .any(|(t, _, _)| t.as_str() == ticker)
-                {
+                if !ticker_map.values().any(|(t, _, _)| t.as_str() == ticker) {
                     return Ok(ValidationResult::Invalid(Some(format!(
                         "Invalid ticker: {}",
                         ticker
