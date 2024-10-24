@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -33,7 +34,20 @@ impl TryFrom<String> for ReportType {
     }
 }
 
+pub static REPORT_TYPES: Lazy<String> = Lazy::new(|| {
+    let types = vec![
+        "10-K", "10-Q", "8-K", "4", "5", "S-1", "S-3", "S-4",
+        "DEF 14A", "13F", "13G", "13D", "SD", "6-K", "20-F",
+        "N-1A", "N-CSR", "N-PORT", "N-Q"
+    ];
+    types.join(", ")
+});
+
 impl ReportType {
+    pub fn list_types() -> &'static str {
+        &REPORT_TYPES
+    }
+
     pub fn from_str(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "10-K" => ReportType::Form10K,
