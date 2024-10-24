@@ -15,20 +15,20 @@ use llm_chain::{
 use llm_chain_openai::chatgpt;
 use tokenizers::Tokenizer;
 
-pub async fn eval(
+pub async fn eval<E: Executor>(
     input: &str,
     config: &Config,
     http_client: &reqwest::Client,
-    llm_client: &impl Executor,
+    llm_exec: &E,
     thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
-    let query_json = extract_query_params(&llm_client, input).await?;
+    let query_json = extract_query_params(llm_exec, input).await?;
     println!("{}", query_json);
 
     // // Step 2: Construct Query and fetch data
     let query = Query::from_json(&query_json)?;
-    let response = fetch_filings(&query, config, http_client, llm_client).await?;
+    let response = fetch_filings(&query, config, http_client, llm_exec).await?;
 
     Ok(response)
 }

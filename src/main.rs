@@ -5,9 +5,10 @@ use claude_api_interaction::repl;
 use llm_chain::parameters;
 use llm_chain::step::Step;
 use llm_chain::traits::Executor as ExecutorTrait;
-use llm_chain::{chains::sequential::Chain, prompt};
+use llm_chain::{chains::sequential::Chain, executor, prompt};
 use llm_chain_openai::chatgpt::Executor;
 use rustyline::error::ReadlineError;
+use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use url::Url;
@@ -19,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize ChatGPT executor with API key from environment
     let api_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
-    let llm_client = Executor::new_with_key(&api_key)?;
+    let llm_exec = executor!();
 
     // Create a Config instance
     let config = Config {
@@ -64,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &http_client, &llm_client, &mut thread_id).await {
+                match eval::eval(input, &config, &http_client, &llm_exec, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }
