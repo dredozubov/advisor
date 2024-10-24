@@ -24,7 +24,8 @@ impl Ticker {
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
         {
             return Err(anyhow!(
-                "Ticker must contain only alphanumeric characters or hyphens"
+                "Ticker must contain only alphanumeric characters or hyphens: {}",
+                ticker
             ));
         }
         Ok(Ticker(uppercase_ticker))
@@ -77,10 +78,10 @@ pub fn load_tickers() -> Result<Vec<TickerData>> {
         let json: HashMap<String, Value> = serde_json::from_str(&json_string)?;
         log::debug!("Found {} ticker entries", json.len());
 
-        let result: Result<Vec<TickerData>> = json.values()
+        let result: Result<Vec<TickerData>> = json
+            .values()
             .map(|v| {
-                let ticker_str = v["ticker"].as_str().unwrap().to_string();
-                log::debug!("Processing ticker: {}", ticker_str);
+                let ticker_str = v["ticker"].as_str().unwrap().trim().to_string();
                 let ticker = Ticker::new(ticker_str)?;
                 Ok((
                     ticker,

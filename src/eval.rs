@@ -16,8 +16,6 @@ use langchain_rust::{
 
 pub async fn eval(
     input: &str,
-    index_start_date: NaiveDate,
-    index_end_date: NaiveDate,
     http_client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
