@@ -5,15 +5,14 @@ use crate::edgar::{
     index::{update_full_index_feed, Config},
     query::Query,
 };
-use llm_chain::{executor, parameters, prompt, chains::{Chain, LLMChain}, traits::Executor};
-use llm_chain_openai::chatgpt::Executor as ChatGPT;
 use anyhow::Result;
+use llm_chain::{executor, options, parameters, prompt, traits::Executor};
 use tokenizers::Tokenizer;
 
-pub async fn eval(
+pub async fn eval<E: Executor>(
     input: &str,
     config: &Config,
-    llm_client: &ChatGPT,
+    llm_client: &E,
     http_client: &reqwest::Client,
     thread_id: &mut Option<String>,
 ) -> Result<String> {
@@ -41,7 +40,7 @@ pub async fn eval(
     Ok(response)
 }
 
-async fn extract_query_params(client: &ChatGPT, input: &str) -> Result<String> {
+async fn extract_query_params<E: Executor>(client: &E, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
 
     let prompt = prompt!(
@@ -52,7 +51,7 @@ async fn extract_query_params(client: &ChatGPT, input: &str) -> Result<String> {
          Extract query parameters from: {{input}}"
     );
 
-    let chain = LLMChain::new(prompt);
+    // let chain = LLMChain::new(prompt);
     let params = parameters!({
         "input" => input
     });
