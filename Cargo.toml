@@ -33,12 +33,10 @@ serde_json = "1.0.128"
 regex = "1.5"
 html-escape = "0.2"
 uuencode = "0.1.5"
-radixdb = "0.2.5"
 rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.20.0"
 tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
-
 
 [dev-dependencies]
 tempfile = "3.2"
