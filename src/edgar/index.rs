@@ -196,10 +196,31 @@ fn get_date_range(db: &Db) -> Result<Option<(NaiveDate, NaiveDate)>> {
     }
 }
 
-async fn update_index_feed(
+pub async fn update_full_index_feed(
     index_start_date: NaiveDate,
     index_end_date: NaiveDate,
 ) -> Result<()> {
+    // Open sled database
+    let db_path = get_full_index_data_dir().join("merged_idx_files.sled");
+    let db = sled::open(db_path)?;
+
+    // Check if we need to update
+    let should_update = if let Some((stored_start, stored_end)) = get_date_range(&db)? {
+        index_start_date < stored_start || index_end_date > stored_end
+    } else {
+        true // No date range stored, need to update
+    };
+
+    if should_update {
+        update_index_feed(index_start_date, index_end_date).await?;
+    } else {
+        println!("Index is up to date for the requested date range");
+    }
+
+    Ok(())
+}
+
+async fn update_index_feed(
     fs::create_dir_all(get_full_index_data_dir())
         .context("Failed to create full index data directory")?;
 
