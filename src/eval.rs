@@ -61,7 +61,7 @@ async fn extract_query_params<E: Executor>(client: &E, input: &str) -> Result<St
     // Run the chain
     let params = parameters!("input" => input);
     let response = chain.run(params, client).await?;
-    let result = response.to_immediate().await?.as_content();
+    let result = response.to_immediate().await?.as_content().to_string();
 
     println!("Extracted parameters: {}", result);
     Ok(result)
