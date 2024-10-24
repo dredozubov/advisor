@@ -134,7 +134,7 @@ async fn check_remote_file_modified(client: &Client, url: &Url) -> Result<DateTi
     Ok(last_modified.with_timezone(&Utc))
 }
 
-async fn process_quarter_data(client: &Client, year: &str, qtr: &str, _db: &Db) -> Result<()> {
+async fn process_quarter_data(client: &Client, year: &str, qtr: &str) -> Result<()> {
     for file in INDEX_FILES {
         let filepath = get_full_index_data_dir().join(&year).join(&qtr).join(file);
         let _csv_filepath = filepath.with_extension("csv");
@@ -272,9 +272,8 @@ async fn update_index_feed(
             let client = client.clone();
             let year = year.to_string();
             let qtr = qtr.to_string();
-            let db = db.clone();
             let task =
-                task::spawn(async move { process_quarter_data(&client, &year, &qtr, &db).await });
+                task::spawn(async move { process_quarter_data(&client, &year, &qtr).await });
             tasks.push(task);
         }
 
