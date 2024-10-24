@@ -35,24 +35,36 @@ pub async fn eval<E: Executor>(
 async fn extract_query_params<E: Executor>(client: &E, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
 
-    let prompt = prompt!(
-        "You are an AI assistant that extracts query parameters from user input. 
-         Return a JSON object with 'tickers', 'start_date', 'end_date', and 'report_types' fields.
-         Use ISO date format (YYYY-MM-DD) for dates. Infer reasonable defaults if information is missing.
-         
-         Extract query parameters from: {{input}}"
-    );
+    // Create a chain of steps for parameter extraction
+    let chain = sequential::Chain::new(vec![
+        // First step: Extract raw parameters
+        Step::for_prompt_template(prompt!(
+            "You are an AI assistant that extracts query parameters from user input.",
+            "Extract the following parameters from the input text:\n- Company tickers\n- Date ranges\n- Report types\n\nInput: {{input}}"
+        )),
+        // Second step: Format as JSON
+        Step::for_prompt_template(prompt!(
+            "You are an AI assistant that formats extracted parameters as JSON.",
+            r#"Format these parameters as a JSON object with fields:
+            - 'tickers': array of strings
+            - 'start_date': ISO date (YYYY-MM-DD)
+            - 'end_date': ISO date (YYYY-MM-DD)
+            - 'report_types': array of strings
+            
+            Use reasonable defaults for missing values.
+            
+            Parameters to format:
+            {{text}}"#
+        ))
+    ]);
 
-    // let chain = LLMChain::new(prompt);
-    let params = parameters!({
-        "input" => input
-    });
-
-    println!("Sending request to ChatGPT API...");
-    let response = chain.run(client, &params).await?;
-    println!("Received response from ChatGPT API: {}", response);
-
-    Ok(response)
+    // Run the chain
+    let params = parameters!("input" => input);
+    let response = chain.run(params, client).await?;
+    let result = response.to_immediate().await?.as_content();
+    
+    println!("Extracted parameters: {}", result);
+    Ok(result)
 }
 
 async fn fetch_filings(
@@ -66,13 +78,27 @@ async fn fetch_filings(
 
     // Create map-reduce chain for processing filings
     let map_prompt = Step::for_prompt_template(prompt!(
-        "You are a financial document analyzer. Analyze this filing and extract key information.",
-        "Analyze this SEC filing and provide key points:\n{{text}}"
+        "You are a financial document analyzer specialized in SEC filings. Focus on key metrics, material changes, and risk factors.",
+        r#"Analyze this SEC filing and extract key information in bullet points:
+        - Financial metrics and changes
+        - Material business updates
+        - Risk factors and concerns
+        - Notable disclosures
+        
+        Filing text:
+        {{text}}"#
     ));
 
     let reduce_prompt = Step::for_prompt_template(prompt!(
-        "You are a financial report summarizer. Combine multiple filing analyses into a cohesive summary.",
-        "Combine these filing analyses into a single comprehensive summary:\n{{text}}"
+        "You are a financial report summarizer specialized in creating executive summaries.",
+        r#"Create a comprehensive summary of these filing analyses. Structure it as:
+        1. Key Financial Highlights
+        2. Business Updates
+        3. Risk Assessment
+        4. Notable Disclosures
+        
+        Analyses to combine:
+        {{text}}"#
     ));
 
     let chain = map_reduce::Chain::new(map_prompt, reduce_prompt);
