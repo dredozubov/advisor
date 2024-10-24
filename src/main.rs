@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &http_client, &llm_exec, &mut thread_id).await {
+                match eval::eval(input, &config, &http_client, &llm, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }

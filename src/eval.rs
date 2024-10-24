@@ -15,12 +15,12 @@ pub async fn eval(
     _thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
-    let query_json = extract_query_params(llm_exec, input).await?;
+    let query_json = extract_query_params(llm, input).await?;
     println!("{}", query_json);
 
     // // Step 2: Construct Query and fetch data
     let query = Query::from_json(&query_json)?;
-    let response = fetch_filings(&query, config, http_client, llm_exec).await?;
+    let response = fetch_filings(&query, config, http_client, llm).await?;
 
     Ok(response)
 }
@@ -69,19 +69,32 @@ async fn fetch_filings(
     query: &Query,
     config: &Config,
     client: &reqwest::Client,
-    _executor: &impl Executor,
+    llm: &ChatGPT,
 ) -> Result<String> {
     // Update index if necessary
     crate::edgar::index::update_full_index_feed(config).await?;
 
-    // Fetch and process filings
-    let mut filing_params = Vec::new();
+    // Create prompt for analyzing filings
+    let analyze_prompt = PromptTemplate::new(
+        "Analyze this SEC filing and extract key information:\n{content}".to_string(),
+        vec!["content".to_string()]
+    );
+
+    let mut results = Vec::new();
     for ticker in &query.tickers {
         let filing = filing::process_filing(client, &[("ticker", ticker.as_str())]).await?;
-        filing_params.push(parameters!(filing.content()));
+        
+        // Run analysis on each filing
+        let messages = Messages::new()
+            .with_system("You are a financial analyst specialized in SEC filings.")
+            .with_user(&filing.content());
+        
+        let analysis = analyze_prompt.format(messages).await?;
+        results.push(analysis);
     }
 
-    Ok("".to_string())
+    // Combine results
+    Ok(results.join("\n\n"))
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
