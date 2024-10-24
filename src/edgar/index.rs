@@ -102,9 +102,9 @@ async fn process_quarter_data(client: &Client, year: &str, qtr: &str) -> Result<
         };
 
         if should_update {
-            println!("Updating file: {}", filepath.display());
+            log::debug!("Downloading index file from {}", url);
             super::utils::fetch_and_save(client, &url, &filepath, USER_AGENT).await?;
-            println!("\n\n\tUpdating edgar database\n\n");
+            println!("Downloaded index file: {}", filepath.display());
         } else {
             println!("File is up to date: {}", filepath.display());
         }
@@ -202,7 +202,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     };
 
     if should_update {
-        println!("Updating master.idx file...");
+        println!("Downloading master index file...");
         fetch_and_save(
             &client,
             &get_edgar_full_master_url(),
@@ -210,7 +210,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
         )
         .await?;
     } else {
-        println!("master.idx is up to date, using local version.");
+        println!("Master index file is up to date, using local version");
     }
 
     // Process quarters in batches of 8
@@ -232,7 +232,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
         }
     }
 
-    println!("\n\n\tCompleted Index Update\n\n\t");
+    println!("Completed downloading all index files");
 
     // Create or open sled database
     log::debug!("Creating/Opening sled database at {:?}", &*DB_PATH);
@@ -257,7 +257,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
     db.flush()?;
     log::debug!("Successfully flushed database");
 
-    println!("\n\n\tCompleted Merging IDX files\n\n\t");
+    println!("Successfully updated index database with new date range");
 
     Ok(())
 }
