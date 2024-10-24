@@ -221,6 +221,9 @@ pub async fn update_full_index_feed(
 }
 
 async fn update_index_feed(
+    index_start_date: NaiveDate,
+    index_end_date: NaiveDate,
+) -> Result<()> {
     fs::create_dir_all(get_full_index_data_dir())
         .context("Failed to create full index data directory")?;
 
