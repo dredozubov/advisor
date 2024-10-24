@@ -47,13 +47,7 @@ impl std::fmt::Display for Ticker {
     }
 }
 
-use crate::edgar::index::Config;
-
-static USER_AGENT: Lazy<String> = Lazy::new(|| {
-    Config::load()
-        .map(|config| config.user_agent)
-        .unwrap_or_else(|_| "software@example.com".to_string())
-});
+static USER_AGENT: &str = "software@example.com";
 
 pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     let client = Client::new();
