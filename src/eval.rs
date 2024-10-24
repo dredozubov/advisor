@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::edgar::{self, filing, query::Query};
-use chrono::NaiveDate;
 use anyhow::Result;
+use chrono::NaiveDate;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message, fmt_template,
@@ -28,7 +28,7 @@ pub async fn eval(
 
     // // Step 2: Construct Query and fetch data
     let query = Query::from_json(&query_json)?;
-    let response = fetch_filings(&query, config, http_client, llm).await?;
+    let response = fetch_filings(&query, http_client, llm).await?;
 
     Ok("".to_string())
 }
@@ -77,37 +77,17 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     }
 }
 
-// async fn fetch_filings(
-//     query: &Query,
-//     config: &Config,
-//     client: &reqwest::Client,
-//     llm: &OpenAI<OpenAIConfig>,
-// ) -> Result<String> {
-//     // Update index if necessary
-//     crate::edgar::index::update_full_index_feed(config).await?;
+async fn fetch_filings(
+    query: &Query,
+    config: &Config,
+    client: &reqwest::Client,
+    llm: &OpenAI<OpenAIConfig>,
+) -> Result<String> {
+    // Update index if necessary
 
-//     // Create prompt for analyzing filings
-//     let analyze_prompt = PromptTemplate::new(
-//         "Analyze this SEC filing and extract key information:\n{content}".to_string(),
-//         vec!["content".to_string()],
-//     );
-
-//     let mut results = Vec::new();
-//     for ticker in &query.tickers {
-//         let filing = filing::process_filing(client, &[("ticker", ticker.as_str())]).await?;
-
-//         // Run analysis on each filing
-//         let messages = Messages::new()
-//             .with_system("You are a financial analyst specialized in SEC filings.")
-//             .with_user(&filing.content());
-
-//         let analysis = analyze_prompt.format(messages).await?;
-//         results.push(analysis);
-//     }
-
-//     // Combine results
-//     Ok(results.join("\n\n"))
-// }
+    // Combine results
+    Ok(results.join("\n\n"))
+}
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
 //     let tokenizer = Tokenizer::from_pretrained("gpt2", None)?;
