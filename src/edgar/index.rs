@@ -11,11 +11,24 @@ use std::path::{Path, PathBuf};
 use tokio::task;
 use url::Url;
 
-static USER_AGENT: Lazy<String> = Lazy::new(|| {
-    Config::load()
-        .map(|config| config.user_agent)
-        .unwrap_or_else(|_| "software@example.com".to_string())
-});
+pub const EDGAR_FULL_MASTER_URL: &str = "https://www.sec.gov/Archives/edgar/full-index/master.idx";
+pub const EDGAR_ARCHIVES_URL: &str = "https://www.sec.gov/Archives/";
+pub const INDEX_FILES: &[&str] = &["master.idx", "form.idx", "company.idx"];
+pub const USER_AGENT: &str = "Example@example.com";
+pub const FULL_INDEX_DATA_DIR: &str = "edgar_data/";
+
+pub fn get_edgar_full_master_url() -> Url {
+    Url::parse(EDGAR_FULL_MASTER_URL).expect("Invalid EDGAR master URL")
+}
+
+pub fn get_edgar_archives_url() -> Url {
+    Url::parse(EDGAR_ARCHIVES_URL).expect("Invalid EDGAR archives URL")
+}
+
+pub fn get_full_index_data_dir() -> PathBuf {
+    PathBuf::from(FULL_INDEX_DATA_DIR)
+}
+
 
 #[derive(Clone)]
 pub struct Config {
@@ -125,7 +138,7 @@ fn convert_idx_to_csv(filepath: &Path) -> Result<()> {
 async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<()> {
     let response = client
         .get(url.as_str())
-        .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
         .await?;
     let content = response.bytes().await?;
@@ -137,7 +150,7 @@ async fn fetch_and_save(client: &Client, url: &Url, filepath: &Path) -> Result<(
 async fn check_remote_file_modified(client: &Client, url: &Url) -> Result<DateTime<Utc>> {
     let response = client
         .head(url.as_str())
-        .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
         .await?;
 
@@ -184,7 +197,7 @@ async fn process_quarter_data(
 
         if should_update {
             println!("Updating file: {}", filepath.display());
-            super::utils::fetch_and_save(client, &url, &filepath, &USER_AGENT).await?;
+            super::utils::fetch_and_save(client, &url, &filepath, USER_AGENT).await?;
             println!("\n\n\tConverting idx to csv\n\n");
             convert_idx_to_csv(&filepath)?;
 

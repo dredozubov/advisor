@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
-use claude_api_interaction::eval;
-use claude_api_interaction::repl;
+use claude_api_interaction::{edgar::index::USER_AGENT, eval, repl};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -37,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // You can also include timeouts and other settings
     let http_client = reqwest::Client::builder()
-        .user_agent("software@example.com")
+        .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
