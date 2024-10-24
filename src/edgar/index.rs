@@ -310,6 +310,7 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
 
     // Flush the database to ensure all data is written
     println!("DEBUG: Flushing database");
+    println!("DEBUG: Date range stored: {} to {}", index_start_date, index_end_date);
     db.flush()?;
     println!("DEBUG: Successfully flushed database");
 
