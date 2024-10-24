@@ -1,4 +1,5 @@
 use chrono::NaiveDate;
+use claude_api_interaction::edgar::index;
 use claude_api_interaction::{edgar::index::USER_AGENT, eval, repl};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::{
@@ -13,9 +14,9 @@ use langchain_rust::{
     template_fstring,
 };
 use rustyline::error::ReadlineError;
-use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use std::{env, fs};
 use url::Url;
 
 #[tokio::main]
@@ -23,13 +24,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger.
     env_logger::init();
 
+    fs::create_dir_all(index::FULL_INDEX_DATA_DIR)?;
+
     // Initialize ChatGPT executor with API key from environment
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
     let open_ai = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
-    let index_start_date = NaiveDate::from_ymd_opt(2022, 1, 1).unwrap();
-    let index_end_date = NaiveDate::from_ymd_opt(2023, 12, 31).unwrap();
 
     // Create a rustyline Editor
     let mut rl = repl::create_editor().await?;
@@ -57,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, index_start_date, index_end_date, &http_client, &open_ai, &mut thread_id).await {
+                match eval::eval(input, &http_client, &open_ai, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }

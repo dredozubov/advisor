@@ -3,7 +3,6 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use csv::WriterBuilder;
 use futures::future::join_all;
 use once_cell::sync::Lazy;
-use std::path::PathBuf;
 use reqwest::Client;
 use sled::{Db, IVec};
 use std::fs::{self, File};
@@ -18,7 +17,8 @@ pub const INDEX_FILES: &[&str] = &["master.idx", "form.idx", "company.idx"];
 pub const USER_AGENT: &str = "Example@example.com";
 pub const FULL_INDEX_DATA_DIR: &str = "edgar_data/";
 
-static DB_PATH: Lazy<PathBuf> = Lazy::new(|| get_full_index_data_dir().join("merged_idx_files.sled"));
+static DB_PATH: Lazy<PathBuf> =
+    Lazy::new(|| get_full_index_data_dir().join("merged_idx_files.sled"));
 
 pub fn get_edgar_full_master_url() -> Url {
     Url::parse(EDGAR_FULL_MASTER_URL).expect("Invalid EDGAR master URL")
@@ -209,7 +209,7 @@ pub async fn update_full_index_feed(
 
     // Check if we need to update
     println!("DEBUG: Checking if update is needed");
-    let should_update = if !db_path.exists() {
+    let should_update = if !DB_PATH.exists() {
         println!("DEBUG: No index database found");
         false // No database, don't try to update
     } else if let Some((stored_start, stored_end)) = get_date_range(&db)? {
@@ -311,7 +311,10 @@ async fn update_index_feed(index_start_date: NaiveDate, index_end_date: NaiveDat
 
     // Flush the database to ensure all data is written
     println!("DEBUG: Flushing database");
-    println!("DEBUG: Date range stored: {} to {}", index_start_date, index_end_date);
+    println!(
+        "DEBUG: Date range stored: {} to {}",
+        index_start_date, index_end_date
+    );
     db.flush()?;
     println!("DEBUG: Successfully flushed database");
 
