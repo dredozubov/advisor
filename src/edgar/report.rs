@@ -1,8 +1,9 @@
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::fmt;
+use strum::{EnumIter, IntoEnumIterator};
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, EnumIter)]
 #[serde(try_from = "String")]
 pub enum ReportType {
     Form10K,
@@ -63,28 +64,8 @@ impl fmt::Display for ReportType {
 }
 
 pub static REPORT_TYPES: Lazy<String> = Lazy::new(|| {
-    let types = vec![
-        ReportType::Form10K,
-        ReportType::Form10Q,
-        ReportType::Form8K,
-        ReportType::Form4,
-        ReportType::Form5,
-        ReportType::FormS1,
-        ReportType::FormS3,
-        ReportType::FormS4,
-        ReportType::FormDEF14A,
-        ReportType::Form13F,
-        ReportType::Form13G,
-        ReportType::Form13D,
-        ReportType::FormSD,
-        ReportType::Form6K,
-        ReportType::Form20F,
-        ReportType::FormN1A,
-        ReportType::FormNCSR,
-        ReportType::FormNPORT,
-        ReportType::FormNQ,
-    ];
-    types.iter()
+    ReportType::iter()
+        .filter(|t| !matches!(t, ReportType::Other(_)))
         .map(|t| t.to_string())
         .collect::<Vec<_>>()
         .join(", ")

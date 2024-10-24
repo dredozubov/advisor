@@ -37,6 +37,7 @@ rustyline-derive = "0.10.0"
 scraper = "0.20.0"
 tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
 langchain-rust = "4.6.0"
+strum = { version = "0.25", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3.2"
