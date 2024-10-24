@@ -1,26 +1,18 @@
-use std::{env, sync::Arc};
-
-use crate::edgar::{
-    filing,
-    index::{update_full_index_feed, Config},
-    query::Query,
-};
+use crate::edgar::{filing, index::Config, query::Query};
 use anyhow::Result;
 use llm_chain::{
-    chains::{map_reduce, sequential},
-    executor, options, parameters, prompt,
+    chains::sequential,
+    parameters, prompt,
     step::Step,
     traits::Executor,
 };
-use llm_chain_openai::chatgpt;
-use tokenizers::Tokenizer;
 
 pub async fn eval<E: Executor>(
     input: &str,
     config: &Config,
     http_client: &reqwest::Client,
     llm_exec: &E,
-    thread_id: &mut Option<String>,
+    _thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
     let query_json = extract_query_params(llm_exec, input).await?;
@@ -72,7 +64,7 @@ async fn fetch_filings(
     query: &Query,
     config: &Config,
     client: &reqwest::Client,
-    executor: &impl Executor,
+    _executor: &impl Executor,
 ) -> Result<String> {
     // Update index if necessary
     crate::edgar::index::update_full_index_feed(config).await?;
