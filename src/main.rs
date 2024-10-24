@@ -1,5 +1,4 @@
 use chrono::NaiveDate;
-use claude_api_interaction::edgar::index::Config;
 use claude_api_interaction::eval;
 use claude_api_interaction::repl;
 use langchain_rust::llm::OpenAIConfig;
@@ -30,22 +29,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let open_ai = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
-    // Create a Config instance
-    let config = Config {
-        index_start_date: NaiveDate::from_ymd_opt(2022, 1, 1).unwrap(),
-        index_end_date: NaiveDate::from_ymd_opt(2023, 12, 31).unwrap(),
-        full_index_data_dir: PathBuf::from("edgar_data/"),
-        edgar_full_master_url: Url::parse(
-            "https://www.sec.gov/Archives/edgar/full-index/master.idx",
-        )?,
-        edgar_archives_url: Url::parse("https://www.sec.gov/Archives/")?,
-        index_files: vec![
-            "master.idx".to_string(),
-            "form.idx".to_string(),
-            "company.idx".to_string(),
-        ],
-        user_agent: "Example@example.com".to_string(),
-    };
+    let index_start_date = NaiveDate::from_ymd_opt(2022, 1, 1).unwrap();
+    let index_end_date = NaiveDate::from_ymd_opt(2023, 12, 31).unwrap();
 
     // Create a rustyline Editor
     let mut rl = repl::create_editor().await?;
@@ -73,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &config, &http_client, &open_ai, &mut thread_id).await {
+                match eval::eval(input, index_start_date, index_end_date, &http_client, &open_ai, &mut thread_id).await {
                     Ok(result) => println!("{}", result),
                     Err(e) => eprintln!("Error: {}", e),
                 }

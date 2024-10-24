@@ -1,6 +1,7 @@
 use std::fmt;
 
-use crate::edgar::{self, filing, index::Config, query::Query};
+use crate::edgar::{self, filing, query::Query};
+use chrono::NaiveDate;
 use anyhow::Result;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -15,7 +16,8 @@ use langchain_rust::{
 
 pub async fn eval(
     input: &str,
-    config: &Config,
+    index_start_date: NaiveDate,
+    index_end_date: NaiveDate,
     http_client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
