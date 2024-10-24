@@ -204,25 +204,29 @@ pub async fn update_full_index_feed(
     index_end_date: NaiveDate,
 ) -> Result<()> {
     log::debug!("Opening sled database for update check at {:?}", &*DB_PATH);
-    let db = sled::open(&*DB_PATH)?;
-    log::debug!("Successfully opened sled database");
-
-    // Check if we need to update
-    log::debug!("Checking if update is needed");
     let should_update = if !DB_PATH.exists() {
         log::debug!("No index database found at {:?}", &*DB_PATH);
-        false // No database, don't try to update
-    } else if let Some((stored_start, stored_end)) = get_date_range(&db)? {
-        println!(
-            "DEBUG: Found stored date range: {} to {}",
-            stored_start, stored_end
-        );
-        let needs_update = index_start_date < stored_start || index_end_date > stored_end;
-        log::debug!("Update needed: {}", needs_update);
-        needs_update
+        true // No database exists, need to create it
     } else {
-        log::debug!("No stored date range found in existing database");
-        true // Database exists but no date range stored, need to update
+        let db = sled::open(&*DB_PATH)?;
+        log::debug!("Successfully opened sled database");
+        
+        let needs_update = if let Some((stored_start, stored_end)) = get_date_range(&db)? {
+            log::debug!(
+                "Found stored date range: {} to {}",
+                stored_start, stored_end
+            );
+            let needs_update = index_start_date < stored_start || index_end_date > stored_end;
+            log::debug!("Update needed: {}", needs_update);
+            needs_update
+        } else {
+            log::debug!("No stored date range found in existing database");
+            true // Database exists but no date range stored, need to update
+        };
+        
+        // Explicitly close the database
+        drop(db);
+        needs_update
     };
 
     if should_update {
