@@ -28,15 +28,8 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    #[test]
-    fn test_parse_company_filings() {
-        let content = std::fs::read_to_string(PathBuf::from("src/edgar/tests/filing.json"))
-            .expect("Failed to read test file");
-
-        println!("Test file content: {}", content);
-
-        // First verify if it's valid JSON
-        match serde_json::from_str::<serde_json::Value>(&content) {
+    fn validate_json(content: &str) {
+        match serde_json::from_str::<serde_json::Value>(content) {
             Ok(raw_json) => {
                 println!(
                     "JSON is valid. Content type: {}",
@@ -62,14 +55,17 @@ mod tests {
                 panic!("Invalid JSON in test file: {}", e);
             }
         }
+    }
+
+    #[test]
+    fn test_parse_filing_entry() {
+        let content = std::fs::read_to_string(PathBuf::from("src/edgar/tests/filing.json"))
+            .expect("Failed to read test file");
+
+        validate_json(&content);
 
         let filings: CompanyFilings =
             serde_json::from_str(&content).expect("Failed to parse test filing JSON");
-
-        assert_eq!(filings.cik, "1318605");
-        assert_eq!(filings.name, "Tesla, Inc.");
-        assert_eq!(filings.tickers, vec!["TSLA"]);
-        assert_eq!(filings.exchanges, vec!["Nasdaq"]);
 
         let recent = &filings.filings.recent;
         assert_eq!(recent.accession_number, vec!["0001950047-24-007866"]);
@@ -85,6 +81,22 @@ mod tests {
         assert_eq!(recent.is_xbrl, vec![true]);
         assert_eq!(recent.is_inline_xbrl, vec![true]);
         assert_eq!(recent.primary_document, vec!["tsla-20231231.htm"]);
+    }
+
+    #[test]
+    fn test_parse_company_filings() {
+        let content = std::fs::read_to_string(PathBuf::from("src/edgar/tests/filing.json"))
+            .expect("Failed to read test file");
+
+        validate_json(&content);
+
+        let filings: CompanyFilings =
+            serde_json::from_str(&content).expect("Failed to parse test filing JSON");
+
+        assert_eq!(filings.cik, "1318605");
+        assert_eq!(filings.name, "Tesla, Inc.");
+        assert_eq!(filings.tickers, vec!["TSLA"]);
+        assert_eq!(filings.exchanges, vec!["Nasdaq"]);
     }
 }
 
