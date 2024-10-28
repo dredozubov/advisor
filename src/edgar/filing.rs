@@ -1,11 +1,14 @@
 use anyhow::{anyhow, Result};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 use log::{error, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
+
+use super::report::ReportType;
+use super::tickers::Ticker;
 
 // Hardcoded values
 const FILING_DATA_DIR: &str = "edgar_data/filings";
@@ -22,20 +25,31 @@ pub struct CompanyInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilingEntry {
-    pub accessionNumber: Vec<String>,
-    pub filingDate: Vec<String>,
-    pub reportDate: Vec<String>,
-    pub acceptanceDateTime: Vec<String>,
+    #[serde(rename = "accessionNumber")]
+    pub accession_number: Vec<String>,
+    #[serde(rename = "filingDate")]
+    pub filing_date: Vec<NaiveDate>,
+    #[serde(rename = "reportDate")]
+    pub report_date: Vec<Option<NaiveDate>>,
+    #[serde(rename = "acceptanceDateTime")]
+    pub acceptance_date_time: Vec<NaiveDateTime>,
     pub act: Vec<String>,
-    pub form: Vec<String>,
-    pub fileNumber: Vec<String>,
-    pub filmNumber: Vec<String>, 
+    #[serde(rename = "form")]
+    pub report_type: Vec<ReportType>,
+    #[serde(rename = "fileNumber")]
+    pub file_number: Vec<String>,
+    #[serde(rename = "filmNumber")]
+    pub film_number: Vec<String>,
     pub items: Vec<String>,
     pub size: Vec<i64>,
-    pub isXBRL: Vec<i64>,
-    pub isInlineXBRL: Vec<i64>,
-    pub primaryDocument: Vec<String>,
-    pub primaryDocDescription: Vec<String>,
+    #[serde(rename = "isXBRL")]
+    pub is_xbrl: Vec<bool>,
+    #[serde(rename = "isInlineXBRL")]
+    pub is_inline_xbrl: Vec<bool>,
+    #[serde(rename = "primaryDocument")]
+    pub primary_document: Vec<String>,
+    #[serde(rename = "primaryDocDescription")]
+    pub primary_doc_description: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
