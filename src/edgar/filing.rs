@@ -110,17 +110,30 @@ pub async fn get_company_filings(
         }
 
         let content = fs::read_to_string(&filepath)?;
+        log::debug!("Read file content from {:?}, length: {}", filepath, content.len());
 
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
+            log::debug!("Parsing initial response JSON");
             let initial_response: CompanyFilings = serde_json::from_str(&content)
-                .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
+                .map_err(|e| {
+                    log::error!("JSON parse error: {}", e);
+                    log::debug!("Problematic JSON content: {}", content);
+                    anyhow!("Failed to parse initial filings JSON: {}", e)
+                })?;
+            log::debug!("Successfully parsed initial response");
 
             all_filings.push(initial_response.filings.recent);
             additional_files = initial_response.filings.files;
         } else {
+            log::debug!("Parsing subsequent page JSON");
             let page_filings: FilingEntry = serde_json::from_str(&content)
-                .map_err(|e| anyhow!("Failed to parse page filings JSON: {}", e))?;
+                .map_err(|e| {
+                    log::error!("JSON parse error on subsequent page: {}", e);
+                    log::debug!("Problematic JSON content: {}", content);
+                    anyhow!("Failed to parse page filings JSON: {}", e)
+                })?;
+            log::debug!("Successfully parsed subsequent page");
             all_filings.push(page_filings);
         }
 
