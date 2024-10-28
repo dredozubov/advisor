@@ -230,11 +230,19 @@ pub async fn get_company_filings(
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            super::utils::fetch_and_save(client, &Url::parse(&current_url)?, &filepath, USER_AGENT)
-                .await.map_err(|e| {
-                    error!("Failed to fetch filings from {}: {}", current_url, e);
-                    anyhow!("Failed to fetch filings: {}", e)
-                })?;
+            match super::utils::fetch_and_save(client, &Url::parse(&current_url)?, &filepath, USER_AGENT).await {
+                Ok(_) => {
+                    log::debug!("Successfully fetched and saved filing from {}", current_url);
+                }
+                Err(e) => {
+                    // If the file exists despite an error, try to use it anyway
+                    if !filepath.exists() {
+                        error!("Failed to fetch filings from {} and no local file exists: {}", current_url, e);
+                        return Err(anyhow!("Failed to fetch filings: {}", e));
+                    }
+                    log::warn!("Error fetching from {} but local file exists, attempting to use cached version: {}", current_url, e);
+                }
+            }
         }
 
         let content = fs::read_to_string(&filepath).map_err(|e| {
@@ -244,7 +252,18 @@ pub async fn get_company_filings(
 
         // Validate JSON before parsing
         if let Err(e) = serde_json::from_str::<serde_json::Value>(&content) {
-            error!("Invalid JSON in response: {}", e);
+            error!("Invalid JSON in response from {}: {}", current_url, e);
+            error!("Content length: {}", content.len());
+            if content.len() > 1000 {
+                error!("First 1000 chars: {}", &content[..1000]);
+                error!("Last 1000 chars: {}", &content[content.len()-1000..]);
+            } else {
+                error!("Full content: {}", &content);
+            }
+            // Delete potentially corrupted file
+            if let Err(e) = fs::remove_file(&filepath) {
+                warn!("Failed to remove corrupted file {:?}: {}", filepath, e);
+            }
             return Err(anyhow!("Invalid JSON response from SEC: {}", e));
         }
         log::debug!(
