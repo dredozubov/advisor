@@ -81,7 +81,7 @@ pub struct CompanyFilings {
     pub filings: FilingsData,
 }
 
-pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize>) -> Result<Vec<FilingEntry>> {
+pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize>) -> Result<CompanyFilings> {
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
@@ -178,5 +178,5 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
         merged.primary_doc_description.extend(filing.primary_doc_description);
     }
 
-    Ok(vec![merged])
+    Ok(initial_response)
 }

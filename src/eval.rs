@@ -82,25 +82,48 @@ async fn fetch_filings(
     query: &Query,
     client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
-) -> Result<Vec<filing::FilingEntry>> {
-    // For now, just get filings for the first ticker
-    // TODO: Handle multiple tickers
-    if let Some(ticker) = query.tickers.first() {
-        // Get all tickers data to find CIK
-        let tickers = edgar::tickers::fetch_tickers().await?;
-        
-        // Find matching ticker data
-        let ticker_data = tickers.iter()
-            .find(|(t, _, _)| t.as_str() == ticker)
-            .ok_or_else(|| anyhow::anyhow!("Ticker not found: {}", ticker))?;
-        
-        // Get CIK from ticker data
-        let cik = &ticker_data.2;
-        
-        // Fetch filings with pagination
-        filing::get_company_filings(client, cik, Some(10)).await
+) -> Result<Vec<filing::CompanyFilings>> {
+    // Get all tickers data to find CIKs
+    let tickers = edgar::tickers::fetch_tickers().await?;
+    
+    // Process each ticker in parallel using futures
+    let filing_futures: Vec<_> = query.tickers.iter()
+        .filter_map(|ticker| {
+            // Find matching ticker data
+            let ticker_data = tickers.iter()
+                .find(|(t, _, _)| t.as_str() == ticker);
+            
+            match ticker_data {
+                Some(data) => {
+                    // Get CIK from ticker data
+                    let cik = data.2.clone();
+                    // Create future for fetching filings
+                    Some(filing::get_company_filings(client, &cik, Some(10)))
+                }
+                None => {
+                    log::warn!("Ticker not found: {}", ticker);
+                    None
+                }
+            }
+        })
+        .collect();
+
+    // Wait for all futures to complete
+    let results = futures::future::join_all(filing_futures).await;
+    
+    // Collect successful results
+    let mut filings = Vec::new();
+    for result in results {
+        match result {
+            Ok(filing) => filings.push(filing),
+            Err(e) => log::error!("Error fetching filings: {}", e),
+        }
+    }
+
+    if filings.is_empty() {
+        Err(anyhow::anyhow!("No valid filings found for any provided tickers"))
     } else {
-        Err(anyhow::anyhow!("No tickers provided in query"))
+        Ok(filings)
     }
 }
 
