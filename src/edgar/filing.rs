@@ -211,11 +211,8 @@ pub async fn get_company_filings(
     client: &Client,
     cik: &str,
     limit: Option<usize>,
-    rate_limiter: Option<Arc<super::rate_limiter::RateLimiter>>,
 ) -> Result<CompanyFilings> {
-    // Use default rate limiter if none provided
-    let rate_limiter =
-        rate_limiter.unwrap_or_else(|| Arc::new(super::rate_limiter::RateLimiter::default()));
+    let rate_limiter = super::rate_limiter::RateLimiter::global();
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);

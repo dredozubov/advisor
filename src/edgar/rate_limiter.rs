@@ -1,5 +1,8 @@
+use once_cell::sync::Lazy;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
+
+static GLOBAL_RATE_LIMITER: Lazy<RateLimiter> = Lazy::new(|| RateLimiter::new(10));
 
 pub struct RateLimiter {
     semaphore: Arc<Semaphore>,
@@ -15,10 +18,8 @@ impl RateLimiter {
     pub async fn acquire(&self) -> tokio::sync::SemaphorePermit {
         self.semaphore.acquire().await.expect("Semaphore closed")
     }
-}
 
-impl Default for RateLimiter {
-    fn default() -> Self {
-        Self::new(10) // SEC allows 10 requests per second
+    pub fn global() -> &'static RateLimiter {
+        &GLOBAL_RATE_LIMITER
     }
 }
