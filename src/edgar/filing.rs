@@ -34,6 +34,30 @@ mod tests {
             PathBuf::from("src/edgar/tests/filing.json")
         ).expect("Failed to read test file");
 
+        println!("Test file content: {}", content);
+
+        // First verify if it's valid JSON
+        match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(raw_json) => {
+                println!("JSON is valid. Content type: {}", 
+                    if raw_json.is_object() { "object" } else { "not an object" });
+                
+                if let Some(obj) = raw_json.as_object() {
+                    println!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
+                }
+            },
+            Err(e) => {
+                println!("Invalid JSON structure: {}", e);
+                let line = e.line();
+                let column = e.column();
+                let start = content.len().saturating_sub(100);
+                let end = content.len().min(start + 200);
+                println!("Error at line {}, column {}", line, column);
+                println!("Error context: {}", &content[start..end]);
+                panic!("Invalid JSON in test file: {}", e);
+            }
+        }
+
         let filings: CompanyFilings = serde_json::from_str(&content)
             .expect("Failed to parse test filing JSON");
 
