@@ -32,6 +32,7 @@ pub struct Filing {
 
 impl Filing {
     fn matches_report_type(&self, report_types: &[ReportType]) -> bool {
+        // self - from Filing
         report_types.iter().any(|rt| {
             let report_type = &self.report_type;
             let amendment_type = format!("{}/A", report_type); // Handle amendments
