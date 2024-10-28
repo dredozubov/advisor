@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
-use claude_api_interaction::edgar::index;
-use claude_api_interaction::{edgar::index::USER_AGENT, eval, repl};
+use claude_api_interaction::{edgar::filing, eval, repl};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -25,8 +24,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    log::debug!("Creating data directory at {}", index::FULL_INDEX_DATA_DIR);
-    fs::create_dir_all(index::FULL_INDEX_DATA_DIR)?;
+    log::debug!("Creating data directory at {}", filing::FILING_DATA_DIR);
+    fs::create_dir_all(filing::FILING_DATA_DIR)?;
     log::debug!("Data directory created successfully");
 
     // Initialize ChatGPT executor with API key from environment
@@ -45,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // You can also include timeouts and other settings
     log::debug!("Building HTTP client");
     let http_client = reqwest::Client::builder()
-        .user_agent(USER_AGENT)
+        .user_agent(filing::USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
