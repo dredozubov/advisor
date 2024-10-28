@@ -120,9 +120,41 @@ pub async fn get_company_filings(
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
+            
+            // First verify if it's valid JSON
+            match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(raw_json) => {
+                    log::debug!("JSON is valid. Content type: {}", 
+                        if raw_json.is_object() { "object" } 
+                        else { "not an object" });
+                    
+                    // Try to extract some basic fields for debugging
+                    if let Some(obj) = raw_json.as_object() {
+                        log::debug!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
+                        if let Some(cik) = obj.get("cik") {
+                            log::debug!("Found CIK: {}", cik);
+                        }
+                    }
+                },
+                Err(e) => {
+                    log::error!("Invalid JSON structure: {}", e);
+                    // If the error indicates a specific position, show the surrounding content
+                    if let Some(line_col) = e.line_col() {
+                        let start = line_col.0.saturating_sub(100);
+                        let end = (line_col.0 + 100).min(content.len());
+                        log::error!("Error context (around line {}:{}): {}", 
+                            line_col.0, line_col.1,
+                            &content[start..end]);
+                    }
+                    return Err(anyhow!("Invalid JSON structure: {}", e));
+                }
+            }
+
+            // Now try to parse into our structure
             let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
-                log::error!("JSON parse error: {}", e);
-                log::debug!("Problematic JSON content: {}", content);
+                log::error!("Failed to parse into CompanyFilings: {}", e);
+                // Log the first 1000 characters of content for debugging
+                log::debug!("Content preview: {}", &content[..content.len().min(1000)]);
                 anyhow!("Failed to parse initial filings JSON: {}", e)
             })?;
             log::debug!("Successfully parsed initial response");
