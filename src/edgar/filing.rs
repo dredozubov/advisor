@@ -55,9 +55,12 @@ pub struct FilingEntry {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilingFile {
     pub name: String,
-    pub filingCount: i64,
-    pub filingFrom: String,
-    pub filingTo: String,
+    #[serde(rename = "filingCount")]
+    pub filing_count: i64,
+    #[serde(rename = "filingFrom")]
+    pub filing_from: String,
+    #[serde(rename = "filingTo")]
+    pub filing_to: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -78,25 +81,102 @@ pub struct CompanyFilings {
     pub filings: FilingsData,
 }
 
-pub async fn get_company_filings(client: &Client, cik: &str) -> Result<CompanyFilings> {
+pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize>) -> Result<Vec<FilingEntry>> {
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
-    let url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
+    let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
 
-    info!("Fetching company filings from {}", url);
+    info!("Fetching company filings from {}", initial_url);
 
     // Create filings directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
 
-    let filepath = PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}.json", padded_cik));
+    let mut all_filings = Vec::new();
+    let mut fetched_count = 0;
+    let mut current_url = initial_url;
+    let mut additional_files = Vec::new();
 
-    if !filepath.exists() {
-        super::utils::fetch_and_save(client, &Url::parse(&url)?, &filepath, USER_AGENT).await?;
+    loop {
+        let filepath = PathBuf::from(FILING_DATA_DIR)
+            .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
+
+        if !filepath.exists() {
+            super::utils::fetch_and_save(
+                client, 
+                &Url::parse(&current_url)?, 
+                &filepath, 
+                USER_AGENT
+            ).await?;
+        }
+
+        let content = fs::read_to_string(&filepath)?;
+        
+        // Handle first page differently than subsequent pages
+        if fetched_count == 0 {
+            let initial_response: CompanyFilings = serde_json::from_str(&content)
+                .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
+            
+            all_filings.push(initial_response.filings.recent);
+            additional_files = initial_response.filings.files;
+        } else {
+            let page_filings: FilingEntry = serde_json::from_str(&content)
+                .map_err(|e| anyhow!("Failed to parse page filings JSON: {}", e))?;
+            all_filings.push(page_filings);
+        }
+
+        fetched_count += 1;
+
+        // Check if we've hit the requested limit
+        if let Some(limit) = limit {
+            if fetched_count >= limit {
+                break;
+            }
+        }
+
+        // Check if there are more pages to fetch
+        if additional_files.is_empty() {
+            break;
+        }
+
+        // Get next page URL
+        let next_page = additional_files.remove(0);
+        current_url = format!("{}/submissions/{}", EDGAR_DATA_URL, next_page.name);
     }
 
-    let content = fs::read_to_string(&filepath)?;
-    let filings: CompanyFilings = serde_json::from_str(&content)
-        .map_err(|e| anyhow!("Failed to parse filings JSON: {}", e))?;
+    // Merge all filing entries into a single entry
+    let mut merged = FilingEntry {
+        accession_number: Vec::new(),
+        filing_date: Vec::new(),
+        report_date: Vec::new(),
+        acceptance_date_time: Vec::new(),
+        act: Vec::new(),
+        report_type: Vec::new(),
+        file_number: Vec::new(),
+        film_number: Vec::new(),
+        items: Vec::new(),
+        size: Vec::new(),
+        is_xbrl: Vec::new(),
+        is_inline_xbrl: Vec::new(),
+        primary_document: Vec::new(),
+        primary_doc_description: Vec::new(),
+    };
 
-    Ok(filings)
+    for filing in all_filings {
+        merged.accession_number.extend(filing.accession_number);
+        merged.filing_date.extend(filing.filing_date);
+        merged.report_date.extend(filing.report_date);
+        merged.acceptance_date_time.extend(filing.acceptance_date_time);
+        merged.act.extend(filing.act);
+        merged.report_type.extend(filing.report_type);
+        merged.file_number.extend(filing.file_number);
+        merged.film_number.extend(filing.film_number);
+        merged.items.extend(filing.items);
+        merged.size.extend(filing.size);
+        merged.is_xbrl.extend(filing.is_xbrl);
+        merged.is_inline_xbrl.extend(filing.is_inline_xbrl);
+        merged.primary_document.extend(filing.primary_document);
+        merged.primary_doc_description.extend(filing.primary_doc_description);
+    }
+
+    Ok(vec![merged])
 }
