@@ -36,29 +36,7 @@ impl Filing {
             let report_type = &self.report_type;
             let amendment_type = format!("{}/A", report_type); // Handle amendments
 
-            match rt {
-                ReportType::Form10K => report_type == "10-K" || report_type == "10-K/A",
-                ReportType::Form10Q => report_type == "10-Q" || report_type == "10-Q/A",
-                ReportType::Form8K => report_type == "8-K" || report_type == "8-K/A",
-                ReportType::Form4 => report_type == "4" || report_type == "4/A",
-                ReportType::Form5 => report_type == "5" || report_type == "5/A",
-                ReportType::FormS1 => report_type == "S-1" || report_type == "S-1/A",
-                ReportType::FormS3 => report_type == "S-3" || report_type == "S-3/A",
-                ReportType::FormS4 => report_type == "S-4" || report_type == "S-4/A",
-                ReportType::FormDEF14A => report_type == "DEF 14A" || report_type == "DEF 14A/A",
-                ReportType::Form13F => report_type == "13F" || report_type == "13F/A",
-                ReportType::Form13G => report_type == "13G" || report_type == "13G/A",
-                ReportType::Form13D => report_type == "13D" || report_type == "13D/A",
-                ReportType::FormSD => report_type == "SD" || report_type == "SD/A",
-                ReportType::Form6K => report_type == "6-K" || report_type == "6-K/A",
-                ReportType::Form20F => report_type == "20-F" || report_type == "20-F/A",
-                ReportType::FormN1A => report_type == "N-1A" || report_type == "N-1A/A",
-                ReportType::FormNCSR => report_type == "N-CSR" || report_type == "N-CSR/A",
-                ReportType::FormNPORT => report_type == "N-PORT" || report_type == "N-PORT/A",
-                ReportType::FormNQ => report_type == "N-Q" || report_type == "N-Q/A",
-                ReportType::Form144 => report_type == "144" || report_type == "144/A",
-                ReportType::Other(s) => report_type == s || report_type == &amendment_type,
-            }
+            report_type == &rt.to_string() || report_type == &amendment_type
         })
     }
 }
