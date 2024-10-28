@@ -472,11 +472,7 @@ pub async fn get_company_filings(
     Ok(initial_response)
 }
 
-pub async fn fetch_matching_filings(
-    client: &Client,
-    cik: &str,
-    query: &Query,
-) -> Result<Vec<Filing>> {
+pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Vec<Filing>> {
     let filings = get_company_filings(client, cik, None).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query);
 
@@ -487,7 +483,7 @@ pub async fn fetch_matching_filings(
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let fetch_tasks: Vec<_> = matching_filings
-        .clone()  // Clone matching_filings to avoid moving it
+        .clone() // Clone matching_filings to avoid moving it
         .into_iter()
         .map(move |filing| {
             let client = client.clone();
