@@ -478,5 +478,51 @@ pub async fn fetch_matching_filings(
     query: &Query,
 ) -> Result<Vec<Filing>> {
     let filings = get_company_filings(client, cik, None).await?;
-    Ok(process_filing_entries(&filings.filings.recent, query))
+    let matching_filings = process_filing_entries(&filings.filings.recent, query);
+
+    let rate_limiter = super::rate_limiter::RateLimiter::global();
+
+    // Create the base directory if it doesn't exist
+    fs::create_dir_all(FILING_DATA_DIR)?;
+
+    // Fetch and save each matching filing in parallel, respecting the rate limit
+    let fetch_tasks: Vec<_> = matching_filings
+        .iter()
+        .map(|filing| {
+            let client = client.clone();
+            let filing = filing.clone();
+            let _permit = rate_limiter.acquire();
+
+            tokio::spawn(async move {
+                let base = "https://www.sec.gov/Archives/edgar/data";
+                let cik = format!("{:0>10}", cik);
+                let accession_number = filing.accession_number.replace("-", "");
+                let document_url = format!(
+                    "{}/{}/{}/{}",
+                    base, cik, accession_number, filing.primary_document
+                );
+
+                // Create the directory structure for the filing
+                let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
+                fs::create_dir_all(&filing_dir)?;
+
+                // Define the path to save the document
+                let document_path = format!("{}/{}", filing_dir, filing.primary_document);
+
+                // Fetch and save the document
+                let response = client.get(&document_url).send().await?;
+                let content = response.bytes().await?;
+                fs::write(&document_path, &content)?;
+
+                log::info!("Saved filing document to {}", document_path);
+
+                Ok::<(), anyhow::Error>(())
+            })
+        })
+        .collect();
+
+    // Wait for all fetch tasks to complete
+    futures::future::try_join_all(fetch_tasks).await?;
+
+    Ok(matching_filings)
 }
