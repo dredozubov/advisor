@@ -138,14 +138,13 @@ pub async fn get_company_filings(
                 },
                 Err(e) => {
                     log::error!("Invalid JSON structure: {}", e);
-                    // If the error indicates a specific position, show the surrounding content
-                    if let Some(line_col) = e.line_col() {
-                        let start = line_col.0.saturating_sub(100);
-                        let end = (line_col.0 + 100).min(content.len());
-                        log::error!("Error context (around line {}:{}): {}", 
-                            line_col.0, line_col.1,
-                            &content[start..end]);
-                    }
+                    // Show error location and context
+                    let line = e.line();
+                    let column = e.column();
+                    let start = content.len().saturating_sub(100);
+                    let end = content.len().min(start + 200);
+                    log::error!("Error at line {}, column {}", line, column);
+                    log::error!("Error context: {}", &content[start..end]);
                     return Err(anyhow!("Invalid JSON structure: {}", e));
                 }
             }
