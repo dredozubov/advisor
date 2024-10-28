@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::{NaiveDate, NaiveDateTime};
-use log::{error, info};
+use log::{error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -230,14 +230,24 @@ pub async fn get_company_filings(
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            match super::utils::fetch_and_save(client, &Url::parse(&current_url)?, &filepath, USER_AGENT).await {
+            match super::utils::fetch_and_save(
+                client,
+                &Url::parse(&current_url)?,
+                &filepath,
+                USER_AGENT,
+            )
+            .await
+            {
                 Ok(_) => {
                     log::debug!("Successfully fetched and saved filing from {}", current_url);
                 }
                 Err(e) => {
                     // If the file exists despite an error, try to use it anyway
                     if !filepath.exists() {
-                        error!("Failed to fetch filings from {} and no local file exists: {}", current_url, e);
+                        error!(
+                            "Failed to fetch filings from {} and no local file exists: {}",
+                            current_url, e
+                        );
                         return Err(anyhow!("Failed to fetch filings: {}", e));
                     }
                     log::warn!("Error fetching from {} but local file exists, attempting to use cached version: {}", current_url, e);
@@ -256,7 +266,7 @@ pub async fn get_company_filings(
             error!("Content length: {}", content.len());
             if content.len() > 1000 {
                 error!("First 1000 chars: {}", &content[..1000]);
-                error!("Last 1000 chars: {}", &content[content.len()-1000..]);
+                error!("Last 1000 chars: {}", &content[content.len() - 1000..]);
             } else {
                 error!("Full content: {}", &content);
             }
@@ -284,7 +294,10 @@ pub async fn get_company_filings(
                 error!("Content length: {}", content.len());
                 if content.len() > 1000 {
                     error!("Content preview (first 1000 chars): {}", &content[..1000]);
-                    error!("Content preview (last 1000 chars): {}", &content[content.len()-1000..]);
+                    error!(
+                        "Content preview (last 1000 chars): {}",
+                        &content[content.len() - 1000..]
+                    );
                 } else {
                     error!("Full content: {}", &content);
                 }

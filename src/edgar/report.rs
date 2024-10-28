@@ -1,10 +1,10 @@
 use once_cell::sync::Lazy;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use strum::{EnumIter, IntoEnumIterator};
 
-#[derive(Debug, Clone, PartialEq, Deserialize, EnumIter)]
-#[serde(try_from = "String")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumIter)]
+#[serde(try_from = "String", rename_all = "UPPERCASE")]
 pub enum ReportType {
     Form10K,
     Form10Q,

@@ -33,6 +33,7 @@ pub struct ReplHelper {
 impl ReplHelper {
     pub async fn new() -> AnyhowResult<Self> {
         let tickers = fetch_tickers().await?;
+
         let mut map = HashMap::new();
         for (ticker, company, cik) in tickers {
             map.insert(

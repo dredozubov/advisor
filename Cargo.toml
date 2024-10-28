@@ -21,7 +21,7 @@ once_cell = "1.17.1"
 chrono = { version = "0.4.38", features = ["serde"] }
 csv = "1.3.0"
 futures = "0.3"
-reqwest = { version = "0.12.8", features = ["json"]}
+reqwest = { version = "0.12.8", features = ["json", "gzip"]}
 sled = "0.34"
 url = "2.5.2"
 chardet = "0.2"
