@@ -2,10 +2,10 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use log::{error, info, warn};
 use reqwest::Client;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use url::Url;
 
 use super::report::ReportType;
@@ -214,9 +214,8 @@ pub async fn get_company_filings(
     rate_limiter: Option<Arc<super::rate_limiter::RateLimiter>>,
 ) -> Result<CompanyFilings> {
     // Use default rate limiter if none provided
-    let rate_limiter = rate_limiter.unwrap_or_else(|| 
-        Arc::new(super::rate_limiter::RateLimiter::default())
-    );
+    let rate_limiter =
+        rate_limiter.unwrap_or_else(|| Arc::new(super::rate_limiter::RateLimiter::default()));
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
@@ -238,7 +237,7 @@ pub async fn get_company_filings(
         if !filepath.exists() {
             // Acquire rate limit permit
             let _permit = rate_limiter.acquire().await;
-            
+
             match super::utils::fetch_and_save(
                 client,
                 &Url::parse(&current_url)?,
