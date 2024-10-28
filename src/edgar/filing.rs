@@ -143,7 +143,16 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
         current_url = format!("{}/submissions/{}", EDGAR_DATA_URL, next_page.name);
     }
 
-    // Merge all filing entries into a single entry
+    // Get the initial response which contains company info
+    let content = fs::read_to_string(
+        PathBuf::from(FILING_DATA_DIR)
+            .join(format!("CIK{}_{}.json", padded_cik, 0))
+    )?;
+    
+    let mut initial_response: CompanyFilings = serde_json::from_str(&content)
+        .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
+
+    // Merge all filing entries into the initial response's recent filings
     let mut merged = FilingEntry {
         accession_number: Vec::new(),
         filing_date: Vec::new(),
@@ -177,6 +186,9 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
         merged.primary_document.extend(filing.primary_document);
         merged.primary_doc_description.extend(filing.primary_doc_description);
     }
+
+    // Update the initial response with merged filings
+    initial_response.filings.recent = merged;
 
     Ok(initial_response)
 }
