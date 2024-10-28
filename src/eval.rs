@@ -97,8 +97,11 @@ async fn fetch_filings(
                 Some(data) => {
                     // Get CIK from ticker data and clone it for the async closure
                     let cik = data.2.to_string();
+                    let client = client.clone();
                     // Create future for fetching filings
-                    Some(filing::get_company_filings(client, &cik, Some(10)))
+                    Some(async move {
+                        filing::get_company_filings(&client, &cik, Some(10)).await
+                    })
                 }
                 None => {
                     log::warn!("Ticker not found: {}", ticker);
