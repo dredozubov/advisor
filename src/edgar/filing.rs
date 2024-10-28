@@ -75,51 +75,73 @@ mod tests {
     #[test]
     fn test_parse_filing_entry() {
         for company in get_test_companies() {
-            let file_path = PathBuf::from(format!(
-                "src/edgar/tests/{}/filing_entry.json",
-                company
-            ));
-            
+            let file_path = PathBuf::from(format!("src/edgar/tests/{}/filing_entry.json", company));
+
             println!("Testing filing entry for company: {}", company);
-            
+
             let content = std::fs::read_to_string(&file_path)
                 .expect(&format!("Failed to read test file for {}", company));
 
             validate_json(&content);
 
-            let entry: FilingEntry = serde_json::from_str(&content)
-                .expect(&format!("Failed to parse filing entry JSON for {}", company));
+            let entry: FilingEntry = serde_json::from_str(&content).expect(&format!(
+                "Failed to parse filing entry JSON for {}",
+                company
+            ));
 
             // Verify the entry has valid data
-            assert!(!entry.accession_number.is_empty(), "Company {} has empty accession numbers", company);
-            assert!(!entry.filing_date.is_empty(), "Company {} has empty filing dates", company);
-            assert!(!entry.report_type.is_empty(), "Company {} has empty report types", company);
+            assert!(
+                !entry.accession_number.is_empty(),
+                "Company {} has empty accession numbers",
+                company
+            );
+            assert!(
+                !entry.filing_date.is_empty(),
+                "Company {} has empty filing dates",
+                company
+            );
+            assert!(
+                !entry.report_type.is_empty(),
+                "Company {} has empty report types",
+                company
+            );
         }
     }
 
     #[test]
     fn test_parse_company_filings() {
         for company in get_test_companies() {
-            let file_path = PathBuf::from(format!(
-                "src/edgar/tests/{}/filing.json",
-                company
-            ));
-            
+            let file_path = PathBuf::from(format!("src/edgar/tests/{}/filing.json", company));
+
             println!("Testing company filing for: {}", company);
-            
+
             let content = std::fs::read_to_string(&file_path)
                 .expect(&format!("Failed to read test file for {}", company));
 
             validate_json(&content);
 
-            let filings: CompanyFilings = serde_json::from_str(&content)
-                .expect(&format!("Failed to parse company filings JSON for {}", company));
+            let filings: CompanyFilings = serde_json::from_str(&content).expect(&format!(
+                "Failed to parse company filings JSON for {}",
+                company
+            ));
 
             // Verify basic company info is present
             assert!(!filings.cik.is_empty(), "Company {} has empty CIK", company);
-            assert!(!filings.name.is_empty(), "Company {} has empty name", company);
-            assert!(!filings.tickers.is_empty(), "Company {} has empty tickers", company);
-            assert!(!filings.exchanges.is_empty(), "Company {} has empty exchanges", company);
+            assert!(
+                !filings.name.is_empty(),
+                "Company {} has empty name",
+                company
+            );
+            assert!(
+                !filings.tickers.is_empty(),
+                "Company {} has empty tickers",
+                company
+            );
+            assert!(
+                !filings.exchanges.is_empty(),
+                "Company {} has empty exchanges",
+                company
+            );
         }
     }
 }
