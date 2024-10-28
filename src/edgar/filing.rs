@@ -109,14 +109,26 @@ pub async fn get_company_filings(
                 .await?;
         }
 
-        let content = fs::read_to_string(&filepath)?;
+        let mut content = fs::read_to_string(&filepath)?;
         log::debug!(
             "Read file content from {:?}, length: {}",
             filepath,
             content.len()
         );
 
-        log::debug!("feched_count: {}", fetched_count);
+        // Verify content is not truncated
+        if !content.trim_end().ends_with("}") {
+            // Try reading from local debug file
+            let debug_path = PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}.json", padded_cik));
+            if debug_path.exists() {
+                log::info!("Using local debug file: {:?}", debug_path);
+                content = fs::read_to_string(debug_path)?;
+            } else {
+                return Err(anyhow!("JSON content appears truncated and no debug file found"));
+            }
+        }
+
+        log::debug!("fetched_count: {}", fetched_count);
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
