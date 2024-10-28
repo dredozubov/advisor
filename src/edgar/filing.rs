@@ -473,6 +473,17 @@ pub async fn get_company_filings(
 }
 
 pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Vec<Filing>> {
+    // Fetch tickers to get CIKs
+    let tickers = super::tickers::fetch_tickers().await?;
+
+    // Find the CIK for the first ticker in the query
+    let cik = tickers
+        .iter()
+        .find(|(ticker, _, _)| ticker.as_str() == query.tickers[0])
+        .map(|(_, _, cik)| cik)
+        .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))?;
+
+    // Fetch filings using the CIK
     let filings = get_company_filings(client, cik, None).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query);
 
