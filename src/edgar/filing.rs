@@ -23,7 +23,7 @@ pub struct CompanyInfo {
     pub exchanges: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilingEntry {
     #[serde(rename = "accessionNumber")]
     pub accession_number: Vec<String>,
@@ -52,7 +52,7 @@ pub struct FilingEntry {
     pub primary_doc_description: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilingFile {
     pub name: String,
     #[serde(rename = "filingCount")]
