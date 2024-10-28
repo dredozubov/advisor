@@ -29,14 +29,31 @@ pub async fn fetch_and_save(
         ));
     }
 
-    let content = response.bytes().await?;
+    // Get the content length from headers if available
+    let content_length = response
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .and_then(|cl| cl.to_str().ok())
+        .and_then(|cl| cl.parse::<usize>().ok());
+
+    if let Some(length) = content_length {
+        log::debug!("Expected content length: {}", length);
+    }
+
+    // Read the full response body as text
+    let content = response.text().await?;
     log::debug!("Received content length: {}", content.len());
+
+    // Verify content is complete JSON
+    if !content.trim_end().ends_with("}") {
+        return Err(anyhow::anyhow!("Incomplete JSON response"));
+    }
 
     std::fs::write(filepath, &content)?;
     log::debug!("Saved content to {:?}", filepath);
 
     // Verify the saved content
-    let saved_content = std::fs::read(filepath)?;
+    let saved_content = std::fs::read_to_string(filepath)?;
     log::debug!("Verified saved content length: {}", saved_content.len());
     
     if saved_content.len() != content.len() {
@@ -46,6 +63,10 @@ pub async fn fetch_and_save(
             saved_content.len()
         ));
     }
+
+    // Verify saved content is valid JSON
+    serde_json::from_str::<serde_json::Value>(&saved_content)
+        .map_err(|e| anyhow::anyhow!("Invalid JSON in saved file: {}", e))?;
 
     Ok(())
 }
