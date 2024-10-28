@@ -85,23 +85,22 @@ async fn fetch_filings(
 ) -> Result<Vec<filing::CompanyFilings>> {
     // Get all tickers data to find CIKs
     let tickers = edgar::tickers::fetch_tickers().await?;
-    
+
     // Process each ticker in parallel using futures
-    let filing_futures: Vec<_> = query.tickers.iter()
+    let filing_futures: Vec<_> = query
+        .tickers
+        .iter()
         .filter_map(|ticker| {
             // Find matching ticker data
-            let ticker_data = tickers.iter()
-                .find(|(t, _, _)| t.as_str() == ticker);
-            
+            let ticker_data = tickers.iter().find(|(t, _, _)| t.as_str() == ticker);
+
             match ticker_data {
                 Some(data) => {
                     // Get CIK from ticker data and clone it for the async closure
                     let cik = data.2.to_string();
                     let client = client.clone();
                     // Create future for fetching filings
-                    Some(async move {
-                        filing::get_company_filings(&client, &cik, Some(10)).await
-                    })
+                    Some(async move { filing::get_company_filings(&client, &cik, Some(10)).await })
                 }
                 None => {
                     log::warn!("Ticker not found: {}", ticker);
@@ -113,7 +112,7 @@ async fn fetch_filings(
 
     // Wait for all futures to complete
     let results = futures::future::join_all(filing_futures).await;
-    
+
     // Collect successful results
     let mut filings = Vec::new();
     for result in results {
@@ -124,7 +123,9 @@ async fn fetch_filings(
     }
 
     if filings.is_empty() {
-        Err(anyhow::anyhow!("No valid filings found for any provided tickers"))
+        Err(anyhow::anyhow!(
+            "No valid filings found for any provided tickers"
+        ))
     } else {
         Ok(filings)
     }

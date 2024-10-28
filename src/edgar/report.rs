@@ -25,6 +25,7 @@ pub enum ReportType {
     FormNCSR,
     FormNPORT,
     FormNQ,
+    Form144,
     Other(String),
 }
 
@@ -58,6 +59,7 @@ impl fmt::Display for ReportType {
             ReportType::FormNCSR => write!(f, "N-CSR"),
             ReportType::FormNPORT => write!(f, "N-PORT"),
             ReportType::FormNQ => write!(f, "N-Q"),
+            ReportType::Form144 => write!(f, "144"),
             ReportType::Other(s) => write!(f, "{}", s),
         }
     }
@@ -97,6 +99,7 @@ impl ReportType {
             "N-CSR" => ReportType::FormNCSR,
             "N-PORT" => ReportType::FormNPORT,
             "N-Q" => ReportType::FormNQ,
+            "144" => ReportType::Form144,
             _ => ReportType::Other(s.to_string()),
         }
     }
