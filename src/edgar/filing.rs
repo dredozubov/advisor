@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use log::{error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -151,7 +151,7 @@ pub struct FilingEntry {
     #[serde(rename = "accessionNumber")]
     pub accession_number: Vec<String>,
     #[serde(rename = "filingDate")]
-    pub filing_date: Vec<String>,
+    pub filing_date: Vec<NaiveDate>,
     #[serde(rename = "reportDate")]
     pub report_date: Vec<Option<String>>,
     #[serde(rename = "acceptanceDateTime")]
