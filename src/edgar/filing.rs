@@ -488,14 +488,15 @@ pub async fn fetch_matching_filings(
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let fetch_tasks: Vec<_> = matching_filings
         .iter()
-        .map(|filing| {
+        .map(move |filing| {
             let client = client.clone();
             let filing = filing.clone();
+            let cik = cik.clone(); // Clone cik to avoid lifetime issues
             let _permit = rate_limiter.acquire();
 
             tokio::spawn(async move {
                 let base = "https://www.sec.gov/Archives/edgar/data";
-                let cik = format!("{:0>10}", cik);
+                let cik = format!("{:0>10}", cik.to_string());
                 let accession_number = filing.accession_number.replace("-", "");
                 let document_url = format!(
                     "{}/{}/{}/{}",
