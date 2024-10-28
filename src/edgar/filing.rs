@@ -1,22 +1,92 @@
-use anyhow::Result;
-use chardet::detect;
-use encoding_rs::Encoding;
-use encoding_rs_io::DecodeReaderBytesBuilder;
-use html_escape::decode_html_entities;
+use anyhow::{anyhow, Result};
+use chrono::NaiveDate;
 use log::{error, info};
-use regex::Regex;
 use reqwest::Client;
-use scraper::{Html, Selector};
-use serde_json::json;
-use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::Write;
-use std::io::{BufReader, Read};
-use std::path::Path;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use url::Url;
-use uuencode::uudecode;
 
 // Hardcoded values
-const FILING_DATA_DIR: &str = "/path/to/filing/data";
-const EDGAR_ARCHIVES_URL: &str = "https://www.sec.gov/Archives/";
-const USER_AGENT: &str = "ask-edgar@ask-edgar.com";
+const FILING_DATA_DIR: &str = "edgar_data/filings";
+const EDGAR_DATA_URL: &str = "https://data.sec.gov";
+const USER_AGENT: &str = "software@example.com";
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CompanyInfo {
+    pub cik: String,
+    pub name: String,
+    pub tickers: Vec<String>,
+    pub exchanges: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilingEntry {
+    pub accessionNumber: Vec<String>,
+    pub filingDate: Vec<String>,
+    pub reportDate: Vec<String>,
+    pub acceptanceDateTime: Vec<String>,
+    pub act: Vec<String>,
+    pub form: Vec<String>,
+    pub fileNumber: Vec<String>,
+    pub filmNumber: Vec<String>, 
+    pub items: Vec<String>,
+    pub size: Vec<i64>,
+    pub isXBRL: Vec<i64>,
+    pub isInlineXBRL: Vec<i64>,
+    pub primaryDocument: Vec<String>,
+    pub primaryDocDescription: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilingFile {
+    pub name: String,
+    pub filingCount: i64,
+    pub filingFrom: String,
+    pub filingTo: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilingsData {
+    pub recent: FilingEntry,
+    pub files: Vec<FilingFile>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CompanyFilings {
+    pub cik: String,
+    pub entityType: String,
+    pub sic: String,
+    pub sicDescription: String,
+    pub name: String,
+    pub tickers: Vec<String>,
+    pub exchanges: Vec<String>,
+    pub filings: FilingsData,
+}
+
+pub async fn get_company_filings(client: &Client, cik: &str) -> Result<CompanyFilings> {
+    // Ensure CIK is 10 digits with leading zeros
+    let padded_cik = format!("{:0>10}", cik);
+    let url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
+
+    info!("Fetching company filings from {}", url);
+
+    let filepath = PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}.json", padded_cik));
+
+    if !filepath.exists() {
+        fs::create_dir_all(filepath.parent().unwrap())?;
+        
+        super::utils::fetch_and_save(
+            client,
+            &Url::parse(&url)?,
+            &filepath,
+            USER_AGENT,
+        ).await?;
+    }
+
+    let content = fs::read_to_string(&filepath)?;
+    let filings: CompanyFilings = serde_json::from_str(&content)
+        .map_err(|e| anyhow!("Failed to parse filings JSON: {}", e))?;
+
+    Ok(filings)
+}
