@@ -30,22 +30,27 @@ mod tests {
 
     #[test]
     fn test_parse_company_filings() {
-        let content = std::fs::read_to_string(
-            PathBuf::from("src/edgar/tests/filing.json")
-        ).expect("Failed to read test file");
+        let content = std::fs::read_to_string(PathBuf::from("src/edgar/tests/filing.json"))
+            .expect("Failed to read test file");
 
         println!("Test file content: {}", content);
 
         // First verify if it's valid JSON
         match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(raw_json) => {
-                println!("JSON is valid. Content type: {}", 
-                    if raw_json.is_object() { "object" } else { "not an object" });
-                
+                println!(
+                    "JSON is valid. Content type: {}",
+                    if raw_json.is_object() {
+                        "object"
+                    } else {
+                        "not an object"
+                    }
+                );
+
                 if let Some(obj) = raw_json.as_object() {
                     println!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
                 }
-            },
+            }
             Err(e) => {
                 println!("Invalid JSON structure: {}", e);
                 let line = e.line();
@@ -58,8 +63,8 @@ mod tests {
             }
         }
 
-        let filings: CompanyFilings = serde_json::from_str(&content)
-            .expect("Failed to parse test filing JSON");
+        let filings: CompanyFilings =
+            serde_json::from_str(&content).expect("Failed to parse test filing JSON");
 
         assert_eq!(filings.cik, "1318605");
         assert_eq!(filings.name, "Tesla, Inc.");
@@ -68,8 +73,14 @@ mod tests {
 
         let recent = &filings.filings.recent;
         assert_eq!(recent.accession_number, vec!["0001950047-24-007866"]);
-        assert_eq!(recent.filing_date, vec![NaiveDate::from_ymd_opt(2024, 1, 31).unwrap()]);
-        assert_eq!(recent.report_date, vec![Some(NaiveDate::from_ymd_opt(2023, 12, 31).unwrap())]);
+        assert_eq!(
+            recent.filing_date,
+            vec![NaiveDate::from_ymd_opt(2024, 1, 31).unwrap()]
+        );
+        assert_eq!(
+            recent.report_date,
+            vec![Some(NaiveDate::from_ymd_opt(2023, 12, 31).unwrap())]
+        );
         assert_eq!(recent.report_type, vec![ReportType::Form10K]);
         assert_eq!(recent.is_xbrl, vec![true]);
         assert_eq!(recent.is_inline_xbrl, vec![true]);
@@ -126,9 +137,11 @@ pub struct FilingsData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CompanyFilings {
     pub cik: String,
-    pub entityType: String,
+    #[serde(rename = "entityType")]
+    pub entity_type: String,
     pub sic: String,
-    pub sicDescription: String,
+    #[serde(rename = "sicDescription")]
+    pub sic_description: String,
     pub name: String,
     pub tickers: Vec<String>,
     pub exchanges: Vec<String>,
@@ -170,57 +183,10 @@ pub async fn get_company_filings(
             content.len()
         );
 
-        // Verify content is not truncated
-        if !content.trim_end().ends_with("}") {
-            // Try reading from local debug file
-            let debug_path = PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}.json", padded_cik));
-            if debug_path.exists() {
-                log::info!("Using local debug file: {:?}", debug_path);
-                content = fs::read_to_string(debug_path)?;
-            } else {
-                return Err(anyhow!(
-                    "JSON content appears truncated and no debug file found"
-                ));
-            }
-        }
-
         log::debug!("fetched_count: {}", fetched_count);
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
-
-            // First verify if it's valid JSON
-            match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(raw_json) => {
-                    log::debug!(
-                        "JSON is valid. Content type: {}",
-                        if raw_json.is_object() {
-                            "object"
-                        } else {
-                            "not an object"
-                        }
-                    );
-
-                    // Try to extract some basic fields for debugging
-                    if let Some(obj) = raw_json.as_object() {
-                        log::debug!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
-                        if let Some(cik) = obj.get("cik") {
-                            log::debug!("Found CIK: {}", cik);
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::error!("Invalid JSON structure: {}", e);
-                    // Show error location and context
-                    let line = e.line();
-                    let column = e.column();
-                    let start = content.len().saturating_sub(100);
-                    let end = content.len().min(start + 200);
-                    log::error!("Error at line {}, column {}", line, column);
-                    log::error!("Error context: {}", &content[start..end]);
-                    return Err(anyhow!("Invalid JSON structure: {}", e));
-                }
-            }
 
             // Now try to parse into our structure
             let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
