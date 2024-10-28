@@ -95,8 +95,8 @@ async fn fetch_filings(
             
             match ticker_data {
                 Some(data) => {
-                    // Get CIK from ticker data
-                    let cik = data.2.clone();
+                    // Get CIK from ticker data and clone it for the async closure
+                    let cik = data.2.to_string();
                     // Create future for fetching filings
                     Some(filing::get_company_filings(client, &cik, Some(10)))
                 }
