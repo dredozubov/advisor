@@ -23,6 +23,36 @@ pub struct CompanyInfo {
     pub exchanges: Vec<String>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_parse_company_filings() {
+        let content = std::fs::read_to_string(
+            PathBuf::from("src/edgar/tests/filing.json")
+        ).expect("Failed to read test file");
+
+        let filings: CompanyFilings = serde_json::from_str(&content)
+            .expect("Failed to parse test filing JSON");
+
+        assert_eq!(filings.cik, "1318605");
+        assert_eq!(filings.name, "Tesla, Inc.");
+        assert_eq!(filings.tickers, vec!["TSLA"]);
+        assert_eq!(filings.exchanges, vec!["Nasdaq"]);
+
+        let recent = &filings.filings.recent;
+        assert_eq!(recent.accession_number, vec!["0001950047-24-007866"]);
+        assert_eq!(recent.filing_date, vec![NaiveDate::from_ymd_opt(2024, 1, 31).unwrap()]);
+        assert_eq!(recent.report_date, vec![Some(NaiveDate::from_ymd_opt(2023, 12, 31).unwrap())]);
+        assert_eq!(recent.report_type, vec![ReportType::Form10K]);
+        assert_eq!(recent.is_xbrl, vec![true]);
+        assert_eq!(recent.is_inline_xbrl, vec![true]);
+        assert_eq!(recent.primary_document, vec!["tsla-20231231.htm"]);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilingEntry {
     #[serde(rename = "accessionNumber")]
