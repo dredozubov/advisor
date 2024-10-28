@@ -8,8 +8,76 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use url::Url;
 
+use super::query::Query;
 use super::report::ReportType;
 use super::tickers::Ticker;
+
+#[derive(Debug)]
+pub struct Filing {
+    pub accession_number: String,
+    pub filing_date: NaiveDate,
+    pub report_date: Option<String>,
+    pub acceptance_date_time: String,
+    pub act: String,
+    pub report_type: String,
+    pub file_number: String,
+    pub film_number: String,
+    pub items: String,
+    pub size: i32,
+    pub is_xbrl: i32,
+    pub is_inline_xbrl: i32,
+    pub primary_document: String,
+    pub primary_doc_description: String,
+}
+
+impl Filing {
+    fn matches_report_type(&self, report_types: &[ReportType]) -> bool {
+        report_types.iter().any(|rt| match rt {
+            ReportType::Form10K => self.report_type == "10-K",
+            ReportType::Form10Q => self.report_type == "10-Q",
+            ReportType::Form8K => self.report_type == "8-K",
+            ReportType::Form4 => self.report_type == "4",
+            ReportType::Form5 => self.report_type == "5",
+            ReportType::FormS1 => self.report_type == "S-1",
+            ReportType::FormS3 => self.report_type == "S-3",
+            ReportType::FormS4 => self.report_type == "S-4",
+            ReportType::FormDEF14A => self.report_type == "DEF 14A",
+        })
+    }
+}
+
+fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
+    let mut filings = Vec::new();
+    
+    // Zip all the vectors together and process each record
+    for i in 0..entry.accession_number.len() {
+        let filing = Filing {
+            accession_number: entry.accession_number[i].clone(),
+            filing_date: entry.filing_date[i],
+            report_date: entry.report_date[i].clone(),
+            acceptance_date_time: entry.acceptance_date_time[i].clone(),
+            act: entry.act[i].clone(),
+            report_type: entry.report_type[i].clone(),
+            file_number: entry.file_number[i].clone(),
+            film_number: entry.film_number[i].clone(),
+            items: entry.items[i].clone(),
+            size: entry.size[i],
+            is_xbrl: entry.is_xbrl[i],
+            is_inline_xbrl: entry.is_inline_xbrl[i],
+            primary_document: entry.primary_document[i].clone(),
+            primary_doc_description: entry.primary_doc_description[i].clone(),
+        };
+
+        // Check if filing matches query criteria
+        if filing.matches_report_type(&query.report_types) &&
+           filing.filing_date >= query.start_date &&
+           filing.filing_date <= query.end_date {
+            filings.push(filing);
+        }
+    }
+    
+    filings
+}
 
 // Hardcoded values
 pub const FILING_DATA_DIR: &str = "edgar_data/filings";
@@ -394,4 +462,13 @@ pub async fn get_company_filings(
     initial_response.filings.recent = merged;
 
     Ok(initial_response)
+}
+
+pub async fn fetch_matching_filings(
+    client: &Client,
+    cik: &str,
+    query: &Query,
+) -> Result<Vec<Filing>> {
+    let filings = get_company_filings(client, cik, None).await?;
+    Ok(process_filing_entries(&filings.filings.recent, query))
 }
