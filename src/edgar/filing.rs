@@ -116,15 +116,31 @@ pub async fn get_company_filings(
             content.len()
         );
 
-        log::debug!("feched_count: {}", fetched_count);
+        // Verify JSON is valid before parsing
+        if let Err(e) = serde_json::from_str::<serde_json::Value>(&content) {
+            log::error!("Invalid JSON in file: {}", e);
+            return Err(anyhow!("Invalid JSON in file: {}", e));
+        }
+
+        log::debug!("fetched_count: {}", fetched_count);
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
-            let initial_response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
-                log::error!("JSON parse error: {}", e);
-                log::debug!("Problematic JSON content: {}", content);
-                anyhow!("Failed to parse initial filings JSON: {}", e)
-            })?;
+            log::debug!("Content starts with: {:.100}...", content);
+            
+            match serde_json::from_str::<CompanyFilings>(&content) {
+                Ok(response) => {
+                    log::debug!("Successfully parsed CompanyFilings");
+                    log::debug!("Company name: {}", response.name);
+                    log::debug!("Number of recent filings: {}", response.filings.recent.accession_number.len());
+                    initial_response = response;
+                }
+                Err(e) => {
+                    log::error!("JSON parse error: {}", e);
+                    log::debug!("Full JSON content: {}", content);
+                    return Err(anyhow!("Failed to parse initial filings JSON: {}", e));
+                }
+            }
             log::debug!("Successfully parsed initial response");
 
             all_filings.push(initial_response.filings.recent);
