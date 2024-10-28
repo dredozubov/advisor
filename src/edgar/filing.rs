@@ -231,10 +231,22 @@ pub async fn get_company_filings(
 
         if !filepath.exists() {
             super::utils::fetch_and_save(client, &Url::parse(&current_url)?, &filepath, USER_AGENT)
-                .await?;
+                .await.map_err(|e| {
+                    error!("Failed to fetch filings from {}: {}", current_url, e);
+                    anyhow!("Failed to fetch filings: {}", e)
+                })?;
         }
 
-        let mut content = fs::read_to_string(&filepath)?;
+        let content = fs::read_to_string(&filepath).map_err(|e| {
+            error!("Failed to read filing file {:?}: {}", filepath, e);
+            anyhow!("Failed to read filing file: {}", e)
+        })?;
+
+        // Validate JSON before parsing
+        if let Err(e) = serde_json::from_str::<serde_json::Value>(&content) {
+            error!("Invalid JSON in response: {}", e);
+            return Err(anyhow!("Invalid JSON response from SEC: {}", e));
+        }
         log::debug!(
             "Read file content from {:?}, length: {}",
             filepath,
@@ -248,9 +260,15 @@ pub async fn get_company_filings(
 
             // Now try to parse into our structure
             let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
-                log::error!("Failed to parse into CompanyFilings: {}", e);
-                // Log the first 1000 characters of content for debugging
-                log::debug!("Content preview: {}", &content);
+                error!("Failed to parse into CompanyFilings: {}", e);
+                // Log the problematic content for debugging
+                error!("Content length: {}", content.len());
+                if content.len() > 1000 {
+                    error!("Content preview (first 1000 chars): {}", &content[..1000]);
+                    error!("Content preview (last 1000 chars): {}", &content[content.len()-1000..]);
+                } else {
+                    error!("Full content: {}", &content);
+                }
                 anyhow!("Failed to parse initial filings JSON: {}", e)
             })?;
             log::debug!("Successfully parsed initial response");
