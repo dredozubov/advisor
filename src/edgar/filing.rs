@@ -124,7 +124,9 @@ pub async fn get_company_filings(
                 log::info!("Using local debug file: {:?}", debug_path);
                 content = fs::read_to_string(debug_path)?;
             } else {
-                return Err(anyhow!("JSON content appears truncated and no debug file found"));
+                return Err(anyhow!(
+                    "JSON content appears truncated and no debug file found"
+                ));
             }
         }
 
@@ -132,14 +134,19 @@ pub async fn get_company_filings(
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
-            
+
             // First verify if it's valid JSON
             match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(raw_json) => {
-                    log::debug!("JSON is valid. Content type: {}", 
-                        if raw_json.is_object() { "object" } 
-                        else { "not an object" });
-                    
+                    log::debug!(
+                        "JSON is valid. Content type: {}",
+                        if raw_json.is_object() {
+                            "object"
+                        } else {
+                            "not an object"
+                        }
+                    );
+
                     // Try to extract some basic fields for debugging
                     if let Some(obj) = raw_json.as_object() {
                         log::debug!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
@@ -147,7 +154,7 @@ pub async fn get_company_filings(
                             log::debug!("Found CIK: {}", cik);
                         }
                     }
-                },
+                }
                 Err(e) => {
                     log::error!("Invalid JSON structure: {}", e);
                     // Show error location and context
@@ -165,7 +172,7 @@ pub async fn get_company_filings(
             let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
                 log::error!("Failed to parse into CompanyFilings: {}", e);
                 // Log the first 1000 characters of content for debugging
-                log::debug!("Content preview: {}", &content[..content.len().min(1000)]);
+                log::debug!("Content preview: {}", &content);
                 anyhow!("Failed to parse initial filings JSON: {}", e)
             })?;
             log::debug!("Successfully parsed initial response");
