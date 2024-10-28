@@ -82,7 +82,26 @@ async fn fetch_filings(
     query: &Query,
     client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
-) -> Result<CompanyFilings> {
+) -> Result<Vec<filing::FilingEntry>> {
+    // For now, just get filings for the first ticker
+    // TODO: Handle multiple tickers
+    if let Some(ticker) = query.tickers.first() {
+        // Get all tickers data to find CIK
+        let tickers = edgar::tickers::fetch_tickers().await?;
+        
+        // Find matching ticker data
+        let ticker_data = tickers.iter()
+            .find(|(t, _, _)| t.as_str() == ticker)
+            .ok_or_else(|| anyhow::anyhow!("Ticker not found: {}", ticker))?;
+        
+        // Get CIK from ticker data
+        let cik = &ticker_data.2;
+        
+        // Fetch filings with pagination
+        filing::get_company_filings(client, cik, Some(10)).await
+    } else {
+        Err(anyhow::anyhow!("No tickers provided in query"))
+    }
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
