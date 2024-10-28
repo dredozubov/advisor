@@ -32,29 +32,7 @@ pub struct Filing {
 
 impl Filing {
     fn matches_report_type(&self, report_types: &[ReportType]) -> bool {
-        report_types.iter().any(|rt| match rt {
-            ReportType::Form10K => self.report_type == "10-K",
-            ReportType::Form10Q => self.report_type == "10-Q",
-            ReportType::Form8K => self.report_type == "8-K",
-            ReportType::Form4 => self.report_type == "4",
-            ReportType::Form5 => self.report_type == "5",
-            ReportType::FormS1 => self.report_type == "S-1",
-            ReportType::FormS3 => self.report_type == "S-3",
-            ReportType::FormS4 => self.report_type == "S-4",
-            ReportType::FormDEF14A => self.report_type == "DEF 14A",
-            ReportType::Form13F => self.report_type == "13F",
-            ReportType::Form13G => self.report_type == "13G",
-            ReportType::Form13D => self.report_type == "13D",
-            ReportType::FormSD => self.report_type == "SD",
-            ReportType::Form6K => self.report_type == "6-K",
-            ReportType::Form20F => self.report_type == "20-F",
-            ReportType::FormN1A => self.report_type == "N-1A",
-            ReportType::FormNCSR => self.report_type == "N-CSR",
-            ReportType::FormNPORT => self.report_type == "N-PORT",
-            ReportType::FormNQ => self.report_type == "N-Q",
-            ReportType::Form144 => self.report_type == "144",
-            ReportType::Other(s) => self.report_type == s,
-        })
+        report_types.iter().any(|rt| self.report_type == rt.to_string())
     }
 }
 
