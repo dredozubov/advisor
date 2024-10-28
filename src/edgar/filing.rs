@@ -120,15 +120,15 @@ pub async fn get_company_filings(
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             log::debug!("Parsing initial response JSON");
-            let initial_response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
+            let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
                 log::error!("JSON parse error: {}", e);
                 log::debug!("Problematic JSON content: {}", content);
                 anyhow!("Failed to parse initial filings JSON: {}", e)
             })?;
             log::debug!("Successfully parsed initial response");
 
-            all_filings.push(initial_response.filings.recent);
-            additional_files = initial_response.filings.files;
+            all_filings.push(response.filings.recent.clone());
+            additional_files = response.filings.files.clone();
         } else {
             log::debug!("Parsing subsequent page JSON");
             let page_filings: FilingEntry = serde_json::from_str(&content).map_err(|e| {
