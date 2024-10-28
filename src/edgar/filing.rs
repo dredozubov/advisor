@@ -12,7 +12,7 @@ use super::query::Query;
 use super::report::ReportType;
 use super::tickers::Ticker;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Filing {
     pub accession_number: String,
     pub filing_date: NaiveDate,
@@ -487,7 +487,8 @@ pub async fn fetch_matching_filings(
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let fetch_tasks: Vec<_> = matching_filings
-        .into_iter()  // Move ownership of matching_filings
+        .clone()  // Clone matching_filings to avoid moving it
+        .into_iter()
         .map(move |filing| {
             let client = client.clone();
             let cik = cik.to_string(); // Clone cik to avoid lifetime issues
