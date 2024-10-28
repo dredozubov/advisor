@@ -33,7 +33,7 @@ pub async fn eval(
     // Fetch relevant filings based on the query
     for ticker in &query.tickers {
         log::info!("Fetching filings for ticker: {}", ticker);
-        let filings = filing::fetch_matching_filings(http_client, ticker, &query).await?;
+        let filings = filing::fetch_matching_filings(http_client, &query).await?;
 
         // Process the fetched filings (you can modify this as needed)
         for filing in filings {
