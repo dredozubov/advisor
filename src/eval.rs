@@ -1,6 +1,10 @@
 use std::fmt;
 
-use crate::edgar::{self, filing, query::Query};
+use crate::edgar::{
+    self,
+    filing::{self, CompanyFilings},
+    query::Query,
+};
 use anyhow::Result;
 use chrono::NaiveDate;
 use langchain_rust::{
@@ -78,77 +82,7 @@ async fn fetch_filings(
     query: &Query,
     client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
-) -> Result<String> {
-    use edgar::index::{
-        self, get_edgar_archives_url, get_edgar_full_master_url, get_full_index_data_dir,
-    };
-
-    // Update index if necessary
-    index::update_full_index_feed(query.start_date, query.end_date).await?;
-
-    let mut retrieved_filings = Vec::new();
-
-    // For each ticker in the query
-    for ticker in &query.tickers {
-        // For each report type
-        for report_type in &query.report_types {
-            log::debug!(
-                "Looking up {} filings for {} between {} and {}", 
-                report_type, 
-                ticker,
-                query.start_date,
-                query.end_date
-            );
-
-            // Look up filings in the index
-            let filings = index::lookup_filings(
-                ticker.as_str(),
-                &report_type.to_string(),
-                query.start_date,
-                query.end_date,
-            ).await?;
-
-            // Process each filing found
-            for filing_entry in filings {
-                log::debug!(
-                    "Processing filing: {} {} {}", 
-                    filing_entry.form_type,
-                    filing_entry.date_filed,
-                    filing_entry.filename
-                );
-
-                // Create filing metadata for processing
-                let filing_meta = vec![
-                    ("CIK", filing_entry.cik.as_str()),
-                    ("Company Name", filing_entry.company_name.as_str()),
-                    ("Type", filing_entry.form_type.as_str()),
-                    ("Date Filed", &filing_entry.date_filed.to_string()),
-                    ("Filename", filing_entry.filename.as_str()),
-                ];
-
-                match edgar::filing::process_filing(client, &filing_meta).await {
-                    Ok(filing) => {
-                        log::debug!("Successfully retrieved filing");
-                        retrieved_filings.push(filing);
-                    }
-                    Err(e) => {
-                        log::error!("Failed to retrieve filing: {}", e);
-                    }
-                }
-            }
-        }
-    }
-
-    log::debug!("Retrieved {} filings", retrieved_filings.len());
-    
-    if retrieved_filings.is_empty() {
-        Ok("No filings were retrieved".to_string())
-    } else {
-        Ok(format!(
-            "Successfully retrieved {} filings",
-            retrieved_filings.len()
-        ))
-    }
+) -> Result<CompanyFilings> {
 }
 
 // fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
