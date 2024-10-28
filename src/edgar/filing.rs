@@ -87,17 +87,11 @@ pub async fn get_company_filings(client: &Client, cik: &str) -> Result<CompanyFi
 
     // Create filings directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
-    
+
     let filepath = PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}.json", padded_cik));
 
     if !filepath.exists() {
-        
-        super::utils::fetch_and_save(
-            client,
-            &Url::parse(&url)?,
-            &filepath,
-            USER_AGENT,
-        ).await?;
+        super::utils::fetch_and_save(client, &Url::parse(&url)?, &filepath, USER_AGENT).await?;
     }
 
     let content = fs::read_to_string(&filepath)?;
