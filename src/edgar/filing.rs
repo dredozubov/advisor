@@ -11,9 +11,9 @@ use super::report::ReportType;
 use super::tickers::Ticker;
 
 // Hardcoded values
-const FILING_DATA_DIR: &str = "edgar_data/filings";
-const EDGAR_DATA_URL: &str = "https://data.sec.gov";
-const USER_AGENT: &str = "software@example.com";
+pub const FILING_DATA_DIR: &str = "edgar_data/filings";
+pub const EDGAR_DATA_URL: &str = "https://data.sec.gov";
+pub const USER_AGENT: &str = "software@example.com";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CompanyInfo {
@@ -81,7 +81,11 @@ pub struct CompanyFilings {
     pub filings: FilingsData,
 }
 
-pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize>) -> Result<CompanyFilings> {
+pub async fn get_company_filings(
+    client: &Client,
+    cik: &str,
+    limit: Option<usize>,
+) -> Result<CompanyFilings> {
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
@@ -101,21 +105,17 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            super::utils::fetch_and_save(
-                client, 
-                &Url::parse(&current_url)?, 
-                &filepath, 
-                USER_AGENT
-            ).await?;
+            super::utils::fetch_and_save(client, &Url::parse(&current_url)?, &filepath, USER_AGENT)
+                .await?;
         }
 
         let content = fs::read_to_string(&filepath)?;
-        
+
         // Handle first page differently than subsequent pages
         if fetched_count == 0 {
             let initial_response: CompanyFilings = serde_json::from_str(&content)
                 .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
-            
+
             all_filings.push(initial_response.filings.recent);
             additional_files = initial_response.filings.files;
         } else {
@@ -145,10 +145,9 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
 
     // Get the initial response which contains company info
     let content = fs::read_to_string(
-        PathBuf::from(FILING_DATA_DIR)
-            .join(format!("CIK{}_{}.json", padded_cik, 0))
+        PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}_{}.json", padded_cik, 0)),
     )?;
-    
+
     let mut initial_response: CompanyFilings = serde_json::from_str(&content)
         .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
 
@@ -174,7 +173,9 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
         merged.accession_number.extend(filing.accession_number);
         merged.filing_date.extend(filing.filing_date);
         merged.report_date.extend(filing.report_date);
-        merged.acceptance_date_time.extend(filing.acceptance_date_time);
+        merged
+            .acceptance_date_time
+            .extend(filing.acceptance_date_time);
         merged.act.extend(filing.act);
         merged.report_type.extend(filing.report_type);
         merged.file_number.extend(filing.file_number);
@@ -184,7 +185,9 @@ pub async fn get_company_filings(client: &Client, cik: &str, limit: Option<usize
         merged.is_xbrl.extend(filing.is_xbrl);
         merged.is_inline_xbrl.extend(filing.is_inline_xbrl);
         merged.primary_document.extend(filing.primary_document);
-        merged.primary_doc_description.extend(filing.primary_doc_description);
+        merged
+            .primary_doc_description
+            .extend(filing.primary_doc_description);
     }
 
     // Update the initial response with merged filings
