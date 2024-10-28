@@ -84,7 +84,10 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
         let base = "https://www.sec.gov/Archives/edgar/data";
         let cik = format!("{:0>10}", query.tickers[0]); // Assuming the first ticker's CIK is used
         let accession_number = filing.accession_number.replace("-", "");
-        let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, filing.primary_document);
+        let document_url = format!(
+            "{}/{}/{}/{}",
+            base, cik, accession_number, filing.primary_document
+        );
 
         log::info!("Constructed document URL: {}", document_url);
 
