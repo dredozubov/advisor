@@ -482,7 +482,7 @@ pub async fn get_company_filings(
     Ok(initial_response)
 }
 
-pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<HashMap<String, Filing>> {
+pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Vec<String>> {
     // Fetch tickers to get CIKs
     let tickers = super::tickers::fetch_tickers().await?;
 
@@ -501,6 +501,9 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ha
 
     // Create the base directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
+
+    // Create a HashMap to store file paths and their corresponding filings
+    let mut filing_map = HashMap::new();
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let fetch_tasks: Vec<_> = matching_filings
@@ -534,34 +537,20 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ha
 
                 log::info!("Saved filing document to {}", document_path);
 
-                Ok::<(), anyhow::Error>(())
+                Ok::<String, anyhow::Error>(document_path)
             })
         })
         .collect();
 
     // Wait for all fetch tasks to complete
-    futures::future::try_join_all(fetch_tasks).await?;
+    let paths = futures::future::try_join_all(fetch_tasks).await?;
 
-    // Create a HashMap to store file paths and their corresponding filings
-    let mut filing_map = HashMap::new();
-
-    for filing in matching_filings {
-        let company_name = query.tickers[0].replace(" ", "_");
-        let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
-        let output_file = format!(
-            "edgar_data/parsed/{}/{}.txt",
-            company_name, filing_type_with_date
-        );
-
-        filing_map.insert(output_file, filing);
-    }
-
-    Ok(filing_map)
+    Ok(paths)
 }
 
 pub fn extract_complete_submission_filing(
     filepath: &str,
-    output_directory: Option<&Path>,
+    output_directory: &Path,
 ) -> Result<HashMap<String, serde_json::Value>> {
     log::debug!(
         "Starting extract_complete_submission_filing for file: {}",
@@ -575,7 +564,6 @@ pub fn extract_complete_submission_filing(
         ("DESCRIPTION", "<DESCRIPTION>"),
     ];
 
-    let output_directory = output_directory.unwrap_or_else(|| Path::new("edgar_data/parsed"));
     log::debug!(
         "Checking if output directory exists: {:?}",
         output_directory
