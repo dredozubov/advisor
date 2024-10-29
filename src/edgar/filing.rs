@@ -515,7 +515,7 @@ pub async fn fetch_matching_filings(
             let filing_clone = filing.clone(); // Clone filing to store in the map later
             let client = client.clone();
             let cik = cik.to_string(); // Clone cik to avoid lifetime issues
-            let filing_map = Arc::clone(&filing_map); // Clone the Arc to avoid moving it
+            let filing_map_clone = Arc::clone(&filing_map); // Clone the Arc to avoid moving it
             let _permit = rate_limiter.acquire();
 
             tokio::spawn(async move {
@@ -541,7 +541,7 @@ pub async fn fetch_matching_filings(
 
                 log::info!("Saved filing document to {}", document_path);
 
-                let mut map = filing_map.lock().await;
+                let mut map = filing_map_clone.lock().await;
                 map.insert(document_path.clone(), filing_clone);
                 Ok::<String, anyhow::Error>(document_path)
             })
