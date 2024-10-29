@@ -47,13 +47,19 @@ pub async fn eval(
                     company_name, filing_type_with_date
                 );
 
-                // Parse the filing and save it to the output directory
-                match filing::extract_complete_submission_filing(
-                    &filing.primary_document,
-                    Some(std::path::Path::new(&output_dir)),
-                ) {
-                    Ok(_) => log::info!("Parsed and saved filing to {}", output_dir),
-                    Err(e) => log::error!("Failed to parse filing: {}", e),
+                // Check if the output directory already exists
+                let output_path = std::path::Path::new(&output_dir);
+                if output_path.exists() {
+                    log::info!("Output directory already exists for filing: {}", output_dir);
+                } else {
+                    // Parse the filing and save it to the output directory
+                    match filing::extract_complete_submission_filing(
+                        &filing.primary_document,
+                        Some(output_path),
+                    ) {
+                        Ok(_) => log::info!("Parsed and saved filing to {}", output_dir),
+                        Err(e) => log::error!("Failed to parse filing: {}", e),
+                    }
                 }
             }
         }
