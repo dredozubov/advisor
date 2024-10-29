@@ -38,7 +38,19 @@ pub async fn eval(
         // Process the fetched filings (you can modify this as needed)
         for filing in filings {
             log::info!("Fetched filing: {:?}", filing);
-        }
+            
+            // Parse and save each fetched filing
+            for filing in &filings {
+                let company_name = filing.company_name.replace(" ", "_");
+                let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
+                let output_dir = format!("edgar_data/parsed/{}/{}", company_name, filing_type_with_date);
+
+                // Parse the filing and save it to the output directory
+                match filing::extract_complete_submission_filing(&filing.primary_document, Some(std::path::Path::new(&output_dir))) {
+                    Ok(_) => log::info!("Parsed and saved filing to {}", output_dir),
+                    Err(e) => log::error!("Failed to parse filing: {}", e),
+                }
+            }
     }
 
     Ok("".to_string())
