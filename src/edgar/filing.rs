@@ -554,6 +554,11 @@ pub async fn fetch_matching_filings(
         futures::future::try_join_all(fetch_tasks).await?;
 
     // Convert Vec<Result<String>> into Result<Vec<String>>
+    result.and_then(|_| {
+        Arc::try_unwrap(filing_map)
+            .map_err(|_| anyhow!("Failed to unwrap Arc"))
+            .map(|mutex| mutex.into_inner().unwrap())
+    })
     // Convert Vec<Result<String>> into Result<Vec<String>>
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
