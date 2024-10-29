@@ -504,64 +504,58 @@ pub async fn fetch_matching_filings(
     // Create the base directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
 
-    // Fetch and save each matching filing in parallel, respecting the rate limit
-    let filing_map = Arc::new(Mutex::new(HashMap::new()));
+    // Create an mpsc channel to send results from async tasks
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+
+    // Spawn async tasks to fetch and save each matching filing
     let mut handles = Vec::new();
-    let fetch_tasks: Vec<_> = matching_filings
-        .clone() // Clone matching_filings to avoid moving it
-        .into_iter()
-        .map(move |filing| {
-            let filing_clone = filing.clone(); // Clone filing to store in the map later
-            let client = client.clone();
-            let cik = cik.to_string(); // Clone cik to avoid lifetime issues
-            let filing_map_clone = Arc::clone(&filing_map); // Clone the Arc to avoid moving it
-            let _permit = rate_limiter.acquire();
+    for filing in matching_filings {
+        let tx = tx.clone();
+        let client = client.clone();
+        let cik = cik.to_string();
+        let _permit = rate_limiter.acquire();
 
-            let handle = tokio::spawn(async move {
-                let filing_map_clone = filing_map.clone();
-                let base = "https://www.sec.gov/Archives/edgar/data";
-                let cik = format!("{:0>10}", cik); // cik is already a String
-                let accession_number = filing.accession_number.replace("-", "");
-                let document_url = format!(
-                    "{}/{}/{}/{}",
-                    base, cik, accession_number, filing.primary_document
-                );
+        let handle = tokio::spawn(async move {
+            let base = "https://www.sec.gov/Archives/edgar/data";
+            let cik = format!("{:0>10}", cik);
+            let accession_number = filing.accession_number.replace("-", "");
+            let document_url = format!(
+                "{}/{}/{}/{}",
+                base, cik, accession_number, filing.primary_document
+            );
 
-                // Create the directory structure for the filing
-                let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
-                fs::create_dir_all(&filing_dir)?;
+            // Create the directory structure for the filing
+            let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
+            fs::create_dir_all(&filing_dir)?;
 
-                // Define the path to save the document
-                let document_path = format!("{}/{}", filing_dir, filing.primary_document);
+            // Define the path to save the document
+            let document_path = format!("{}/{}", filing_dir, filing.primary_document);
 
-                // Fetch and save the document
-                let response = client.get(&document_url).send().await?;
-                let content = response.bytes().await?;
-                fs::write(&document_path, &content)?;
+            // Fetch and save the document
+            let response = client.get(&document_url).send().await?;
+            let content = response.bytes().await?;
+            fs::write(&document_path, &content)?;
 
-                log::info!("Saved filing document to {}", document_path);
+            log::info!("Saved filing document to {}", document_path);
 
-                let mut map = filing_map_clone.lock().await;
-                map.insert(document_path.clone(), filing_clone);
-                Ok::<String, anyhow::Error>(document_path)
-            });
-            handles.push(handle);
-            Ok::<(), anyhow::Error>(()) // Ensure the task returns a result
-        })
-        .collect();
+            // Send the result back to the main task
+            tx.send((document_path, filing)).await?;
 
-    // Wait for all fetch tasks to complete
-    futures::future::try_join_all(handles).await?; // Use handles instead of fetch_tasks
+            Ok::<(), anyhow::Error>(())
+        });
+        handles.push(handle);
+    }
 
-    // Convert Vec<Result<String>> into Result<Vec<String>>
-    // Convert Vec<Result<String>> into Result<Vec<String>>
+    // Wait for all tasks to complete
+    futures::future::try_join_all(handles).await?;
 
-    // If all fetches succeeded, return the HashMap of file paths and filings
-    result.and_then(|_| {
-        Arc::try_unwrap(filing_map)
-            .map_err(|_| anyhow!("Failed to unwrap Arc"))
-            .map(|mutex| mutex.into_inner())
-    })
+    // Collect results from the channel
+    let mut filing_map = HashMap::new();
+    while let Some((document_path, filing)) = rx.recv().await {
+        filing_map.insert(document_path, filing);
+    }
+
+    Ok(filing_map)
 }
 
 pub fn extract_complete_submission_filing(
