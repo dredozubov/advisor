@@ -506,7 +506,7 @@ pub async fn fetch_matching_filings(
     fs::create_dir_all(FILING_DATA_DIR)?;
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
-    let mut filing_map = HashMap::new();
+    let filing_map = Arc::new(Mutex::new(HashMap::new()));
     let fetch_tasks: Vec<_> = matching_filings
         .clone() // Clone matching_filings to avoid moving it
         .into_iter()
@@ -539,7 +539,8 @@ pub async fn fetch_matching_filings(
 
                 log::info!("Saved filing document to {}", document_path);
 
-                filing_map.insert(document_path.clone(), filing_clone);
+                let mut map = filing_map.lock().unwrap();
+                map.insert(document_path.clone(), filing_clone);
                 Ok::<String, anyhow::Error>(document_path)
             })
         })
@@ -554,7 +555,7 @@ pub async fn fetch_matching_filings(
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
     // If all fetches succeeded, return the HashMap of file paths and filings
-    result.map(|_| filing_map)
+    result.map(|_| Arc::try_unwrap(filing_map).unwrap().into_inner().unwrap())
 }
 
 pub fn extract_complete_submission_filing(
