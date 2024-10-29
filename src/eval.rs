@@ -34,42 +34,32 @@ pub async fn eval(
         let filings = filing::fetch_matching_filings(http_client, &query).await?;
 
         // Process the fetched filings (you can modify this as needed)
-        for (output_file, filing) in &filings {
-            log::info!("Fetched filing: {:?}", filing);
+        for (input_file, filing) in &filings {
+            log::info!("Fetched filing ({:?}): {:?}", input_file, filing);
             let company_name = ticker;
             let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
-            let output_file = format!(
+            let output_file_path = format!(
                 "edgar_data/parsed/{}/{}.txt",
                 company_name, filing_type_with_date
             );
 
-            // Ensure the parsed directory exists
-            let parsed_dir = std::path::Path::new("edgar_data/parsed");
-            if !parsed_dir.exists() {
-                log::debug!("Creating parsed directory: {:?}", parsed_dir);
-                if let Err(e) = std::fs::create_dir_all(parsed_dir) {
-                    log::error!("Failed to create parsed directory: {}", e);
-                    continue;
-                }
-            }
-
             // Check if the output file already exists
-            let output_path = std::path::Path::new(&output_file);
+            let output_path = std::path::Path::new(&output_file_path);
             if output_path.exists() {
-                log::info!("Output file already exists for filing: {}", output_file);
+                log::info!(
+                    "Output file already exists for filing: {}",
+                    output_file_path
+                );
             } else {
                 log::debug!(
                     "Parsing filing: {} with output path: {:?}",
-                    filing.primary_document,
-                    output_path
+                    &input_file,
+                    output_path.parent().unwrap()
                 );
 
-                match filing::extract_complete_submission_filing(
-                    output_file,
-                    Some(output_path),
-                ) {
-                    Ok(_) => {
-                        log::info!("Parsed and saved filing to {}", output_file);
+                match filing::extract_complete_submission_filing(input_file, &output_path) {
+                    Ok(parsed) => {
+                        log::info!("Parsed and saved filing to {:?}", output_path);
                         log::debug!("Filing content: {:?}", filing);
                     }
                     Err(e) => log::error!("Failed to parse filing: {}", e),
