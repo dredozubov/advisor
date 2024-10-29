@@ -36,50 +36,43 @@ pub async fn eval(
         // Process the fetched filings (you can modify this as needed)
         for filing in &filings {
             log::info!("Fetched filing: {:?}", filing);
+            let company_name = ticker;
+            let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
+            let output_file = format!(
+                "edgar_data/parsed/{}/{}.txt",
+                company_name, filing_type_with_date
+            );
 
-            // Parse and save each fetched filing
-            for filing in &filings {
-                let company_name = ticker;
-                let filing_type_with_date =
-                    format!("{}_{}", filing.report_type, filing.filing_date);
-                let output_file = format!(
-                    "edgar_data/parsed/{}/{}.txt",
-                    company_name, filing_type_with_date
+            // Ensure the parsed directory exists
+            let parsed_dir = std::path::Path::new("edgar_data/parsed");
+            if !parsed_dir.exists() {
+                log::debug!("Creating parsed directory: {:?}", parsed_dir);
+                if let Err(e) = std::fs::create_dir_all(parsed_dir) {
+                    log::error!("Failed to create parsed directory: {}", e);
+                    continue;
+                }
+            }
+
+            // Check if the output file already exists
+            let output_path = std::path::Path::new(&output_file);
+            if output_path.exists() {
+                log::info!("Output file already exists for filing: {}", output_file);
+            } else {
+                log::debug!(
+                    "Parsing filing: {} with output path: {:?}",
+                    filing.primary_document,
+                    output_path
                 );
 
-                // Ensure the parsed directory exists
-                let parsed_dir = std::path::Path::new("edgar_data/parsed");
-                if !parsed_dir.exists() {
-                    log::debug!("Creating parsed directory: {:?}", parsed_dir);
-                    if let Err(e) = std::fs::create_dir_all(parsed_dir) {
-                        log::error!("Failed to create parsed directory: {}", e);
-                        continue;
+                match filing::extract_complete_submission_filing(
+                    &filing.primary_document,
+                    Some(output_path),
+                ) {
+                    Ok(_) => {
+                        log::info!("Parsed and saved filing to {}", output_file);
+                        log::debug!("Filing content: {:?}", filing);
                     }
-                }
-
-                // Check if the output file already exists
-                let output_path = std::path::Path::new(&output_file);
-                if output_path.exists() {
-                    log::info!("Output file already exists for filing: {}", output_file);
-                } else {
-                    log::debug!("Parsing filing: {} with output path: {:?}", filing.primary_document, output_path);
-                    if !std::path::Path::new(&filing.primary_document).exists() {
-                        log::error!("Filing document does not exist: {}", filing.primary_document);
-                        continue;
-                    }
-
-                    log::debug!("Filing document exists: {}", filing.primary_document);
-
-                    match filing::extract_complete_submission_filing(
-                        &filing.primary_document,
-                        Some(output_path),
-                    ) {
-                        Ok(_) => {
-                            log::info!("Parsed and saved filing to {}", output_file);
-                            log::debug!("Filing content: {:?}", filing);
-                        }
-                        Err(e) => log::error!("Failed to parse filing: {}", e),
-                    }
+                    Err(e) => log::error!("Failed to parse filing: {}", e),
                 }
             }
         }

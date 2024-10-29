@@ -549,7 +549,10 @@ pub fn extract_complete_submission_filing(
     filepath: &str,
     output_directory: Option<&Path>,
 ) -> Result<HashMap<String, serde_json::Value>> {
-    log::debug!("Starting extract_complete_submission_filing for file: {}", filepath);
+    log::debug!(
+        "Starting extract_complete_submission_filing for file: {}",
+        filepath
+    );
 
     let elements_list = vec![
         ("FILENAME", "<FILENAME>"),
@@ -579,7 +582,11 @@ pub fn extract_complete_submission_filing(
     log::debug!("Reading file: {}", filepath);
     let raw_text = match fs::read(filepath) {
         Ok(content) => {
-            log::debug!("Successfully read file: {} ({} bytes)", filepath, content.len());
+            log::debug!(
+                "Successfully read file: {} ({} bytes)",
+                filepath,
+                content.len()
+            );
             content
         }
         Err(e) => {
@@ -602,8 +609,6 @@ pub fn extract_complete_submission_filing(
             return Err(e.into());
         }
     };
-        .encoding(Encoding::for_label(charenc.as_bytes()))
-        .build(BufReader::new(File::open(filepath)?));
 
     log::debug!("Starting to read and decode file content...");
     let mut raw_text_string = String::new();
@@ -611,7 +616,10 @@ pub fn extract_complete_submission_filing(
         log::error!("Failed to read and decode file content. Error: {}", e);
         return Err(e.into());
     }
-    log::debug!("Successfully read and decoded file content ({} characters)", raw_text_string.len());
+    log::debug!(
+        "Successfully read and decoded file content ({} characters)",
+        raw_text_string.len()
+    );
 
     log::debug!("Parsing filing header...");
     let filing_header = match header_parser(&raw_text_string) {
@@ -675,10 +683,17 @@ pub fn extract_complete_submission_filing(
         log::debug!("Writing parsed content to file: {:?}", output_filepath);
         log::debug!("Writing parsed content to file: {:?}", output_filepath);
         if let Err(e) = fs::write(&output_filepath, raw_text) {
-            log::error!("Failed to write parsed content to file: {:?}. Error: {}", output_filepath, e);
+            log::error!(
+                "Failed to write parsed content to file: {:?}. Error: {}",
+                output_filepath,
+                e
+            );
             return Err(e.into());
         }
-        log::debug!("Successfully wrote parsed content to file: {:?}", output_filepath);
+        log::debug!(
+            "Successfully wrote parsed content to file: {:?}",
+            output_filepath
+        );
 
         filing_document.insert(
             "RELATIVE_FILEPATH".to_string(),
