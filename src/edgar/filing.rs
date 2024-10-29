@@ -482,7 +482,10 @@ pub async fn get_company_filings(
     Ok(initial_response)
 }
 
-pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<HashMap<String, Filing>> {
+pub async fn fetch_matching_filings(
+    client: &Client,
+    query: &Query,
+) -> Result<HashMap<String, Filing>> {
     // Fetch tickers to get CIKs
     let tickers = super::tickers::fetch_tickers().await?;
 
