@@ -502,9 +502,6 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
     // Create the base directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
 
-    // Create a HashMap to store file paths and their corresponding filings
-    let mut filing_map = HashMap::new();
-
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let fetch_tasks: Vec<_> = matching_filings
         .clone() // Clone matching_filings to avoid moving it
@@ -543,7 +540,8 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
         .collect();
 
     // Wait for all fetch tasks to complete
-    let paths: Vec<Result<String, anyhow::Error>> = futures::future::try_join_all(fetch_tasks).await?;
+    let paths: Vec<Result<String, anyhow::Error>> =
+        futures::future::try_join_all(fetch_tasks).await?;
 
     // Convert Vec<Result<String>> into Result<Vec<String>>
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
