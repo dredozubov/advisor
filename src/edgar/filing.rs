@@ -558,7 +558,11 @@ pub async fn fetch_matching_filings(
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
     // If all fetches succeeded, return the HashMap of file paths and filings
-    // TODO
+    result.and_then(|_| {
+        Arc::try_unwrap(filing_map)
+            .map_err(|_| anyhow!("Failed to unwrap Arc"))
+            .map(|mutex| mutex.into_inner().unwrap())
+    })
 }
 
 pub fn extract_complete_submission_filing(
