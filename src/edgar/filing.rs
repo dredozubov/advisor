@@ -482,7 +482,7 @@ pub async fn get_company_filings(
     Ok(initial_response)
 }
 
-pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Vec<String>> {
+pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<HashMap<String, Filing>> {
     // Fetch tickers to get CIKs
     let tickers = super::tickers::fetch_tickers().await?;
 
@@ -503,10 +503,12 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
     fs::create_dir_all(FILING_DATA_DIR)?;
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
+    let mut filing_map = HashMap::new();
     let fetch_tasks: Vec<_> = matching_filings
         .clone() // Clone matching_filings to avoid moving it
         .into_iter()
         .map(move |filing| {
+            let filing_clone = filing.clone(); // Clone filing to store in the map later
             let client = client.clone();
             let cik = cik.to_string(); // Clone cik to avoid lifetime issues
             let _permit = rate_limiter.acquire();
@@ -534,6 +536,7 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
 
                 log::info!("Saved filing document to {}", document_path);
 
+                filing_map.insert(document_path.clone(), filing_clone);
                 Ok::<String, anyhow::Error>(document_path)
             })
         })
@@ -544,9 +547,11 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
         futures::future::try_join_all(fetch_tasks).await?;
 
     // Convert Vec<Result<String>> into Result<Vec<String>>
+    // Convert Vec<Result<String>> into Result<Vec<String>>
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
-    result
+    // If all fetches succeeded, return the HashMap of file paths and filings
+    result.map(|_| filing_map)
 }
 
 pub fn extract_complete_submission_filing(
