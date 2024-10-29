@@ -42,31 +42,23 @@ pub async fn eval(
                 let company_name = ticker;
                 let filing_type_with_date =
                     format!("{}_{}", filing.report_type, filing.filing_date);
-                let output_dir = format!(
-                    "edgar_data/parsed/{}/{}",
+                let output_file = format!(
+                    "edgar_data/parsed/{}/{}.txt",
                     company_name, filing_type_with_date
                 );
 
-                // Check if the output directory already exists
-                let output_path = std::path::Path::new(&output_dir);
+                // Check if the output file already exists
+                let output_path = std::path::Path::new(&output_file);
                 if output_path.exists() {
-                    log::info!("Output directory already exists for filing: {}", output_dir);
+                    log::info!("Output file already exists for filing: {}", output_file);
                 } else {
-                    log::debug!("Checking if output directory exists: {}", output_dir);
-                    if let Err(e) = std::fs::create_dir_all(&output_dir) {
-                        log::error!("Failed to create output directory {}: {}", output_dir, e);
-                    } else {
-                        log::debug!("Successfully created output directory: {}", output_dir);
-                        continue;
-                    }
-
                     log::debug!("Parsing filing: {}", filing.primary_document);
                     match filing::extract_complete_submission_filing(
                         &filing.primary_document,
                         Some(output_path),
                     ) {
                         Ok(_) => {
-                            log::info!("Parsed and saved filing to {}", output_dir);
+                            log::info!("Parsed and saved filing to {}", output_file);
                             log::debug!("Filing content: {:?}", filing);
                         }
                         Err(e) => log::error!("Failed to parse filing: {}", e),
