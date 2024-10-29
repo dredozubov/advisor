@@ -518,7 +518,7 @@ pub async fn fetch_matching_filings(
             let filing_map_clone = Arc::clone(&filing_map); // Clone the Arc to avoid moving it
             let _permit = rate_limiter.acquire();
 
-            tokio::spawn(async move {
+            let handle = tokio::spawn(async move {
                 let filing_map_clone = filing_map.clone();
                 let base = "https://www.sec.gov/Archives/edgar/data";
                 let cik = format!("{:0>10}", cik); // cik is already a String
@@ -545,7 +545,8 @@ pub async fn fetch_matching_filings(
                 let mut map = filing_map_clone.lock().await;
                 map.insert(document_path.clone(), filing_clone);
                 Ok::<String, anyhow::Error>(document_path)
-            })
+            });
+            handles.push(handle);
         })
         .collect();
 
@@ -561,7 +562,7 @@ pub async fn fetch_matching_filings(
     result.and_then(|_| {
         Arc::try_unwrap(filing_map)
             .map_err(|_| anyhow!("Failed to unwrap Arc"))
-            .map(|mutex| mutex.into_inner().unwrap())
+            .map(|mutex| mutex.into_inner())
     })
 }
 
