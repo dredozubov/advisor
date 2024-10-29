@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use chardet::detect;
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use html_escape::decode_html_entities;
@@ -12,16 +12,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use url::Url;
-use uuencode::uudecode;
 
 use super::query::Query;
 use super::report::ReportType;
-use super::tickers::Ticker;
 
 #[derive(Debug, Clone)]
 pub struct Filing {
@@ -508,6 +506,7 @@ pub async fn fetch_matching_filings(
 
     // Fetch and save each matching filing in parallel, respecting the rate limit
     let filing_map = Arc::new(Mutex::new(HashMap::new()));
+    let mut handles = Vec::new();
     let fetch_tasks: Vec<_> = matching_filings
         .clone() // Clone matching_filings to avoid moving it
         .into_iter()
@@ -547,12 +546,12 @@ pub async fn fetch_matching_filings(
                 Ok::<String, anyhow::Error>(document_path)
             });
             handles.push(handle);
+            Ok::<(), anyhow::Error>(()) // Ensure the task returns a result
         })
         .collect();
 
     // Wait for all fetch tasks to complete
-    let paths: Vec<Result<String, anyhow::Error>> =
-        futures::future::try_join_all(fetch_tasks).await?;
+    futures::future::try_join_all(handles).await?; // Use handles instead of fetch_tasks
 
     // Convert Vec<Result<String>> into Result<Vec<String>>
     // Convert Vec<Result<String>> into Result<Vec<String>>
@@ -687,7 +686,7 @@ pub fn extract_complete_submission_filing(
             .trim()
             .to_string();
 
-        let doc_num = format!("{:04}", i + 1);
+        let _doc_num = format!("{:04}", i + 1); // Prefix with underscore to avoid warning
         let output_filename = format!(
             "{}_{}.txt",
             filing_document

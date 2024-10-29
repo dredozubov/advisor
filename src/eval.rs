@@ -1,25 +1,22 @@
 use crate::edgar::{
     self,
-    filing::{self, CompanyFilings},
+    filing,
     query::Query,
 };
 use anyhow::Result;
-use chrono::NaiveDate;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
-    fmt_message, fmt_template,
+    fmt_message,
     llm::{OpenAI, OpenAIConfig},
     message_formatter,
-    prompt::HumanMessagePromptTemplate,
     prompt_args,
     schemas::Message,
-    template_fstring,
 };
 
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
-    llm: &OpenAI<OpenAIConfig>,
+    _llm: &OpenAI<OpenAIConfig>, // Prefix with underscore to avoid warning
     _thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
@@ -58,7 +55,7 @@ pub async fn eval(
                 );
 
                 match filing::extract_complete_submission_filing(input_file, &output_path) {
-                    Ok(parsed) => {
+                    Ok(_parsed) => { // Prefix with underscore to avoid warning
                         log::info!("Parsed and saved filing to {:?}", output_path);
                         log::debug!("Filing content: {:?}", filing);
                     }
