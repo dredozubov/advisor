@@ -482,7 +482,7 @@ pub async fn get_company_filings(
     Ok(initial_response)
 }
 
-pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Vec<Filing>> {
+pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<HashMap<String, Filing>> {
     // Fetch tickers to get CIKs
     let tickers = super::tickers::fetch_tickers().await?;
 
@@ -542,7 +542,21 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
     // Wait for all fetch tasks to complete
     futures::future::try_join_all(fetch_tasks).await?;
 
-    Ok(matching_filings)
+    // Create a HashMap to store file paths and their corresponding filings
+    let mut filing_map = HashMap::new();
+
+    for filing in matching_filings {
+        let company_name = query.tickers[0].replace(" ", "_");
+        let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
+        let output_file = format!(
+            "edgar_data/parsed/{}/{}.txt",
+            company_name, filing_type_with_date
+        );
+
+        filing_map.insert(output_file, filing);
+    }
+
+    Ok(filing_map)
 }
 
 pub fn extract_complete_submission_filing(

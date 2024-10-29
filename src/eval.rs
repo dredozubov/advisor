@@ -34,7 +34,7 @@ pub async fn eval(
         let filings = filing::fetch_matching_filings(http_client, &query).await?;
 
         // Process the fetched filings (you can modify this as needed)
-        for filing in &filings {
+        for (output_file, filing) in &filings {
             log::info!("Fetched filing: {:?}", filing);
             let company_name = ticker;
             let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
@@ -65,7 +65,7 @@ pub async fn eval(
                 );
 
                 match filing::extract_complete_submission_filing(
-                    &filing.primary_document,
+                    output_file,
                     Some(output_path),
                 ) {
                     Ok(_) => {
