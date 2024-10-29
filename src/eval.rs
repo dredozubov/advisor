@@ -52,18 +52,23 @@ pub async fn eval(
                 if output_path.exists() {
                     log::info!("Output directory already exists for filing: {}", output_dir);
                 } else {
-                    // Ensure the output directory exists
+                    log::debug!("Checking if output directory exists: {}", output_dir);
                     if let Err(e) = std::fs::create_dir_all(&output_dir) {
                         log::error!("Failed to create output directory {}: {}", output_dir, e);
+                    } else {
+                        log::debug!("Successfully created output directory: {}", output_dir);
                         continue;
                     }
 
-                    // Parse the filing and save it to the output directory
+                    log::debug!("Parsing filing: {}", filing.primary_document);
                     match filing::extract_complete_submission_filing(
                         &filing.primary_document,
                         Some(output_path),
                     ) {
-                        Ok(_) => log::info!("Parsed and saved filing to {}", output_dir),
+                        Ok(_) => {
+                            log::info!("Parsed and saved filing to {}", output_dir);
+                            log::debug!("Filing content: {:?}", filing);
+                        }
                         Err(e) => log::error!("Failed to parse filing: {}", e),
                     }
                 }

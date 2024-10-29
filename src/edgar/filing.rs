@@ -561,7 +561,7 @@ pub fn extract_complete_submission_filing(
         fs::create_dir_all(output_directory)?;
     }
 
-    info!("extracting documents to {:?}", output_directory);
+    log::debug!("Starting to extract documents to {:?}", output_directory);
 
     let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
     let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
@@ -631,9 +631,11 @@ pub fn extract_complete_submission_filing(
             // Handle UUEncoded content
             let decoded_content = uudecode(&raw_text)
                 .ok_or_else(|| anyhow::anyhow!("Failed to decode UUEncoded content"))?;
+            log::debug!("Creating file for UUEncoded content: {:?}", output_filepath);
             let mut file = File::create(&output_filepath)?;
             file.write_all(&decoded_content.0)?; // Write the Vec<u8> part
         } else {
+            log::debug!("Writing raw text to file: {:?}", output_filepath);
             fs::write(&output_filepath, raw_text)?;
         }
 
