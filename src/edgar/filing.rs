@@ -557,13 +557,19 @@ pub fn extract_complete_submission_filing(
     ];
 
     let output_directory = output_directory.unwrap_or_else(|| Path::new("edgar_data/parsed"));
-    log::debug!("Checking if output directory exists: {:?}", output_directory);
+    log::debug!(
+        "Checking if output directory exists: {:?}",
+        output_directory
+    );
     if !output_directory.exists() {
         log::debug!("Creating output directory: {:?}", output_directory);
         fs::create_dir_all(output_directory)?;
     }
 
-    log::debug!("Starting to extract and save parsed content to {:?}", output_directory);
+    log::debug!(
+        "Starting to extract and save parsed content to {:?}",
+        output_directory
+    );
 
     let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
     let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
@@ -617,8 +623,12 @@ pub fn extract_complete_submission_filing(
         let doc_num = format!("{:04}", i + 1);
         let output_filename = format!(
             "{}_{}.txt",
-            filing_document.get("TYPE").unwrap_or(&"unknown_type".to_string()),
-            filing_document.get("FILING_DATE").unwrap_or(&"unknown_date".to_string())
+            filing_document
+                .get("TYPE")
+                .unwrap_or(&"unknown_type".to_string()),
+            filing_document
+                .get("FILING_DATE")
+                .unwrap_or(&"unknown_date".to_string())
         );
         let output_filepath = output_directory.join(&output_filename);
 
@@ -639,7 +649,7 @@ pub fn extract_complete_submission_filing(
 
         filing_documents.insert(i.to_string(), json!(filing_document));
     }
-
+    log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
 }
 
