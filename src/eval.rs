@@ -117,7 +117,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
 async fn fetch_filings(
     query: &Query,
     client: &reqwest::Client,
-    llm: &OpenAI<OpenAIConfig>,
+    _llm: &OpenAI<OpenAIConfig>,
 ) -> Result<Vec<filing::CompanyFilings>> {
     // Get all tickers data to find CIKs
     let tickers = edgar::tickers::fetch_tickers().await?;

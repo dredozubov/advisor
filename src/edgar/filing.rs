@@ -14,8 +14,6 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use url::Url;
 
 use super::query::Query;
@@ -520,6 +518,7 @@ pub async fn fetch_matching_filings(
         let _permit = rate_limiter.acquire().await;
 
         let handle = tokio::spawn(async move {
+            let filing_clone = filing.clone();
             let result = async {
                 let base = "https://www.sec.gov/Archives/edgar/data";
                 let cik = format!("{:0>10}", cik);
@@ -550,7 +549,7 @@ pub async fn fetch_matching_filings(
             if let Err(e) = result.await {
                 log::error!("Error processing filing: {}", e);
                 // Still send a completion signal even on error
-                let _ = tx.send(("".to_string(), filing)).await;
+                let _ = tx.send(("".to_string(), filing_clone)).await;
             }
         });
         handles.push(handle);
