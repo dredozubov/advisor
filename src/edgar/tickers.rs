@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use once_cell::sync::Lazy;
 use reqwest::{Client, Url};
 use serde_json::Value;
 use std::collections::HashMap;

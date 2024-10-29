@@ -16,11 +16,10 @@ use langchain_rust::{
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
-    _llm: &OpenAI<OpenAIConfig>, // Prefix with underscore to avoid warning
+    llm: &OpenAI<OpenAIConfig>, // Use llm as it is needed in the function
     _thread_id: &mut Option<String>,
 ) -> Result<String> {
     // Step 1: Extract date ranges and report types using Anthropic LLM
-    let query_json = extract_query_params(llm, input).await?;
     println!("{}", query_json);
 
     // // Step 2: Construct Query and fetch data

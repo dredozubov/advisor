@@ -555,7 +555,6 @@ pub async fn fetch_matching_filings(
 
     // Convert Vec<Result<String>> into Result<Vec<String>>
     // Convert Vec<Result<String>> into Result<Vec<String>>
-    let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
     // If all fetches succeeded, return the HashMap of file paths and filings
     result.and_then(|_| {
