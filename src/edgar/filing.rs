@@ -558,8 +558,9 @@ pub async fn fetch_matching_filings(
     // If all fetches succeeded, return the HashMap of file paths and filings
     result.map(|_| {
         Arc::try_unwrap(filing_map)
-            .map_err(|_| anyhow!("Failed to unwrap Arc"))
+            .map_err(|_| anyhow!("Failed to unwrap Arc"))?
             .into_inner()
+            .map_err(|e| anyhow!("Failed to lock Mutex: {}", e))
     })
 }
 
