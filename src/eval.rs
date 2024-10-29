@@ -62,7 +62,14 @@ pub async fn eval(
                 if output_path.exists() {
                     log::info!("Output file already exists for filing: {}", output_file);
                 } else {
-                    log::debug!("Parsing filing: {}", filing.primary_document);
+                    log::debug!("Parsing filing: {} with output path: {:?}", filing.primary_document, output_path);
+                    if !std::path::Path::new(&filing.primary_document).exists() {
+                        log::error!("Filing document does not exist: {}", filing.primary_document);
+                        continue;
+                    }
+
+                    log::debug!("Filing document exists: {}", filing.primary_document);
+
                     match filing::extract_complete_submission_filing(
                         &filing.primary_document,
                         Some(output_path),

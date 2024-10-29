@@ -557,7 +557,9 @@ pub fn extract_complete_submission_filing(
     ];
 
     let output_directory = output_directory.unwrap_or_else(|| Path::new("edgar_data/parsed"));
+    log::debug!("Checking if output directory exists: {:?}", output_directory);
     if !output_directory.exists() {
+        log::debug!("Creating output directory: {:?}", output_directory);
         fs::create_dir_all(output_directory)?;
     }
 
@@ -620,6 +622,7 @@ pub fn extract_complete_submission_filing(
         );
         let output_filepath = output_directory.join(&output_filename);
 
+        log::debug!("Writing parsed content to file: {:?}", output_filepath);
         log::debug!("Writing parsed content to file: {:?}", output_filepath);
         fs::write(&output_filepath, raw_text)?;
 
