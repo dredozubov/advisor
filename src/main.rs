@@ -1,22 +1,9 @@
-use chrono::NaiveDate;
-use claude_api_interaction::{edgar::filing, eval, repl};
+use advisor::{edgar::filing, eval, repl};
+use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
-use langchain_rust::{
-    chain::{Chain, LLMChainBuilder},
-    fmt_message, fmt_placeholder, fmt_template,
-    language_models::llm::LLM,
-    llm::openai::{OpenAI, OpenAIModel},
-    message_formatter,
-    prompt::HumanMessagePromptTemplate,
-    prompt_args,
-    schemas::messages::Message,
-    template_fstring,
-};
 use rustyline::error::ReadlineError;
 use std::error::Error;
-use std::path::PathBuf;
 use std::{env, fs};
-use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

@@ -18,6 +18,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
+name = "advisor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chardet",
+ "chrono",
+ "csv",
+ "encoding_rs",
+ "encoding_rs_io",
+ "env_logger",
+ "futures",
+ "html-escape",
+ "langchain-rust",
+ "log",
+ "once_cell",
+ "regex",
+ "reqwest 0.12.8",
+ "rustyline",
+ "rustyline-derive",
+ "scraper",
+ "security-framework 3.0.0",
+ "serde",
+ "serde_json",
+ "sled",
+ "strum 0.25.0",
+ "tempfile",
+ "tokenizers",
+ "tokio",
+ "url",
+ "uuencode",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -378,39 +411,6 @@ dependencies = [
  "serde",
  "wasm-bindgen",
  "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "claude-api-interaction"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chardet",
- "chrono",
- "csv",
- "encoding_rs",
- "encoding_rs_io",
- "env_logger",
- "futures",
- "html-escape",
- "langchain-rust",
- "log",
- "once_cell",
- "regex",
- "reqwest 0.12.8",
- "rustyline",
- "rustyline-derive",
- "scraper",
- "security-framework 3.0.0",
- "serde",
- "serde_json",
- "sled",
- "strum 0.25.0",
- "tempfile",
- "tokenizers",
- "tokio",
- "url",
- "uuencode",
 ]
 
 [[package]]

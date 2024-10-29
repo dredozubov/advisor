@@ -51,9 +51,8 @@ pub async fn eval(
                             output_path.parent().unwrap()
                         );
 
-                        match filing::extract_complete_submission_filing(input_file, &output_path) {
+                        match filing::extract_complete_submission_filing(input_file, output_path) {
                             Ok(_parsed) => {
-                                // Prefix with underscore to avoid warning
                                 log::info!("Parsed and saved filing to {:?}", output_path);
                                 log::debug!("Filing content: {:?}", filing);
                             }
@@ -113,92 +112,3 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
         Err(e) => panic!("Error invoking LLMChain: {:?}", e),
     }
 }
-
-async fn fetch_filings(
-    query: &Query,
-    client: &reqwest::Client,
-    _llm: &OpenAI<OpenAIConfig>,
-) -> Result<Vec<filing::CompanyFilings>> {
-    // Get all tickers data to find CIKs
-    let tickers = edgar::tickers::fetch_tickers().await?;
-
-    // Process each ticker in parallel using futures
-    let filing_futures: Vec<_> = query
-        .tickers
-        .iter()
-        .filter_map(|ticker| {
-            // Find matching ticker data
-            let ticker_data = tickers.iter().find(|(t, _, _)| t.as_str() == ticker);
-
-            match ticker_data {
-                Some(data) => {
-                    // Get CIK from ticker data and clone it for the async closure
-                    let cik = data.2.to_string();
-                    let client = client.clone();
-                    // Create future for fetching filings
-                    Some(async move { filing::get_company_filings(&client, &cik, Some(10)).await })
-                }
-                None => {
-                    log::warn!("Ticker not found: {}", ticker);
-                    None
-                }
-            }
-        })
-        .collect();
-
-    // Wait for all futures to complete
-    let results = futures::future::join_all(filing_futures).await;
-
-    // Collect successful results
-    let mut filings = Vec::new();
-    for result in results {
-        match result {
-            Ok(filing) => filings.push(filing),
-            Err(e) => log::error!("Error fetching filings: {}", e),
-        }
-    }
-
-    if filings.is_empty() {
-        Err(anyhow::anyhow!(
-            "No valid filings found for any provided tickers"
-        ))
-    } else {
-        Ok(filings)
-    }
-}
-
-// fn tokenize_filings(filings: &[filing::Filing]) -> Result<String> {
-//     let tokenizer = Tokenizer::from_pretrained("gpt2", None)?;
-
-//     let mut tokenized_data = String::new();
-//     for filing in filings {
-//         let tokens = tokenizer.encode(filing.content(), false)?;
-//         tokenized_data.push_str(&tokens.get_tokens().join(" "));
-//         tokenized_data.push('\n');
-//     }
-
-//     Ok(tokenized_data)
-// }
-
-// async fn get_llm_response(
-//     client: &Client,
-//     input: &str,
-//     thread_id: &mut Option<String>,
-// ) -> Result<String> {
-//     let messages = {
-//         vec![Message {
-//             role: Role::User,
-//             content: vec![ContentBlock::Text {
-//                 text: input.to_string(),
-//             }],
-//         }]
-//     };
-
-//     let response = client.create_message(Arc::new(messages)).await?;
-
-//     if thread_id.is_none() {
-//         *thread_id = Some(response.id.clone());
-//     }
-
-//     Ok(response.completion)
-// }

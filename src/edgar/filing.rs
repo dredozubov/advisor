@@ -164,14 +164,12 @@ mod tests {
             println!("Testing filing entry for company: {}", company);
 
             let content = std::fs::read_to_string(&file_path)
-                .expect(&format!("Failed to read test file for {}", company));
+                .unwrap_or_else(|_| panic!("Failed to read test file for {}", company));
 
             validate_json(&content);
 
-            let entry: FilingEntry = serde_json::from_str(&content).expect(&format!(
-                "Failed to parse filing entry JSON for {}",
-                company
-            ));
+            let entry: FilingEntry = serde_json::from_str(&content)
+                .unwrap_or_else(|_| panic!("Failed to parse filing entry JSON for {}", company));
 
             // Verify the entry has valid data
             assert!(
@@ -200,14 +198,12 @@ mod tests {
             println!("Testing company filing for: {}", company);
 
             let content = std::fs::read_to_string(&file_path)
-                .expect(&format!("Failed to read test file for {}", company));
+                .unwrap_or_else(|_| panic!("Failed to read test file for {}", company));
 
             validate_json(&content);
 
-            let filings: CompanyFilings = serde_json::from_str(&content).expect(&format!(
-                "Failed to parse company filings JSON for {}",
-                company
-            ));
+            let filings: CompanyFilings = serde_json::from_str(&content)
+                .unwrap_or_else(|_| panic!("Failed to parse company filings JSON for {}", company));
 
             // Verify basic company info is present
             assert!(!filings.cik.is_empty(), "Company {} has empty CIK", company);
@@ -562,10 +558,11 @@ pub async fn fetch_matching_filings(
     let mut filing_map = HashMap::new();
     while let Some((document_path, filing)) = rx.recv().await {
         completed_tasks += 1;
-        if !document_path.is_empty() {  // Only add successful results
+        if !document_path.is_empty() {
+            // Only add successful results
             filing_map.insert(document_path, filing);
         }
-        
+
         // Break if we've received responses for all tasks
         if completed_tasks >= total_tasks {
             break;
@@ -665,7 +662,7 @@ pub fn extract_complete_submission_filing(
         }
         Err(e) => {
             log::error!("Failed to parse filing header. Error: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     };
 
@@ -784,13 +781,6 @@ pub fn header_parser(raw_html: &str) -> Result<Vec<(String, String)>> {
     }
 
     Ok(data)
-}
-
-fn format_filename(filename: &str) -> String {
-    filename
-        .replace(" ", "_")
-        .replace(":", "")
-        .replace("__", "_")
 }
 
 fn file_size(filepath: &Path) -> Result<String> {

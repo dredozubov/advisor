@@ -17,15 +17,6 @@ use tokio::sync::RwLock;
 
 type TickerMap = Arc<RwLock<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>>;
 
-async fn print_all_tickers(ticker_map: &TickerMap) {
-    let tickers = ticker_map.read().await;
-    println!("Available tickers for auto-completion:");
-    for (ticker, (_, company, _)) in tickers.iter() {
-        println!("  {} - {}", ticker, company);
-    }
-    println!("Total number of tickers: {}", tickers.len());
-}
-
 pub struct ReplHelper {
     ticker_map: TickerMap,
 }
@@ -84,8 +75,6 @@ impl Highlighter for ReplHelper {
                 in_ticker = false;
                 highlighted.push_str("\x1b[0m"); // Reset color
                 highlighted.push(c);
-            } else if in_ticker {
-                highlighted.push(c);
             } else {
                 highlighted.push(c);
             }
@@ -109,7 +98,7 @@ impl Validator for ReplHelper {
         let ticker_map = futures::executor::block_on(self.ticker_map.read());
         for word in words {
             if word.starts_with('@') {
-                let ticker_with_punctuation = &word[1..]; // Remove the '@' prefix
+                let ticker_with_punctuation = word.strip_prefix("@").unwrap(); // Remove the '@' prefix
                 let ticker = ticker_with_punctuation
                     .trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-');
                 let ticker = ticker.to_uppercase();

@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumIter)]
@@ -33,7 +33,7 @@ impl TryFrom<String> for ReportType {
     type Error = String;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        Ok(ReportType::from_str(&s))
+        ReportType::from_str(&s)
     }
 }
 
@@ -77,30 +77,33 @@ impl ReportType {
     pub fn list_types() -> &'static str {
         &REPORT_TYPES
     }
+}
 
-    pub fn from_str(s: &str) -> Self {
+impl FromStr for ReportType {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<ReportType, std::string::String> {
         match s.to_uppercase().as_str() {
-            "10-K" => ReportType::Form10K,
-            "10-Q" => ReportType::Form10Q,
-            "8-K" => ReportType::Form8K,
-            "4" => ReportType::Form4,
-            "5" => ReportType::Form5,
-            "S-1" => ReportType::FormS1,
-            "S-3" => ReportType::FormS3,
-            "S-4" => ReportType::FormS4,
-            "DEF 14A" => ReportType::FormDEF14A,
-            "13F" => ReportType::Form13F,
-            "13G" => ReportType::Form13G,
-            "13D" => ReportType::Form13D,
-            "SD" => ReportType::FormSD,
-            "6-K" => ReportType::Form6K,
-            "20-F" => ReportType::Form20F,
-            "N-1A" => ReportType::FormN1A,
-            "N-CSR" => ReportType::FormNCSR,
-            "N-PORT" => ReportType::FormNPORT,
-            "N-Q" => ReportType::FormNQ,
-            "144" => ReportType::Form144,
-            _ => ReportType::Other(s.to_string()),
+            "10-K" => Ok(ReportType::Form10K),
+            "10-Q" => Ok(ReportType::Form10Q),
+            "8-K" => Ok(ReportType::Form8K),
+            "4" => Ok(ReportType::Form4),
+            "5" => Ok(ReportType::Form5),
+            "S-1" => Ok(ReportType::FormS1),
+            "S-3" => Ok(ReportType::FormS3),
+            "S-4" => Ok(ReportType::FormS4),
+            "DEF 14A" => Ok(ReportType::FormDEF14A),
+            "13F" => Ok(ReportType::Form13F),
+            "13G" => Ok(ReportType::Form13G),
+            "13D" => Ok(ReportType::Form13D),
+            "SD" => Ok(ReportType::FormSD),
+            "6-K" => Ok(ReportType::Form6K),
+            "20-F" => Ok(ReportType::Form20F),
+            "N-1A" => Ok(ReportType::FormN1A),
+            "N-CSR" => Ok(ReportType::FormNCSR),
+            "N-PORT" => Ok(ReportType::FormNPORT),
+            "N-Q" => Ok(ReportType::FormNQ),
+            "144" => Ok(ReportType::Form144),
+            _ => Ok(ReportType::Other(s.to_string())),
         }
     }
 }
