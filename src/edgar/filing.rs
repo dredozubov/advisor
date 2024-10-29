@@ -543,9 +543,12 @@ pub async fn fetch_matching_filings(client: &Client, query: &Query) -> Result<Ve
         .collect();
 
     // Wait for all fetch tasks to complete
-    let paths = futures::future::try_join_all(fetch_tasks).await?;
+    let paths: Vec<Result<String, anyhow::Error>> = futures::future::try_join_all(fetch_tasks).await?;
 
-    Ok(paths)
+    // Convert Vec<Result<String>> into Result<Vec<String>>
+    let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
+
+    result
 }
 
 pub fn extract_complete_submission_filing(
