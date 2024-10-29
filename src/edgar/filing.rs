@@ -519,6 +519,7 @@ pub async fn fetch_matching_filings(
             let _permit = rate_limiter.acquire();
 
             tokio::spawn(async move {
+                let filing_map_clone = filing_map.clone();
                 let base = "https://www.sec.gov/Archives/edgar/data";
                 let cik = format!("{:0>10}", cik); // cik is already a String
                 let accession_number = filing.accession_number.replace("-", "");
@@ -557,11 +558,6 @@ pub async fn fetch_matching_filings(
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
     // If all fetches succeeded, return the HashMap of file paths and filings
-    result.and_then(|_| {
-        Arc::try_unwrap(filing_map)
-            .map_err(|_| anyhow!("Failed to unwrap Arc"))
-            .map(|mutex| mutex.into_inner())
-    })
 }
 
 pub fn extract_complete_submission_filing(
