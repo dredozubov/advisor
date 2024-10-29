@@ -47,6 +47,16 @@ pub async fn eval(
                     company_name, filing_type_with_date
                 );
 
+                // Ensure the parsed directory exists
+                let parsed_dir = std::path::Path::new("edgar_data/parsed");
+                if !parsed_dir.exists() {
+                    log::debug!("Creating parsed directory: {:?}", parsed_dir);
+                    if let Err(e) = std::fs::create_dir_all(parsed_dir) {
+                        log::error!("Failed to create parsed directory: {}", e);
+                        continue;
+                    }
+                }
+
                 // Check if the output file already exists
                 let output_path = std::path::Path::new(&output_file);
                 if output_path.exists() {
