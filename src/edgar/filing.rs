@@ -560,7 +560,6 @@ pub async fn fetch_matching_filings(
         Arc::try_unwrap(filing_map)
             .map_err(|_| anyhow!("Failed to unwrap Arc"))?
             .into_inner()
-            .map_err(|e| anyhow!("Failed to lock Mutex: {}", e))
     })
 }
 
