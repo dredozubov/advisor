@@ -540,7 +540,7 @@ pub async fn fetch_matching_filings(
 
                 log::info!("Saved filing document to {}", document_path);
 
-                let mut map = filing_map.lock().unwrap();
+                let mut map = filing_map.lock().await;
                 map.insert(document_path.clone(), filing_clone);
                 Ok::<String, anyhow::Error>(document_path)
             })
@@ -556,7 +556,11 @@ pub async fn fetch_matching_filings(
     let result: Result<Vec<String>, anyhow::Error> = paths.into_iter().collect();
 
     // If all fetches succeeded, return the HashMap of file paths and filings
-    result.map(|_| Arc::try_unwrap(filing_map).unwrap().into_inner().unwrap())
+    result.map(|_| {
+        Arc::try_unwrap(filing_map)
+            .map_err(|_| anyhow!("Failed to unwrap Arc"))?
+            .into_inner()
+    })
 }
 
 pub fn extract_complete_submission_filing(
