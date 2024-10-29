@@ -504,8 +504,12 @@ pub async fn fetch_matching_filings(
     // Create the base directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
 
-    // Create an mpsc channel to send results from async tasks
+    // Create a bounded channel
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+
+    // Keep track of how many tasks we spawn
+    let total_tasks = matching_filings.len();
+    let mut completed_tasks = 0;
 
     // Spawn async tasks to fetch and save each matching filing
     let mut handles = Vec::new();
@@ -513,46 +517,67 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.to_string();
-        let _permit = rate_limiter.acquire();
+        let _permit = rate_limiter.acquire().await;
 
         let handle = tokio::spawn(async move {
-            let base = "https://www.sec.gov/Archives/edgar/data";
-            let cik = format!("{:0>10}", cik);
-            let accession_number = filing.accession_number.replace("-", "");
-            let document_url = format!(
-                "{}/{}/{}/{}",
-                base, cik, accession_number, filing.primary_document
-            );
+            let result = async {
+                let base = "https://www.sec.gov/Archives/edgar/data";
+                let cik = format!("{:0>10}", cik);
+                let accession_number = filing.accession_number.replace("-", "");
+                let document_url = format!(
+                    "{}/{}/{}/{}",
+                    base, cik, accession_number, filing.primary_document
+                );
 
-            // Create the directory structure for the filing
-            let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
-            fs::create_dir_all(&filing_dir)?;
+                // Create the directory structure for the filing
+                let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
+                fs::create_dir_all(&filing_dir)?;
 
-            // Define the path to save the document
-            let document_path = format!("{}/{}", filing_dir, filing.primary_document);
+                // Define the path to save the document
+                let document_path = format!("{}/{}", filing_dir, filing.primary_document);
 
-            // Fetch and save the document
-            let response = client.get(&document_url).send().await?;
-            let content = response.bytes().await?;
-            fs::write(&document_path, &content)?;
+                // Fetch and save the document
+                let response = client.get(&document_url).send().await?;
+                let content = response.bytes().await?;
+                fs::write(&document_path, &content)?;
 
-            log::info!("Saved filing document to {}", document_path);
+                log::info!("Saved filing document to {}", document_path);
 
-            // Send the result back to the main task
-            tx.send((document_path, filing)).await?;
+                tx.send((document_path, filing)).await?;
+                Ok::<(), anyhow::Error>(())
+            };
 
-            Ok::<(), anyhow::Error>(())
+            if let Err(e) = result.await {
+                log::error!("Error processing filing: {}", e);
+                // Still send a completion signal even on error
+                let _ = tx.send(("".to_string(), filing)).await;
+            }
         });
         handles.push(handle);
     }
 
-    // Wait for all tasks to complete
-    futures::future::try_join_all(handles).await?;
+    // Drop the original sender so the channel can close when all clones are dropped
+    drop(tx);
 
     // Collect results from the channel
     let mut filing_map = HashMap::new();
     while let Some((document_path, filing)) = rx.recv().await {
-        filing_map.insert(document_path, filing);
+        completed_tasks += 1;
+        if !document_path.is_empty() {  // Only add successful results
+            filing_map.insert(document_path, filing);
+        }
+        
+        // Break if we've received responses for all tasks
+        if completed_tasks >= total_tasks {
+            break;
+        }
+    }
+
+    // Wait for all spawned tasks to complete
+    for handle in handles {
+        if let Err(e) = handle.await {
+            log::error!("Task join error: {}", e);
+        }
     }
 
     Ok(filing_map)
