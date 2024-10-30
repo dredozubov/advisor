@@ -73,7 +73,12 @@ impl XBRLFiling {
 }
 
 pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
+    log::debug!("Starting XML parsing, content length: {}", content.len());
+    log::debug!("Content preview: {}", &content[..content.len().min(200)]);
+    
     let xml_tree = roxmltree::Document::parse(content).expect("Failed to parse XML");
+    log::debug!("XML document parsed successfully");
+    
     let mut facts = Vec::new();
     
     // Process units, periods, and dimensions first
@@ -81,7 +86,12 @@ pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
     let mut periods = std::collections::HashMap::new();
     let mut dimensions = std::collections::HashMap::new();
 
+    log::debug!("Processing units, periods, and dimensions");
+    
     // Process units
+    let units_count = xml_tree.root_element().descendants().filter(|n| n.has_tag_name("unit")).count();
+    log::debug!("Found {} unit elements", units_count);
+    
     for unit_elem in xml_tree.root_element().descendants().filter(|n| n.has_tag_name("unit")) {
         let id = unit_elem.attribute("id").unwrap_or("");
         for measure in unit_elem.descendants().filter(|n| n.has_tag_name("measure")) {
@@ -96,7 +106,12 @@ pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
         }
     }
 
+    log::debug!("Units processed: {} unique unit references", units.len());
+
     // Process contexts (periods and dimensions)
+    let contexts_count = xml_tree.root_element().descendants().filter(|n| n.has_tag_name("context")).count();
+    log::debug!("Found {} context elements", contexts_count);
+    
     for context in xml_tree.root_element().descendants().filter(|n| n.has_tag_name("context")) {
         let id = context.attribute("id").unwrap_or("");
         
@@ -138,8 +153,13 @@ pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
         }
     }
 
+    log::debug!("Contexts processed: {} periods, {} dimensions", periods.len(), dimensions.len());
+
     // Process facts
     let non_fact_elements = ["context", "unit", "xbrl", "schemaRef"];
+    let total_nodes = xml_tree.root_element().descendants().count();
+    log::debug!("Processing {} total nodes for facts", total_nodes);
+    
     for node in xml_tree.root_element().descendants() {
         if let Some(ns) = node.tag_name().namespace() {
             if !non_fact_elements.contains(&node.tag_name().name()) {
@@ -182,6 +202,13 @@ pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
         }
     }
 
+    log::debug!("Fact processing complete. Found {} facts", facts.len());
+    if facts.is_empty() {
+        log::warn!("No facts were extracted from the document");
+    } else {
+        log::debug!("First fact preview: {:?}", facts.first());
+    }
+    
     facts
 }
 
