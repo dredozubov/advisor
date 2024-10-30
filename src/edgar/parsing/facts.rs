@@ -156,26 +156,30 @@ mod tests {
         assert_eq!(format_fact_value("text", &None), "text");
     }
 
-    #[test]
-    fn test_extract_facts() {
-        let xml = r#"
-            <html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL">
-                <ix:nonNumeric name="us-gaap:Revenue" contextRef="FY2020" unitRef="USD">1000000</ix:nonNumeric>
-                <ix:nonNumeric name="us-gaap:SharesOutstanding" contextRef="AsOf2020" unitRef="Shares">50000</ix:nonNumeric>
-            </html>
-        "#;
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::edgar::parsing::tests::read_test_file;
 
-        let facts = extract_facts(xml).unwrap();
-        assert_eq!(facts.len(), 2);
+        #[test]
+        fn test_extract_facts() {
+            let content = read_test_file("tsla-20230930.htm");
+            let facts = extract_facts(&content).unwrap();
+            
+            // Test specific facts we know should be present
+            let cash = facts.iter()
+                .find(|f| f.context == "FY2023Q3" && f.unit == Some("USD".to_string()))
+                .expect("Cash fact not found");
+            
+            assert_eq!(cash.value, "8069000000");
+            assert_eq!(cash.formatted_value, "$8,069,000,000.00");
 
-        let revenue = &facts[0];
-        assert_eq!(revenue.context, "FY2020");
-        assert_eq!(revenue.value, "1000000");
-        assert_eq!(revenue.formatted_value, "$1,000,000");
-
-        let shares = &facts[1];
-        assert_eq!(shares.context, "AsOf2020");
-        assert_eq!(shares.value, "50000");
-        assert_eq!(shares.formatted_value, "50,000 shares");
+            let shares = facts.iter()
+                .find(|f| f.context == "AsOf2023Q3" && f.unit == Some("Shares".to_string()))
+                .expect("Shares fact not found");
+            
+            assert_eq!(shares.value, "3173082000");
+            assert_eq!(shares.formatted_value, "3,173,082,000 shares");
+        }
     }
 }
