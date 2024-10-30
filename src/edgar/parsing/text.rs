@@ -2,6 +2,7 @@ use anyhow::Result;
 use unicode_normalization::UnicodeNormalization;
 use regex::Regex;
 use html_escape::decode_html_entities;
+use std::collections::HashMap;
 
 pub fn process_section_text(content: &str) -> Result<String> {
     let mut text = content.to_string();

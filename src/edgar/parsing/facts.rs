@@ -17,7 +17,7 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = std::str::from_utf8(e.name().as_ref())?;
+                let name = std::str::from_utf8(e.name().as_ref())?.to_string();
                 
                 // Check if this is an XBRL fact tag
                 if name.contains(':') {
