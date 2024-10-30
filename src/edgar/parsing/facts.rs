@@ -177,7 +177,8 @@ mod tests {
             loop {
                 match reader.read_event_into(&mut buf) {
                     Ok(Event::Start(ref e)) => {
-                        let name = std::str::from_utf8(e.name().as_ref()).unwrap();
+                        let name_bytes = e.name().as_ref().to_vec();
+                        let name = std::str::from_utf8(&name_bytes).unwrap();
                         if name == "ix:hidden" {
                             in_hidden = true;
                         }
@@ -199,7 +200,8 @@ mod tests {
                     }
                     Ok(Event::End(ref e)) => {
                         depth -= 1;
-                        let name = std::str::from_utf8(e.name().as_ref()).unwrap();
+                        let name_bytes = e.name().as_ref().to_vec();
+                        let name = std::str::from_utf8(&name_bytes).unwrap();
                         if name == "ix:hidden" {
                             in_hidden = false;
                         }
