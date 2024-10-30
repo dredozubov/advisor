@@ -72,6 +72,6 @@ impl XBRLParser {
 
 // Public interface
 pub fn parse_filing(path: &Path) -> Result<FilingDocument> {
-    let mut parser = XBRLParser::new(path)?;
+    let mut parser = XBRLParser::new(path, path.parent().unwrap_or_else(|| Path::new("")))?;
     parser.parse()
 }

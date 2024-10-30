@@ -575,7 +575,7 @@ pub async fn fetch_matching_filings(
     Ok(filing_map)
 }
 
-use super::parsing::{self, types::FilingDocument};
+use super::parsing;
 
 pub fn extract_complete_submission_filing(
     filepath: &str,

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use quick_xml::events::Event;
 use quick_xml::Reader;
-use std::io::BufReader;
 use super::types::FilingFact;
 
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
