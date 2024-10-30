@@ -3,6 +3,7 @@ pub mod document;
 pub mod section;
 pub mod text;
 pub mod facts;
+pub mod tests;
 
 pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};

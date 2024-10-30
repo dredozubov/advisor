@@ -159,7 +159,7 @@ mod tests {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::edgar::parsing::tests::read_test_file;
+        use crate::edgar::parsing::tests;
 
         #[test]
         fn test_extract_facts() {
