@@ -1,7 +1,4 @@
-use crate::edgar::parsing::types::{FilingDocument, FilingFact, Period};
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
-use regex::Regex;
 use scraper::Html;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
