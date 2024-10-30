@@ -326,25 +326,33 @@ mod tests {
 
             // Print found facts for debugging
             for fact in &facts {
-                if fact.name.contains("Cash") || fact.name.contains("cash") {
-                    println!("Found cash-related fact: {} (unit: {:?})", fact.name, fact.unit);
-                }
+                println!("Found fact: {} (unit: {:?})", fact.name, fact.unit);
             }
 
-            // Find a specific monetary fact to verify
-            let monetary_facts: Vec<_> = facts
+            // Test a non-numeric fact (text block)
+            let text_fact = facts
                 .iter()
-                .filter(|f| f.name.contains("Cash") || f.name.contains("cash"))
+                .find(|f| f.name == "us-gaap:ScheduleOfEmployeeServiceShareBasedCompensationAllocationOfRecognizedPeriodCostsTextBlock")
+                .expect("Should find share-based compensation text block");
+
+            println!("Testing text fact: {} (unit: {:?})", text_fact.name, text_fact.unit);
+            assert_eq!(text_fact.unit, None, "Text block should not have a unit");
+
+            // Also test a numeric fact
+            let numeric_facts: Vec<_> = facts
+                .iter()
+                .filter(|f| f.name.contains("Cash") && f.unit.is_some())
                 .collect();
 
-            println!("Found {} cash-related facts", monetary_facts.len());
+            println!("Found {} numeric cash-related facts", numeric_facts.len());
+            assert!(!numeric_facts.is_empty(), "Should find at least one numeric cash fact");
             
-            // Verify at least one cash fact has USD unit
-            assert!(
-                monetary_facts.iter().any(|f| f.unit == Some("USD".to_string())),
-                "Expected at least one cash fact with USD unit, found facts: {:?}",
-                monetary_facts.iter().map(|f| (&f.name, &f.unit)).collect::<Vec<_>>()
-            );
+            // Verify numeric facts have appropriate units
+            for fact in numeric_facts {
+                assert_eq!(fact.unit, Some("USD".to_string()),
+                    "Numeric cash fact should have USD unit: {} (unit: {:?})", 
+                    fact.name, fact.unit);
+            }
         }
     }
 }
