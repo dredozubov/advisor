@@ -96,7 +96,7 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
                 result.insert(0, *c);
             }
             
-            format!("{}.00", result)
+            result
         } else {
             let formatted = format!("{:.2}", num);
             // Split into integer and decimal parts
