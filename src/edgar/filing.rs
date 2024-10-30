@@ -80,7 +80,7 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
             base, cik, accession_number, filing.primary_document
         );
 
-        log::info!("Constructed document URL: {}", document_url);
+        log::debug!("Constructed document URL: {}", document_url);
 
         // Check if filing matches query criteria
         if filing.matches_report_type(&query.report_types)
@@ -583,7 +583,7 @@ pub fn extract_complete_submission_filing(
     filepath: &str,
     output_directory: &Path,
 ) -> Result<HashMap<String, serde_json::Value>> {
-    log::debug!(
+    log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
     );
@@ -669,12 +669,16 @@ pub fn extract_complete_submission_filing(
     let mut filing_documents = HashMap::new();
     filing_documents.insert("header".to_string(), json!(filing_header));
 
+    log::debug!("raw_text_string: {:?}", raw_text_string);
     let documents: Vec<_> = xbrl_doc
         .find_iter(&raw_text_string)
         .map(|m| m.as_str())
         .collect();
 
+    log::debug!("documents: {:?}", documents);
+
     for (i, document) in documents.iter().enumerate() {
+        log::info!("Processing document: {}", &document[..1000]);
         let mut filing_document = HashMap::new();
 
         // Extract document information
