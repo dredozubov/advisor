@@ -57,6 +57,7 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                         unit: current_unit.clone(),
                         period: current_period.clone(),
                         formatted_value,
+                        name: current_name.clone(),
                     });
 
                     // Reset state
@@ -159,7 +160,7 @@ mod tests {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::edgar::parsing::tests;
+        use crate::edgar::parsing::tests::read_test_file;
 
         #[test]
         fn test_extract_facts() {

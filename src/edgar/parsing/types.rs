@@ -25,6 +25,7 @@ pub struct FilingFact {
     pub unit: Option<String>,
     pub period: Option<String>,
     pub formatted_value: String,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
