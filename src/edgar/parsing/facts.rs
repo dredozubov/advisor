@@ -161,38 +161,78 @@ mod tests {
     mod tests {
         use super::*;
         use crate::edgar::parsing::tests::read_test_file;
+        use quick_xml::events::Event;
+        use quick_xml::Reader;
 
         #[test]
         fn test_extract_facts() {
             let content = read_test_file("tsla-20230930.htm");
+            
+            // First pass: examine the XML structure
+            let mut reader = Reader::from_str(&content);
+            reader.trim_text(true);
+            let mut buf = Vec::new();
+            let mut depth = 0;
+            let mut in_hidden = false;
+
+            loop {
+                match reader.read_event_into(&mut buf) {
+                    Ok(Event::Start(ref e)) => {
+                        let name = std::str::from_utf8(e.name().as_ref()).unwrap();
+                        if name == "ix:hidden" {
+                            in_hidden = true;
+                        }
+                        println!("{:indent$}{} start", "", name, indent = depth * 2);
+                        if name == "ix:nonNumeric" || name == "ix:numeric" {
+                            for attr in e.attributes() {
+                                if let Ok(attr) = attr {
+                                    println!(
+                                        "{:indent$}attr: {}={}", 
+                                        "", 
+                                        std::str::from_utf8(attr.key.as_ref()).unwrap(),
+                                        std::str::from_utf8(&attr.value).unwrap(),
+                                        indent = (depth + 1) * 2
+                                    );
+                                }
+                            }
+                        }
+                        depth += 1;
+                    }
+                    Ok(Event::End(ref e)) => {
+                        depth -= 1;
+                        let name = std::str::from_utf8(e.name().as_ref()).unwrap();
+                        if name == "ix:hidden" {
+                            in_hidden = false;
+                        }
+                        println!("{:indent$}{} end", "", name, indent = depth * 2);
+                    }
+                    Ok(Event::Text(e)) if !in_hidden => {
+                        let text = e.unescape().unwrap();
+                        if !text.trim().is_empty() {
+                            println!("{:indent$}text: {}", "", text, indent = depth * 2);
+                        }
+                    }
+                    Ok(Event::Eof) => break,
+                    Err(e) => panic!("Error parsing XML: {}", e),
+                    _ => (),
+                }
+                buf.clear();
+            }
+
+            // Now run the actual extraction
             let facts = extract_facts(&content).unwrap();
-
-            println!("Found {} facts", facts.len());
-            for fact in &facts {
-                println!(
-                    "Fact: name={}, context={}, unit={:?}, value={}, formatted={}",
-                    fact.name, fact.context, fact.unit, fact.value, fact.formatted_value
-                );
-            }
-
-            // First just check we found some facts
-            assert!(!facts.is_empty(), "No facts were extracted from the file");
-
-            // Then look for specific ones
-            if let Some(cash) = facts
-                .iter()
+            println!("\nExtracted {} facts", facts.len());
+            
+            // Look for specific facts we expect to find
+            let cash = facts.iter()
                 .find(|f| f.name.contains("CashAndCashEquivalents"))
-            {
-                println!("Found cash fact: {:?}", cash);
-            } else {
-                println!("No cash fact found");
-            }
-
-            if let Some(shares) = facts.iter().find(|f| f.name.contains("CommonStock")) {
-                println!("Found shares fact: {:?}", shares);
-            } else {
-                println!("No shares fact found");
-            }
+                .expect("Should find cash fact");
+            println!("\nFound cash fact: {:?}", cash);
+            
+            let shares = facts.iter()
+                .find(|f| f.name.contains("CommonStockSharesOutstanding"))
+                .expect("Should find shares outstanding fact");
+            println!("\nFound shares fact: {:?}", shares);
         }
     }
 }
