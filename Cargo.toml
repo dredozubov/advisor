@@ -11,10 +11,6 @@ path = "src/main.rs"
 name = "xbrl_parser" 
 path = "src/bin/xbrl_parser.rs"
 
-[[bin]]
-name = "xbrl_parser"
-path = "src/bin/xbrl_parser.rs"
-
 [lib]
 name = "advisor"
 path = "src/lib.rs"
