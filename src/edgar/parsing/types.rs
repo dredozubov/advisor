@@ -2,23 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SectionType {
-    ManagementDiscussion,
-    FinancialStatements,
-    Notes,
-    RiskFactors,
-    BusinessDescription,
-    Other(String),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FilingSection {
-    pub section_type: SectionType,
-    pub title: String,
-    pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -37,7 +20,6 @@ pub struct FilingFact {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilingDocument {
-    pub sections: Vec<FilingSection>,
     pub facts: Vec<FilingFact>,
     pub path: PathBuf,
 }
