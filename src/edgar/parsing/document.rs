@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::fs;
 
-use super::types::FilingDocuments;
+use std::collections::HashMap;
 
 const ELEMENTS_LIST: &[(&str, &str)] = &[
     ("FILENAME", "<FILENAME>"),
@@ -13,7 +13,7 @@ const ELEMENTS_LIST: &[(&str, &str)] = &[
     ("DESCRIPTION", "<DESCRIPTION>"),
 ];
 
-pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<FilingDocuments> {
+pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<HashMap<String, serde_json::Value>> {
     let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
     let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
     let mut filing_documents = HashMap::new();
@@ -87,4 +87,23 @@ pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<Filing
     }
 
     Ok(filing_documents)
+}
+pub fn header_parser(raw_text: &str) -> Result<Vec<(String, String)>> {
+    let mut headers = Vec::new();
+    let re = Regex::new(r"<HEADER>(.*?)</HEADER>")?;
+    
+    if let Some(captures) = re.captures(raw_text) {
+        if let Some(header_content) = captures.get(1) {
+            for line in header_content.as_str().lines() {
+                let line = line.trim();
+                if let Some(colon_idx) = line.find(':') {
+                    let key = line[..colon_idx].trim().to_string();
+                    let value = line[colon_idx + 1..].trim().to_string();
+                    headers.push((key, value));
+                }
+            }
+        }
+    }
+    
+    Ok(headers)
 }
