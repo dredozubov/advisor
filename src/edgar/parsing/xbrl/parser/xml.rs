@@ -69,7 +69,7 @@ impl XBRLFiling {
     }
 }
 
-fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
+pub fn parse_xml_to_facts(content: &str) -> Vec<FactItem> {
     let xml_tree = roxmltree::Document::parse(content).expect("Failed to parse XML");
     let mut facts = Vec::new();
 
