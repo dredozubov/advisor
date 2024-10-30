@@ -575,12 +575,12 @@ pub async fn fetch_matching_filings(
     Ok(filing_map)
 }
 
-use super::parsing::{self, types::FilingDocuments};
+use super::parsing::{self, types::FilingDocument};
 
 pub fn extract_complete_submission_filing(
     filepath: &str,
     output_directory: &Path,
-) -> Result<FilingDocuments> {
+) -> Result<HashMap<String, serde_json::Value>> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
@@ -610,7 +610,7 @@ pub fn extract_complete_submission_filing(
     let filing_header = parsing::header_parser(&raw_text_string)?;
 
     // Initialize filing documents with header
-    let mut filing_documents = FilingDocuments::new();
+    let mut filing_documents = HashMap::new();
     filing_documents.insert("header".to_string(), serde_json::json!(filing_header));
 
     // Parse the documents

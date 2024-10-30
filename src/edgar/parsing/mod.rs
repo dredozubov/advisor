@@ -1,14 +1,8 @@
 pub mod types;
-pub mod section;
-pub mod extractor;
-pub mod cleaner;
-pub mod facts;
+pub mod document;
 
 pub use types::{FilingDocument, FilingSection, FilingFact};
-pub use section::SectionParser;
-pub use extractor::TextExtractor;
-pub use cleaner::TextCleaner;
-pub use facts::FactExtractor;
+pub use document::{parse_documents, header_parser};
 
 use anyhow::Result;
 use std::path::Path;
