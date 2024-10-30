@@ -6,12 +6,14 @@ use quick_xml::Reader;
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     let mut facts = Vec::new();
     let mut reader = Reader::from_str(content);
+    reader.trim_text(true);
     let mut buf = Vec::new();
 
     let mut current_context = String::new();
     let mut current_value = String::new();
     let mut current_unit = None;
     let mut current_period = None;
+    let mut current_name = String::new();
     let mut in_fact = false;
 
     loop {
@@ -19,11 +21,11 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
             Ok(Event::Start(ref e)) => {
                 let name = std::str::from_utf8(e.name().as_ref())?.to_string();
 
-                // Check if this is an XBRL fact tag
-                if name.contains(':') {
+                // Check if this is an iXBRL fact tag
+                if name == "ix:nonNumeric" || name == "ix:numeric" {
                     in_fact = true;
 
-                    // Extract context and unit from attributes
+                    // Extract attributes
                     for attr in e.attributes() {
                         let attr = attr?;
                         match attr.key.as_ref() {
@@ -33,9 +35,8 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                             b"unitRef" => {
                                 current_unit = Some(std::str::from_utf8(&attr.value)?.to_string());
                             }
-                            b"period" => {
-                                current_period =
-                                    Some(std::str::from_utf8(&attr.value)?.to_string());
+                            b"name" => {
+                                current_name = std::str::from_utf8(&attr.value)?.to_string();
                             }
                             _ => {}
                         }
@@ -159,10 +160,10 @@ mod tests {
     #[test]
     fn test_extract_facts() {
         let xml = r#"
-            <xbrli:xbrl>
-                <us-gaap:Revenue contextRef="FY2020" unitRef="USD">1000000</us-gaap:Revenue>
-                <us-gaap:SharesOutstanding contextRef="AsOf2020" unitRef="Shares">50000</us-gaap:SharesOutstanding>
-            </xbrli:xbrl>
+            <html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL">
+                <ix:nonNumeric name="us-gaap:Revenue" contextRef="FY2020" unitRef="USD">1000000</ix:nonNumeric>
+                <ix:nonNumeric name="us-gaap:SharesOutstanding" contextRef="AsOf2020" unitRef="Shares">50000</ix:nonNumeric>
+            </html>
         "#;
 
         let facts = extract_facts(xml).unwrap();
