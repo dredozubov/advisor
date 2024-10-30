@@ -1,4 +1,4 @@
-use advisor::edgar::parsing::xbrl::parser::xml::{XBRLFiling, FactItem, FactTableRow, DimensionTableRow};
+use advisor::edgar::parsing::xbrl::{XBRLFiling, FactItem, FactTableRow, DimensionTableRow}; 
 use anyhow::Result;
 use std::path::PathBuf;
 use structopt::StructOpt;
