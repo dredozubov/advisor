@@ -84,7 +84,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     - 'end_date': ISO date (YYYY-MM-DD)
     - 'report_types': array of strings, possible values are {}
     
-    Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string. If user asks for the latest report or latest quarterly report assume a date range from 'today - 90 days' and 'today'.
+    Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string. If user asks for the latest report or latest quarterly report assume a date range from 'today - 90 days' and 'today'. Current date is {today}
     
     Construct it from the user input:
     {input}"#, *edgar::report::REPORT_TYPES
