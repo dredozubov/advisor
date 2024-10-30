@@ -1,12 +1,10 @@
 use anyhow::Result;
-use quick_xml::events::Event;
-use quick_xml::Reader;
 use regex::Regex;
 use std::collections::HashMap;
 use unicode_normalization::UnicodeNormalization;
-
 use super::types::{FilingFact, Period};
 
+// Import core structures from reference implementation
 #[derive(Debug, Clone)]
 struct Unit {
     unit_type: String,
@@ -22,10 +20,14 @@ struct Dimension {
 }
 
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
+    // Normalize whitespace
     let re = Regex::new(r"\s+")?;
     let content = re.replace_all(content, " ").to_string();
+    
+    // Parse XML document
     let xml_tree = roxmltree::Document::parse(&content)?;
-
+    
+    // Initialize storage
     let mut units: HashMap<String, Vec<Unit>> = HashMap::new();
     let mut periods: HashMap<String, Vec<Period>> = HashMap::new();
     let mut dimensions: HashMap<String, Vec<Dimension>> = HashMap::new();
