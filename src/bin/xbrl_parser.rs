@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
 
     // Read and parse the file
     let content = std::fs::read_to_string(&opt.input)?;
-    
+
     if opt.facts_only {
         // Extract and output facts only
         let facts = parsing::extract_facts(&content)?;
@@ -88,91 +88,6 @@ async fn main() -> Result<()> {
             }
             _ => return Err(anyhow::anyhow!("Unsupported output format")),
         }
-    }
-
-    Ok(())
-}
-use advisor::edgar::parsing::{self, FilingDocument};
-use anyhow::Result;
-use std::path::PathBuf;
-use structopt::StructOpt;
-
-#[derive(StructOpt)]
-#[structopt(name = "xbrl_parser", about = "Parse and clean EDGAR XBRL files")]
-struct Opt {
-    /// Input XBRL file path
-    #[structopt(parse(from_os_str))]
-    input: PathBuf,
-
-    /// Output format (json or text)
-    #[structopt(short, long, default_value = "json")]
-    format: String,
-
-    /// Show facts only
-    #[structopt(long)]
-    facts_only: bool,
-
-    /// Show sections only
-    #[structopt(long)]
-    sections_only: bool,
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    env_logger::init();
-    let opt = Opt::from_args();
-
-    // Parse the filing
-    let doc = parsing::parse_filing(&opt.input)?;
-
-    // Output based on format and options
-    match opt.format.as_str() {
-        "json" => {
-            if opt.facts_only {
-                println!("{}", serde_json::to_string_pretty(&doc.facts)?);
-            } else if opt.sections_only {
-                println!("{}", serde_json::to_string_pretty(&doc.sections)?);
-            } else {
-                println!("{}", serde_json::to_string_pretty(&doc)?);
-            }
-        }
-        "text" => {
-            if opt.facts_only {
-                for fact in doc.facts {
-                    println!("Fact: {}", fact.name);
-                    println!("Value: {}", fact.formatted_value);
-                    println!("Unit: {:?}", fact.unit);
-                    println!("Period: {:?}", fact.period);
-                    println!("---");
-                }
-            } else if opt.sections_only {
-                for section in doc.sections {
-                    println!("Section: {}", section.title);
-                    println!("Type: {:?}", section.section_type);
-                    println!("Content:");
-                    println!("{}", section.content);
-                    println!("---");
-                }
-            } else {
-                println!("Filing Document");
-                println!("Path: {:?}", doc.path);
-                println!("\nSections:");
-                for section in doc.sections {
-                    println!("\nSection: {}", section.title);
-                    println!("Type: {:?}", section.section_type);
-                    println!("Content:");
-                    println!("{}", section.content);
-                }
-                println!("\nFacts:");
-                for fact in doc.facts {
-                    println!("\nFact: {}", fact.name);
-                    println!("Value: {}", fact.formatted_value);
-                    println!("Unit: {:?}", fact.unit);
-                    println!("Period: {:?}", fact.period);
-                }
-            }
-        }
-        _ => return Err(anyhow::anyhow!("Unsupported output format")),
     }
 
     Ok(())
