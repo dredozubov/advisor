@@ -81,19 +81,19 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     if let Ok(num) = value.parse::<f64>() {
         match unit {
             Some(u) if u.contains("USD") => {
-                format!("${:,.2}", num)
+                format!("${}", num)
             },
             Some(u) if u.contains("Shares") => {
-                format!("{:,.0} shares", num)
+                format!("{} shares", num)
             },
             Some(u) => {
-                format!("{:,.2} {}", num, u)
+                format!("{} {}", num, u)
             },
             None => {
                 if num.fract() == 0.0 {
-                    format!("{:,.0}", num)
+                    format!("{}", num)
                 } else {
-                    format!("{:,.2}", num)
+                    format!("{}", num)
                 }
             }
         }

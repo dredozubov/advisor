@@ -1,11 +1,17 @@
 pub mod types;
 pub mod document;
+pub mod section;
+pub mod text;
+pub mod facts;
 
-pub use types::{FilingDocument, FilingSection, FilingFact};
+pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};
 
 use anyhow::Result;
+use regex::Regex;
 use std::path::Path;
+use std::fs::File;
+use std::io::BufReader;
 
 pub async fn parse_filing(content: &str, output_path: &Path) -> Result<FilingDocument> {
     let mut sections = Vec::new();
@@ -63,7 +69,7 @@ impl XBRLParser {
         Ok(FilingDocument {
             sections: processed_sections,
             facts,
-            path: self.reader.path().to_owned(),
+            path: output_path.to_path_buf(),
         })
     }
 
