@@ -166,26 +166,29 @@ mod tests {
         fn test_extract_facts() {
             let content = read_test_file("tsla-20230930.htm");
             let facts = extract_facts(&content).unwrap();
-            
+
             println!("Found {} facts", facts.len());
             for fact in &facts {
-                println!("Fact: name={}, context={}, unit={:?}, value={}, formatted={}",
-                    fact.name, fact.context, fact.unit, fact.value, fact.formatted_value);
+                println!(
+                    "Fact: name={}, context={}, unit={:?}, value={}, formatted={}",
+                    fact.name, fact.context, fact.unit, fact.value, fact.formatted_value
+                );
             }
-            
+
             // First just check we found some facts
             assert!(!facts.is_empty(), "No facts were extracted from the file");
-            
+
             // Then look for specific ones
-            if let Some(cash) = facts.iter()
-                .find(|f| f.name.contains("CashAndCashEquivalents")) {
+            if let Some(cash) = facts
+                .iter()
+                .find(|f| f.name.contains("CashAndCashEquivalents"))
+            {
                 println!("Found cash fact: {:?}", cash);
             } else {
                 println!("No cash fact found");
             }
 
-            if let Some(shares) = facts.iter()
-                .find(|f| f.name.contains("CommonStock")) {
+            if let Some(shares) = facts.iter().find(|f| f.name.contains("CommonStock")) {
                 println!("Found shares fact: {:?}", shares);
             } else {
                 println!("No shares fact found");
