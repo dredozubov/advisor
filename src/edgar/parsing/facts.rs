@@ -173,6 +173,9 @@ mod tests {
             let mut buf = Vec::new();
             let mut depth = 0;
             let mut in_hidden = false;
+            let mut fact_count = 0;
+            let mut found_cash = false;
+            let mut found_shares = false;
 
             loop {
                 match reader.read_event_into(&mut buf) {
@@ -182,15 +185,26 @@ mod tests {
                         if name == "ix:hidden" {
                             in_hidden = true;
                         }
-                        println!("{:indent$}{} start", "", name, indent = depth * 2);
                         if name == "ix:nonNumeric" || name == "ix:numeric" {
+                            fact_count += 1;
                             for attr in e.attributes() {
                                 if let Ok(attr) = attr {
+                                    let key = std::str::from_utf8(attr.key.as_ref()).unwrap();
+                                    let value = std::str::from_utf8(&attr.value).unwrap();
+                                    if key == "name" {
+                                        if value.contains("CashAndCashEquivalents") {
+                                            found_cash = true;
+                                            println!("Found cash fact: {}", value);
+                                        } else if value.contains("CommonStockSharesOutstanding") {
+                                            found_shares = true;
+                                            println!("Found shares fact: {}", value);
+                                        }
+                                    }
                                     println!(
                                         "{:indent$}attr: {}={}", 
                                         "", 
-                                        std::str::from_utf8(attr.key.as_ref()).unwrap(),
-                                        std::str::from_utf8(&attr.value).unwrap(),
+                                        key,
+                                        value,
                                         indent = (depth + 1) * 2
                                     );
                                 }
@@ -205,7 +219,6 @@ mod tests {
                         if name == "ix:hidden" {
                             in_hidden = false;
                         }
-                        println!("{:indent$}{} end", "", name, indent = depth * 2);
                     }
                     Ok(Event::Text(e)) if !in_hidden => {
                         let text = e.unescape().unwrap();
@@ -220,20 +233,27 @@ mod tests {
                 buf.clear();
             }
 
+            println!("\nFound {} total facts", fact_count);
+            assert!(fact_count > 0, "Should find some facts");
+            assert!(found_cash, "Should find cash fact");
+            assert!(found_shares, "Should find shares fact");
+
             // Now run the actual extraction
             let facts = extract_facts(&content).unwrap();
             println!("\nExtracted {} facts", facts.len());
             
-            // Look for specific facts we expect to find
+            // Verify we found and parsed the facts correctly
             let cash = facts.iter()
                 .find(|f| f.name.contains("CashAndCashEquivalents"))
                 .expect("Should find cash fact");
             println!("\nFound cash fact: {:?}", cash);
+            assert_eq!(cash.unit, Some("USD".to_string()));
             
             let shares = facts.iter()
                 .find(|f| f.name.contains("CommonStockSharesOutstanding"))
                 .expect("Should find shares outstanding fact");
             println!("\nFound shares fact: {:?}", shares);
+            assert_eq!(shares.unit, Some("Shares".to_string()));
         }
     }
 }
