@@ -325,9 +325,19 @@ mod tests {
             );
 
             // Print found share facts for debugging
-            for fact in share_facts {
-                println!("Share fact: {:?}", fact);
+            for fact in &share_facts {
+                println!("Share fact: {} (unit: {:?})", fact.name, fact.unit);
             }
+
+            // Find a specific monetary fact to verify
+            let monetary_fact = facts
+                .iter()
+                .find(|f| f.name.contains("CashAndCashEquivalents"))
+                .expect("Should find cash fact");
+
+            println!("Testing monetary fact: {} (unit: {:?})", monetary_fact.name, monetary_fact.unit);
+            assert_eq!(monetary_fact.unit, Some("USD".to_string()), 
+                "Cash fact should have USD unit");
         }
     }
 }
