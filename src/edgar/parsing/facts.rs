@@ -1,7 +1,7 @@
+use super::types::FilingFact;
 use anyhow::Result;
 use quick_xml::events::Event;
 use quick_xml::Reader;
-use super::types::FilingFact;
 
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     let mut facts = Vec::new();
@@ -18,38 +18,39 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 let name = std::str::from_utf8(e.name().as_ref())?.to_string();
-                
+
                 // Check if this is an XBRL fact tag
                 if name.contains(':') {
                     in_fact = true;
-                    
+
                     // Extract context and unit from attributes
                     for attr in e.attributes() {
                         let attr = attr?;
                         match attr.key.as_ref() {
                             b"contextRef" => {
                                 current_context = std::str::from_utf8(&attr.value)?.to_string();
-                            },
+                            }
                             b"unitRef" => {
                                 current_unit = Some(std::str::from_utf8(&attr.value)?.to_string());
-                            },
+                            }
                             b"period" => {
-                                current_period = Some(std::str::from_utf8(&attr.value)?.to_string());
-                            },
+                                current_period =
+                                    Some(std::str::from_utf8(&attr.value)?.to_string());
+                            }
                             _ => {}
                         }
                     }
                 }
-            },
+            }
             Ok(Event::Text(e)) if in_fact => {
                 current_value = e.unescape()?.into_owned();
-            },
+            }
             Ok(Event::End(ref e)) => {
                 let name = std::str::from_utf8(e.name().as_ref())?.to_string();
                 if name.contains(':') && in_fact {
                     // Format the value based on type
                     let formatted_value = format_fact_value(&current_value, &current_unit);
-                    
+
                     facts.push(FilingFact {
                         context: current_context.clone(),
                         value: current_value.clone(),
@@ -64,7 +65,7 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                     current_period = None;
                     in_fact = false;
                 }
-            },
+            }
             Ok(Event::Eof) => break,
             Err(e) => return Err(anyhow::anyhow!("Error parsing XML: {}", e)),
             _ => (),
@@ -81,19 +82,15 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
         match unit {
             Some(u) if u.contains("USD") => {
                 format!("${}", num)
-            },
+            }
             Some(u) if u.contains("Shares") => {
                 format!("{} shares", num)
-            },
+            }
             Some(u) => {
                 format!("{} {}", num, u)
-            },
+            }
             None => {
-                if num.fract() == 0.0 {
-                    format!("{}", num)
-                } else {
-                    format!("{}", num)
-                }
+                format!("{}", num)
             }
         }
     } else {
@@ -108,8 +105,14 @@ mod tests {
 
     #[test]
     fn test_format_fact_value() {
-        assert_eq!(format_fact_value("1234.56", &Some("USD".to_string())), "$1,234.56");
-        assert_eq!(format_fact_value("1000000", &Some("Shares".to_string())), "1,000,000 shares");
+        assert_eq!(
+            format_fact_value("1234.56", &Some("USD".to_string())),
+            "$1,234.56"
+        );
+        assert_eq!(
+            format_fact_value("1000000", &Some("Shares".to_string())),
+            "1,000,000 shares"
+        );
         assert_eq!(format_fact_value("1234", &None), "1,234");
         assert_eq!(format_fact_value("text", &None), "text");
     }
@@ -125,12 +128,12 @@ mod tests {
 
         let facts = extract_facts(xml).unwrap();
         assert_eq!(facts.len(), 2);
-        
+
         let revenue = &facts[0];
         assert_eq!(revenue.context, "FY2020");
         assert_eq!(revenue.value, "1000000");
         assert_eq!(revenue.formatted_value, "$1,000,000.00");
-        
+
         let shares = &facts[1];
         assert_eq!(shares.context, "AsOf2020");
         assert_eq!(shares.value, "50000");
