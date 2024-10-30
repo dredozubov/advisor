@@ -80,6 +80,12 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
 fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     // Try to parse as number first
     if let Ok(num) = value.parse::<f64>() {
+        // Handle percentage values
+        if let Some(unit_str) = unit {
+            if unit_str == "Pure" {
+                return format!("{:.2}%", num * 100.0);
+            }
+        }
         let formatted = if num.fract() == 0.0 {
             // Format integer with .00 decimal places
             let formatted = format!("{:.2}", num);
@@ -163,6 +169,29 @@ mod tests {
         use crate::edgar::parsing::tests::read_test_file;
         use quick_xml::events::Event;
         use quick_xml::Reader;
+
+        #[test]
+        fn test_format_numeric_values() {
+            // Test integer formatting
+            assert_eq!(format_fact_value("1234", &None), "1,234");
+            assert_eq!(format_fact_value("1000000", &None), "1,000,000");
+            
+            // Test decimal formatting
+            assert_eq!(format_fact_value("1234.56", &None), "1,234.56");
+            assert_eq!(format_fact_value("1000000.42", &None), "1,000,000.42");
+            
+            // Test currency formatting
+            assert_eq!(format_fact_value("1234.56", &Some("USD".to_string())), "$1,234.56");
+            assert_eq!(format_fact_value("1000000", &Some("USD".to_string())), "$1,000,000");
+            
+            // Test share formatting
+            assert_eq!(format_fact_value("1234", &Some("Shares".to_string())), "1,234 shares");
+            assert_eq!(format_fact_value("1000000", &Some("Shares".to_string())), "1,000,000 shares");
+            
+            // Test percentage formatting
+            assert_eq!(format_fact_value("0.1234", &Some("Pure".to_string())), "12.34%");
+            assert_eq!(format_fact_value("1.0", &Some("Pure".to_string())), "100.00%");
+        }
 
         #[test]
         fn test_extract_facts() {
