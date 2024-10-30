@@ -37,7 +37,9 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                                 // Parse period from context ID
                                 if current_context.contains("AsOf") {
                                     current_period.instant = Some(current_context.clone());
-                                } else if current_context.contains("From") && current_context.contains("To") {
+                                } else if current_context.contains("From")
+                                    && current_context.contains("To")
+                                {
                                     let parts: Vec<&str> = current_context.split('_').collect();
                                     if parts.len() >= 4 {
                                         current_period.start_date = Some(parts[1].to_string());
@@ -197,18 +199,20 @@ mod tests {
                 <ix:nonNumeric name="us-gaap:Revenue" 
                               contextRef="From_2023-07-01_To_2023-09-30" 
                               unitRef="USD">23350000000</ix:nonNumeric>"#;
-            
+
             let facts = extract_facts(xml).unwrap();
             assert_eq!(facts.len(), 2);
-            
+
             // Check instant date fact
-            let cash = facts.iter()
+            let cash = facts
+                .iter()
                 .find(|f| f.name.contains("CashAndCashEquivalents"))
                 .expect("Should find cash fact");
             assert_eq!(cash.period.instant, Some("AsOf_2023-09-30".to_string()));
-            
+
             // Check period fact
-            let revenue = facts.iter()
+            let revenue = facts
+                .iter()
                 .find(|f| f.name.contains("Revenue"))
                 .expect("Should find revenue fact");
             assert_eq!(revenue.period.start_date, Some("2023-07-01".to_string()));
@@ -220,28 +224,46 @@ mod tests {
             // Test integer formatting
             assert_eq!(format_fact_value("1234", &None), "1,234");
             assert_eq!(format_fact_value("1000000", &None), "1,000,000");
-            
+
             // Test decimal formatting
             assert_eq!(format_fact_value("1234.56", &None), "1,234.56");
             assert_eq!(format_fact_value("1000000.42", &None), "1,000,000.42");
-            
+
             // Test currency formatting
-            assert_eq!(format_fact_value("1234.56", &Some("USD".to_string())), "$1,234.56");
-            assert_eq!(format_fact_value("1000000", &Some("USD".to_string())), "$1,000,000");
-            
+            assert_eq!(
+                format_fact_value("1234.56", &Some("USD".to_string())),
+                "$1,234.56"
+            );
+            assert_eq!(
+                format_fact_value("1000000", &Some("USD".to_string())),
+                "$1,000,000"
+            );
+
             // Test share formatting
-            assert_eq!(format_fact_value("1234", &Some("Shares".to_string())), "1,234 shares");
-            assert_eq!(format_fact_value("1000000", &Some("Shares".to_string())), "1,000,000 shares");
-            
+            assert_eq!(
+                format_fact_value("1234", &Some("Shares".to_string())),
+                "1,234 shares"
+            );
+            assert_eq!(
+                format_fact_value("1000000", &Some("Shares".to_string())),
+                "1,000,000 shares"
+            );
+
             // Test percentage formatting
-            assert_eq!(format_fact_value("0.1234", &Some("Pure".to_string())), "12.34%");
-            assert_eq!(format_fact_value("1.0", &Some("Pure".to_string())), "100.00%");
+            assert_eq!(
+                format_fact_value("0.1234", &Some("Pure".to_string())),
+                "12.34%"
+            );
+            assert_eq!(
+                format_fact_value("1.0", &Some("Pure".to_string())),
+                "100.00%"
+            );
         }
 
         #[test]
         fn test_extract_facts() {
             let content = read_test_file("tsla-20230930.htm");
-            
+
             // First pass: examine the XML structure to debug what facts are available
             let mut reader = Reader::from_str(&content);
             let mut buf = Vec::new();
@@ -251,7 +273,8 @@ mod tests {
             loop {
                 match reader.read_event_into(&mut buf) {
                     Ok(Event::Start(ref e)) => {
-                        let name = std::str::from_utf8(e.name().as_ref()).unwrap();
+                        let event_name = e.name();
+                        let name = std::str::from_utf8(event_name.0).unwrap();
                         if name == "ix:nonNumeric" || name == "ix:numeric" {
                             fact_count += 1;
                             for attr in e.attributes() {
@@ -282,20 +305,25 @@ mod tests {
 
             // Now run the actual extraction
             let facts = extract_facts(&content).unwrap();
-            
+
             // Verify we found and parsed the facts correctly
-            let cash = facts.iter()
+            let cash = facts
+                .iter()
                 .find(|f| f.name.contains("CashAndCashEquivalents"))
                 .expect("Should find cash fact");
             assert_eq!(cash.unit, Some("USD".to_string()));
-            
+
             // Look for any share-related facts
-            let share_facts: Vec<_> = facts.iter()
+            let share_facts: Vec<_> = facts
+                .iter()
                 .filter(|f| f.name.contains("Share") || f.name.contains("share"))
                 .collect();
-            
-            assert!(!share_facts.is_empty(), "Should find at least one share-related fact");
-            
+
+            assert!(
+                !share_facts.is_empty(),
+                "Should find at least one share-related fact"
+            );
+
             // Print found share facts for debugging
             for fact in share_facts {
                 println!("Share fact: {:?}", fact);
