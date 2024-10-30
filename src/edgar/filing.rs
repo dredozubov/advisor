@@ -1,18 +1,10 @@
 use anyhow::{anyhow, Result};
-use chardet::detect;
 use chrono::NaiveDate;
-use encoding_rs::Encoding;
-use encoding_rs_io::DecodeReaderBytesBuilder;
-use html_escape::decode_html_entities;
 use log::{error, info, warn};
-use regex::Regex;
 use reqwest::Client;
-use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{BufReader, Read};
+use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -580,13 +572,6 @@ pub async fn fetch_matching_filings(
 }
 
 use super::parsing::{self, types::FilingDocuments};
-use anyhow::Result;
-use chardet::detect;
-use encoding_rs::Encoding;
-use encoding_rs_io::DecodeReaderBytesBuilder;
-use std::fs::{self, File};
-use std::io::{BufReader, Read};
-use std::path::Path;
 
 pub fn extract_complete_submission_filing(
     filepath: &str,
