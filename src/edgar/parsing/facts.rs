@@ -79,18 +79,24 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
 fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     // Try to parse as number first
     if let Ok(num) = value.parse::<f64>() {
+        let formatted = if num.fract() == 0.0 {
+            format!("{:,.0}", num)
+        } else {
+            format!("{:,.2}", num)
+        };
+        
         match unit {
             Some(u) if u.contains("USD") => {
-                format!("${}", num)
+                format!("${}", formatted)
             }
             Some(u) if u.contains("Shares") => {
-                format!("{} shares", num)
+                format!("{} shares", formatted)
             }
             Some(u) => {
-                format!("{} {}", num, u)
+                format!("{} {}", formatted, u)
             }
             None => {
-                format!("{}", num)
+                formatted
             }
         }
     } else {
