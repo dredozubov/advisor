@@ -19,7 +19,6 @@ pub struct FilingSection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     pub start_date: Option<String>,
     pub end_date: Option<String>,

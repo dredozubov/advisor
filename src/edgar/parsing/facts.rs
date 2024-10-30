@@ -1,4 +1,4 @@
-use super::types::FilingFact;
+use super::types::{FilingFact, Period};
 use anyhow::Result;
 use quick_xml::events::Event;
 use quick_xml::Reader;
