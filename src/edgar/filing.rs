@@ -607,15 +607,16 @@ pub fn extract_complete_submission_filing(
 
     // Parse the header
     log::debug!("Parsing filing header...");
-    let filing_header = parsing::header_parser(&raw_text_string)?;
-
-    // Initialize filing documents with header
+    // Initialize filing documents
     let mut filing_documents = HashMap::new();
-    filing_documents.insert("header".to_string(), serde_json::json!(filing_header));
-
-    // Parse the documents
-    let mut document_results = parsing::parse_documents(&raw_text_string, output_directory)?;
-    filing_documents.extend(document_results.drain());
+    
+    // Create FilingDocument with raw text
+    let doc = parsing::FilingDocument {
+        facts: vec![],
+        path: output_directory.to_path_buf(),
+        raw_text: raw_text_string.clone(),
+    };
+    filing_documents.insert("document".to_string(), serde_json::json!(doc));
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)

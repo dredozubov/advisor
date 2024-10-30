@@ -22,4 +22,5 @@ pub struct FilingFact {
 pub struct FilingDocument {
     pub facts: Vec<FilingFact>,
     pub path: PathBuf,
+    pub raw_text: String,
 }
