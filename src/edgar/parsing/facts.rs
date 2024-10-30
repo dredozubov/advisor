@@ -170,7 +170,6 @@ mod tests {
             
             // First pass: examine the XML structure
             let mut reader = Reader::from_str(&content);
-            reader.trim_text(true);
             let mut buf = Vec::new();
             let mut depth = 0;
             let mut in_hidden = false;
