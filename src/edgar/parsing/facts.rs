@@ -67,7 +67,11 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                     // Reset state
                     current_value.clear();
                     current_unit = None;
-                    current_period = None;
+                    current_period = Period {
+                        start_date: None,
+                        end_date: None,
+                        instant: None,
+                    };
                     in_fact = false;
                 }
             }
