@@ -1,10 +1,14 @@
 use anyhow::{anyhow, Result};
+use chardet::detect;
 use chrono::NaiveDate;
+use encoding_rs::Encoding;
+use encoding_rs_io::DecodeReaderBytesBuilder;
 use log::{error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
