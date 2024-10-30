@@ -19,11 +19,19 @@ pub struct FilingSection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Period {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub instant: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilingFact {
     pub context: String,
     pub value: String,
     pub unit: Option<String>,
-    pub period: Option<String>,
+    pub period: Period,
     pub formatted_value: String,
     pub name: String,
 }

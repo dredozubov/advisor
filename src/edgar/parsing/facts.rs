@@ -11,7 +11,11 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     let mut current_context = String::new();
     let mut current_value = String::new();
     let mut current_unit = None;
-    let mut current_period = None;
+    let mut current_period = Period {
+        start_date: None,
+        end_date: None,
+        instant: None,
+    };
     let mut current_name = String::new();
     let mut in_fact = false;
 
@@ -169,6 +173,33 @@ mod tests {
         use crate::edgar::parsing::tests::read_test_file;
         use quick_xml::events::Event;
         use quick_xml::Reader;
+
+        #[test]
+        fn test_period_handling() {
+            let xml = r#"
+                <ix:nonNumeric name="us-gaap:CashAndCashEquivalents" 
+                              contextRef="AsOf_2023-09-30" 
+                              unitRef="USD">8069000000</ix:nonNumeric>
+                <ix:nonNumeric name="us-gaap:Revenue" 
+                              contextRef="From_2023-07-01_To_2023-09-30" 
+                              unitRef="USD">23350000000</ix:nonNumeric>"#;
+            
+            let facts = extract_facts(xml).unwrap();
+            assert_eq!(facts.len(), 2);
+            
+            // Check instant date fact
+            let cash = facts.iter()
+                .find(|f| f.name.contains("CashAndCashEquivalents"))
+                .expect("Should find cash fact");
+            assert_eq!(cash.period.instant, Some("AsOf_2023-09-30".to_string()));
+            
+            // Check period fact
+            let revenue = facts.iter()
+                .find(|f| f.name.contains("Revenue"))
+                .expect("Should find revenue fact");
+            assert_eq!(revenue.period.start_date, Some("2023-07-01".to_string()));
+            assert_eq!(revenue.period.end_date, Some("2023-09-30".to_string()));
+        }
 
         #[test]
         fn test_format_numeric_values() {
