@@ -7,7 +7,7 @@ pub mod xbrl;
 
 pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};
-pub use xbrl::{extract_facts, parse_filing};
+pub use xbrl::extract_facts;
 
 use anyhow::Result;
 use quick_xml::Reader;

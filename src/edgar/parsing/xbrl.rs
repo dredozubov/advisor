@@ -2,7 +2,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::collections::HashMap;
 use unicode_normalization::UnicodeNormalization;
-use super::types::{FilingFact, Period};
+use super::types::{FilingDocument, FilingFact, Period};
 
 // Import core structures from reference implementation
 #[derive(Debug, Clone)]

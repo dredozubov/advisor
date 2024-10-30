@@ -74,9 +74,9 @@ pub async fn eval(
 async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
-    let today_year = now.format("%Y");
-    let today_month = now.format("%M");
-    let today_day = now.format("%d");
+    let _today_year = now.format("%Y");
+    let _today_month = now.format("%M");
+    let _today_day = now.format("%d");
     let task = format!(
         r#"Extract the following parameters from the input text:
     - Company tickers
