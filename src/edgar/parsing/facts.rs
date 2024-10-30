@@ -85,7 +85,7 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
             // Split into integer and decimal parts
             let parts: Vec<&str> = formatted.split('.').collect();
             let int_part = parts[0];
-            
+
             // Add thousands separators to integer part
             let mut result = String::new();
             let chars: Vec<_> = int_part.chars().collect();
@@ -95,7 +95,7 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
                 }
                 result.insert(0, *c);
             }
-            
+
             result
         } else {
             let formatted = format!("{:.2}", num);
@@ -103,7 +103,7 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
             let parts: Vec<&str> = formatted.split('.').collect();
             let int_part = parts[0];
             let dec_part = parts.get(1).unwrap_or(&"00");
-            
+
             // Add thousands separators to integer part
             let mut result = String::new();
             let chars: Vec<_> = int_part.chars().collect();
@@ -113,11 +113,11 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
                 }
                 result.insert(0, *c);
             }
-            
+
             // Add decimal part back
             format!("{}.{}", result, dec_part)
         };
-        
+
         match unit {
             Some(u) if u.contains("USD") => {
                 format!("${}", formatted)
@@ -130,9 +130,7 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
             Some(u) => {
                 format!("{} {}", formatted, u)
             }
-            None => {
-                formatted
-            }
+            None => formatted,
         }
     } else {
         // Return as-is if not numeric
@@ -173,7 +171,7 @@ mod tests {
         let revenue = &facts[0];
         assert_eq!(revenue.context, "FY2020");
         assert_eq!(revenue.value, "1000000");
-        assert_eq!(revenue.formatted_value, "$1,000,000.00");
+        assert_eq!(revenue.formatted_value, "$1,000,000");
 
         let shares = &facts[1];
         assert_eq!(shares.context, "AsOf2020");

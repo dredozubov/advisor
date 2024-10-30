@@ -33,7 +33,7 @@ pub async fn eval(
                     let filing_type_with_date =
                         format!("{}_{}", filing.report_type, filing.filing_date);
                     let output_file_path = format!(
-                        "edgar_data/parsed/{}/{}.txt",
+                        "edgar_data/parsed/{}/{}",
                         company_name, filing_type_with_date
                     );
 
@@ -52,7 +52,8 @@ pub async fn eval(
                         );
 
                         match filing::extract_complete_submission_filing(input_file, output_path) {
-                            Ok(_parsed) => {
+                            Ok(parsed) => {
+                                log::debug!("{:?}", parsed.keys());
                                 log::info!("Parsed and saved filing to {:?}", output_path);
                                 log::debug!("Filing content: {:?}", filing);
                             }

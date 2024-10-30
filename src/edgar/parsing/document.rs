@@ -1,10 +1,8 @@
 use anyhow::Result;
 use regex::Regex;
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs;
-
-use std::collections::HashMap;
+use std::path::Path;
 
 const ELEMENTS_LIST: &[(&str, &str)] = &[
     ("FILENAME", "<FILENAME>"),
@@ -13,15 +11,15 @@ const ELEMENTS_LIST: &[(&str, &str)] = &[
     ("DESCRIPTION", "<DESCRIPTION>"),
 ];
 
-pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<HashMap<String, serde_json::Value>> {
+pub fn parse_documents(
+    raw_text: &str,
+    output_directory: &Path,
+) -> Result<HashMap<String, serde_json::Value>> {
     let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
     let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
     let mut filing_documents = HashMap::new();
 
-    let documents: Vec<_> = xbrl_doc
-        .find_iter(raw_text)
-        .map(|m| m.as_str())
-        .collect();
+    let documents: Vec<_> = xbrl_doc.find_iter(raw_text).map(|m| m.as_str()).collect();
 
     for (i, document) in documents.iter().enumerate() {
         let mut filing_document = HashMap::new();
@@ -76,7 +74,10 @@ pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<HashMa
         filing_document.insert("DESCRIPTIVE_FILEPATH".to_string(), output_filename);
         filing_document.insert(
             "FILE_SIZE".to_string(),
-            format!("{:.2} KB", fs::metadata(&output_filepath)?.len() as f64 / 1024.0),
+            format!(
+                "{:.2} KB",
+                fs::metadata(&output_filepath)?.len() as f64 / 1024.0
+            ),
         );
         filing_document.insert(
             "FILE_SIZE_BYTES".to_string(),
@@ -91,7 +92,7 @@ pub fn parse_documents(raw_text: &str, output_directory: &Path) -> Result<HashMa
 pub fn header_parser(raw_text: &str) -> Result<Vec<(String, String)>> {
     let mut headers = Vec::new();
     let re = Regex::new(r"<HEADER>(.*?)</HEADER>")?;
-    
+
     if let Some(captures) = re.captures(raw_text) {
         if let Some(header_content) = captures.get(1) {
             for line in header_content.as_str().lines() {
@@ -104,6 +105,6 @@ pub fn header_parser(raw_text: &str) -> Result<Vec<(String, String)>> {
             }
         }
     }
-    
+
     Ok(headers)
 }
