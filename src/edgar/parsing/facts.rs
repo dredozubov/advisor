@@ -80,17 +80,23 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     // Try to parse as number first
     if let Ok(num) = value.parse::<f64>() {
         let formatted = if num.fract() == 0.0 {
-            let formatted = format!("{}", num as i64);
-            // Add thousands separators
+            // Format integer with .00 decimal places
+            let formatted = format!("{:.2}", num);
+            // Split into integer and decimal parts
+            let parts: Vec<&str> = formatted.split('.').collect();
+            let int_part = parts[0];
+            
+            // Add thousands separators to integer part
             let mut result = String::new();
-            let chars: Vec<_> = formatted.chars().collect();
+            let chars: Vec<_> = int_part.chars().collect();
             for (i, c) in chars.iter().rev().enumerate() {
                 if i > 0 && i % 3 == 0 {
                     result.insert(0, ',');
                 }
                 result.insert(0, *c);
             }
-            result
+            
+            format!("{}.00", result)
         } else {
             let formatted = format!("{:.2}", num);
             // Split into integer and decimal parts
