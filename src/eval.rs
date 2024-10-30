@@ -73,6 +73,10 @@ pub async fn eval(
 
 async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
     println!("Starting extract_query_params with input: {}", input);
+    let now = chrono::Local::now();
+    let today_year = now.format("%Y");
+    let today_month = now.format("%M");
+    let today_day = now.format("%d");
     let task = format!(
         r#"Extract the following parameters from the input text:
     - Company tickers
@@ -84,12 +88,14 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     - 'end_date': ISO date (YYYY-MM-DD)
     - 'report_types': array of strings, possible values are {}
     
-    Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string. If user asks for the latest report or latest quarterly report assume a date range from 'today - 90 days' and 'today'. Current date is {}", chrono::Local::now().format("%Y-%m-%d")
+    Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string. If user asks for the latest report or latest quarterly report assume a date range from 'today - 90 days' and 'today'. Current date is {}".
     
     Construct it from the user input:
-    {input}"#, *edgar::report::REPORT_TYPES
+    {input}"#, *edgar::report::REPORT_TYPES, now.format("%Y-%m-%d")
     )
     .to_string();
+
+    log::info!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     let prompt = message_formatter![

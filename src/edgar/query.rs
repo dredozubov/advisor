@@ -50,8 +50,8 @@ impl Query {
     /// The JSON format should be as follows:
     /// {
     ///   "tickers": ["AAPL", "GOOGL"],
-    ///   "start_date": "2023-01-01",
-    ///   "end_date": "2023-12-31",
+    ///   "start_date": "2024-01-01",
+    ///   "end_date": "2024-12-31",
     ///   "report_types": ["10-K", "10-Q"]
     /// }
     ///
@@ -76,8 +76,8 @@ mod tests {
         let json_str = r#"
         {
             "tickers": ["AAPL", "GOOGL"],
-            "start_date": "2023-01-01",
-            "end_date": "2023-12-31",
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
             "report_types": ["10-K", "10-Q"]
         }
         "#;
@@ -87,11 +87,11 @@ mod tests {
         assert_eq!(query.tickers, vec!["AAPL", "GOOGL"]);
         assert_eq!(
             query.start_date,
-            NaiveDate::from_ymd_opt(2023, 1, 1).unwrap()
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()
         );
         assert_eq!(
             query.end_date,
-            NaiveDate::from_ymd_opt(2023, 12, 31).unwrap()
+            NaiveDate::from_ymd_opt(2024, 12, 31).unwrap()
         );
         assert_eq!(
             query.report_types,
