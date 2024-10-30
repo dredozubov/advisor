@@ -6,7 +6,6 @@ use quick_xml::Reader;
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     let mut facts = Vec::new();
     let mut reader = Reader::from_str(content);
-    reader.trim_text(true);
     let mut buf = Vec::new();
 
     let mut current_context = String::new();
