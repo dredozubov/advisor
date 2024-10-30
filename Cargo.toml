@@ -8,6 +8,10 @@ name = "advisor"
 path = "src/main.rs"
 
 [[bin]]
+name = "xbrl_parser" 
+path = "src/bin/xbrl_parser.rs"
+
+[[bin]]
 name = "xbrl_parser"
 path = "src/bin/xbrl_parser.rs"
 
