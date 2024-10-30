@@ -579,216 +579,55 @@ pub async fn fetch_matching_filings(
     Ok(filing_map)
 }
 
+use super::parsing::{self, types::FilingDocuments};
+use anyhow::Result;
+use chardet::detect;
+use encoding_rs::Encoding;
+use encoding_rs_io::DecodeReaderBytesBuilder;
+use std::fs::{self, File};
+use std::io::{BufReader, Read};
+use std::path::Path;
+
 pub fn extract_complete_submission_filing(
     filepath: &str,
     output_directory: &Path,
-) -> Result<HashMap<String, serde_json::Value>> {
+) -> Result<FilingDocuments> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
     );
 
-    let elements_list = vec![
-        ("FILENAME", "<FILENAME>"),
-        ("TYPE", "<TYPE>"),
-        ("SEQUENCE", "<SEQUENCE>"),
-        ("DESCRIPTION", "<DESCRIPTION>"),
-    ];
-
-    log::debug!(
-        "Checking if output directory exists: {:?}",
-        output_directory
-    );
+    // Create output directory if it doesn't exist
     if !output_directory.exists() {
         log::debug!("Creating output directory: {:?}", output_directory);
         fs::create_dir_all(output_directory)?;
     }
 
-    log::debug!(
-        "Starting to extract and save parsed content to {:?}",
-        output_directory
-    );
-
-    let xbrl_doc = Regex::new(r"<DOCUMENT>(.*?)</DOCUMENT>")?;
-    let xbrl_text = Regex::new(r"<(TEXT|text)>(.*?)</(TEXT|text)>")?;
-
+    // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
-    let raw_text = match fs::read(filepath) {
-        Ok(content) => {
-            log::debug!(
-                "Successfully read file: {} ({} bytes)",
-                filepath,
-                content.len()
-            );
-            content
-        }
-        Err(e) => {
-            log::error!("Failed to read file: {}. Error: {}", filepath, e);
-            return Err(e.into());
-        }
-    };
+    let raw_text = fs::read(filepath)?;
     let charenc = detect(&raw_text).0;
 
     log::debug!("Detected character encoding: {}", charenc);
-    let mut raw_text = match File::open(filepath) {
-        Ok(file) => {
-            log::debug!("Successfully opened file: {}", filepath);
-            DecodeReaderBytesBuilder::new()
-                .encoding(Encoding::for_label(charenc.as_bytes()))
-                .build(BufReader::new(file))
-        }
-        Err(e) => {
-            log::error!("Failed to open file: {}. Error: {}", filepath, e);
-            return Err(e.into());
-        }
-    };
+    let mut reader = DecodeReaderBytesBuilder::new()
+        .encoding(Encoding::for_label(charenc.as_bytes()))
+        .build(BufReader::new(File::open(filepath)?));
 
-    log::debug!("Starting to read and decode file content...");
     let mut raw_text_string = String::new();
-    if let Err(e) = raw_text.read_to_string(&mut raw_text_string) {
-        log::error!("Failed to read and decode file content. Error: {}", e);
-        return Err(e.into());
-    }
-    log::debug!(
-        "Successfully read and decoded file content ({} characters)",
-        raw_text_string.len()
-    );
+    reader.read_to_string(&mut raw_text_string)?;
 
+    // Parse the header
     log::debug!("Parsing filing header...");
-    let filing_header = match header_parser(&raw_text_string) {
-        Ok(header) => {
-            log::debug!("Successfully parsed filing header.");
-            header
-        }
-        Err(e) => {
-            log::error!("Failed to parse filing header. Error: {}", e);
-            return Err(e);
-        }
-    };
+    let filing_header = parsing::header_parser(&raw_text_string)?;
 
-    let mut filing_documents = HashMap::new();
-    filing_documents.insert("header".to_string(), json!(filing_header));
+    // Initialize filing documents with header
+    let mut filing_documents = FilingDocuments::new();
+    filing_documents.insert("header".to_string(), serde_json::json!(filing_header));
 
-    log::debug!("raw_text_string: {:?}", raw_text_string);
-    let documents: Vec<_> = xbrl_doc
-        .find_iter(&raw_text_string)
-        .map(|m| m.as_str())
-        .collect();
+    // Parse the documents
+    let mut document_results = parsing::parse_documents(&raw_text_string, output_directory)?;
+    filing_documents.extend(document_results.drain());
 
-    log::debug!("documents: {:?}", documents);
-
-    for (i, document) in documents.iter().enumerate() {
-        log::info!("Processing document: {}", &document[..1000]);
-        let mut filing_document = HashMap::new();
-
-        // Extract document information
-        for (element, element_path) in &elements_list {
-            if let Some(value) = document
-                .split(element_path)
-                .nth(1)
-                .and_then(|s| s.split('<').next())
-            {
-                filing_document.insert(element.to_string(), value.trim().to_string());
-            }
-        }
-
-        let raw_text = xbrl_text
-            .captures(document)
-            .and_then(|cap| cap.get(2))
-            .map(|m| m.as_str())
-            .unwrap_or("")
-            .replace("<XBRL>", "")
-            .replace("</XBRL>", "")
-            .replace("<XML>", "")
-            .replace("</XML>", "")
-            .trim()
-            .to_string();
-
-        let _doc_num = format!("{:04}", i + 1); // Prefix with underscore to avoid warning
-        let output_filename = format!(
-            "{}_{}.txt",
-            filing_document
-                .get("TYPE")
-                .unwrap_or(&"unknown_type".to_string()),
-            filing_document
-                .get("FILING_DATE")
-                .unwrap_or(&"unknown_date".to_string())
-        );
-        let output_filepath = output_directory.join(&output_filename);
-
-        log::debug!("Writing parsed content to file: {:?}", output_filepath);
-        log::debug!("Writing parsed content to file: {:?}", output_filepath);
-        log::debug!("Writing parsed content to file: {:?}", output_filepath);
-        if let Err(e) = fs::write(&output_filepath, raw_text) {
-            log::error!(
-                "Failed to write parsed content to file: {:?}. Error: {}",
-                output_filepath,
-                e
-            );
-            return Err(e.into());
-        }
-        log::debug!(
-            "Successfully wrote parsed content to file: {:?}",
-            output_filepath
-        );
-
-        filing_document.insert(
-            "RELATIVE_FILEPATH".to_string(),
-            output_filepath.to_str().unwrap().to_string(),
-        );
-        filing_document.insert("DESCRIPTIVE_FILEPATH".to_string(), output_filename.clone());
-        filing_document.insert("FILE_SIZE".to_string(), file_size(&output_filepath)?);
-        filing_document.insert(
-            "FILE_SIZE_BYTES".to_string(),
-            fs::metadata(&output_filepath)?.len().to_string(),
-        );
-
-        filing_documents.insert(i.to_string(), json!(filing_document));
-    }
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
-}
-
-pub fn header_parser(raw_html: &str) -> Result<Vec<(String, String)>> {
-    let document = Html::parse_document(raw_html);
-    let sec_header_selector = Selector::parse("sec-header").unwrap();
-
-    let mut data = Vec::new();
-
-    if let Some(sec_header_element) = document.select(&sec_header_selector).next() {
-        let sec_header_html = sec_header_element.inner_html();
-        let re = Regex::new(r"<(SEC-HEADER|sec-header)>(.*?)</(SEC-HEADER|sec-header)>")?;
-
-        if let Some(captures) = re.captures(&sec_header_html) {
-            if let Some(sec_header) = captures.get(2) {
-                let split_header: Vec<&str> = sec_header.as_str().split('\n').collect();
-
-                let mut current_group = String::new();
-                for header_item in split_header.iter() {
-                    let header_item = header_item.trim();
-                    if !header_item.is_empty() {
-                        if header_item.starts_with('<') && header_item.ends_with('>') {
-                            current_group = header_item.to_string();
-                        } else if !header_item.starts_with('\t') && !header_item.contains('<') {
-                            if let Some(colon_index) = header_item.find(':') {
-                                let key = header_item[..colon_index].trim();
-                                let value =
-                                    decode_html_entities(&header_item[colon_index + 1..].trim())
-                                        .into_owned();
-                                data.push((format!("{}:{}", current_group, key), value));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(data)
-}
-
-fn file_size(filepath: &Path) -> Result<String> {
-    let metadata = fs::metadata(filepath)?;
-    let size = metadata.len();
-    Ok(format!("{:.2} KB", size as f64 / 1024.0))
 }
