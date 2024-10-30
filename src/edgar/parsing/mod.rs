@@ -4,10 +4,11 @@ pub mod section;
 pub mod text;
 pub mod facts;
 pub mod tests;
+pub mod xbrl;
 
 pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};
-pub use facts::extract_facts;
+pub use xbrl::extract_facts;
 
 use anyhow::Result;
 use quick_xml::Reader;
