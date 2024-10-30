@@ -7,10 +7,7 @@ pub mod xbrl;
 
 pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};
-pub use xbrl::extract_facts;
-
-// Re-export key functionality
-pub use xbrl::parse_filing;
+pub use xbrl::{extract_facts, parse_filing};
 
 use anyhow::Result;
 use quick_xml::Reader;
@@ -59,7 +56,7 @@ impl XBRLParser {
 
         for section in sections {
             let processed_text = text::process_section_text(&section.content)?;
-            let section_facts = facts::extract_facts(&section.content)?;
+            let section_facts = xbrl::extract_facts(&section.content)?;
             
             processed_sections.push(FilingSection {
                 section_type: section.section_type.clone(),

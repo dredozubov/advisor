@@ -19,6 +19,19 @@ struct Dimension {
     member_value: String,
 }
 
+use std::path::Path;
+
+pub fn parse_filing(path: &Path) -> Result<FilingDocument> {
+    let content = std::fs::read_to_string(path)?;
+    let facts = extract_facts(&content)?;
+    
+    Ok(FilingDocument {
+        sections: vec![], // For now just return empty sections
+        facts,
+        path: path.to_path_buf(),
+    })
+}
+
 pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
     // Normalize whitespace
     let re = Regex::new(r"\s+")?;
