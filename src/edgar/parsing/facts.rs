@@ -80,9 +80,9 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     // Try to parse as number first
     if let Ok(num) = value.parse::<f64>() {
         let formatted = if num.fract() == 0.0 {
-            format!("{:,.0}", num)
+            format!("{}", num as i64)
         } else {
-            format!("{:,.2}", num)
+            format!("{:.2}", num)
         };
         
         match unit {
