@@ -123,7 +123,9 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
                 format!("${}", formatted)
             }
             Some(u) if u.contains("Shares") => {
-                format!("{} shares", formatted)
+                // For shares, format without decimal places
+                let parts: Vec<&str> = formatted.split('.').collect();
+                format!("{} shares", parts[0])
             }
             Some(u) => {
                 format!("{} {}", formatted, u)
