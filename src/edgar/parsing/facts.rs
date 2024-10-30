@@ -34,6 +34,16 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                         match attr.key.as_ref() {
                             b"contextRef" => {
                                 current_context = std::str::from_utf8(&attr.value)?.to_string();
+                                // Parse period from context ID
+                                if current_context.contains("AsOf") {
+                                    current_period.instant = Some(current_context.clone());
+                                } else if current_context.contains("From") && current_context.contains("To") {
+                                    let parts: Vec<&str> = current_context.split('_').collect();
+                                    if parts.len() >= 4 {
+                                        current_period.start_date = Some(parts[1].to_string());
+                                        current_period.end_date = Some(parts[3].to_string());
+                                    }
+                                }
                             }
                             b"unitRef" => {
                                 current_unit = Some(std::str::from_utf8(&attr.value)?.to_string());
