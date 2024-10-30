@@ -80,9 +80,36 @@ fn format_fact_value(value: &str, unit: &Option<String>) -> String {
     // Try to parse as number first
     if let Ok(num) = value.parse::<f64>() {
         let formatted = if num.fract() == 0.0 {
-            format!("{}", num as i64)
+            let formatted = format!("{}", num as i64);
+            // Add thousands separators
+            let mut result = String::new();
+            let chars: Vec<_> = formatted.chars().collect();
+            for (i, c) in chars.iter().rev().enumerate() {
+                if i > 0 && i % 3 == 0 {
+                    result.insert(0, ',');
+                }
+                result.insert(0, *c);
+            }
+            result
         } else {
-            format!("{:.2}", num)
+            let formatted = format!("{:.2}", num);
+            // Split into integer and decimal parts
+            let parts: Vec<&str> = formatted.split('.').collect();
+            let int_part = parts[0];
+            let dec_part = parts.get(1).unwrap_or(&"00");
+            
+            // Add thousands separators to integer part
+            let mut result = String::new();
+            let chars: Vec<_> = int_part.chars().collect();
+            for (i, c) in chars.iter().rev().enumerate() {
+                if i > 0 && i % 3 == 0 {
+                    result.insert(0, ',');
+                }
+                result.insert(0, *c);
+            }
+            
+            // Add decimal part back
+            format!("{}.{}", result, dec_part)
         };
         
         match unit {
