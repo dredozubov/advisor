@@ -46,7 +46,7 @@ pub fn extract_facts(content: &str) -> Result<Vec<FilingFact>> {
                 current_value = e.unescape()?.into_owned();
             },
             Ok(Event::End(ref e)) => {
-                let name = std::str::from_utf8(e.name().as_ref())?;
+                let name = std::str::from_utf8(e.name().as_ref())?.to_string();
                 if name.contains(':') && in_fact {
                     // Format the value based on type
                     let formatted_value = format_fact_value(&current_value, &current_unit);

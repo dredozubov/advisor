@@ -6,57 +6,25 @@ pub mod facts;
 
 pub use types::{FilingDocument, FilingSection, FilingFact, SectionType};
 pub use document::{parse_documents, header_parser};
-
-use anyhow::Result;
-use regex::Regex;
-use std::path::Path;
-use std::fs::File;
-use std::io::BufReader;
-
-pub async fn parse_filing(content: &str, output_path: &Path) -> Result<FilingDocument> {
-    let mut sections = Vec::new();
-    let mut facts = Vec::new();
-    
-    // Basic section extraction using regex
-    let section_re = Regex::new(r"<SECTION>(.*?)</SECTION>")?;
-    for cap in section_re.captures_iter(content) {
-        if let Some(section_content) = cap.get(1) {
-            sections.push(FilingSection {
-                section_type: SectionType::Other("Unknown".to_string()),
-                title: "Untitled Section".to_string(),
-                content: section_content.as_str().to_string(),
-            });
-        }
-    }
-
-    Ok(FilingDocument {
-        sections,
-        facts,
-        path: output_path.to_path_buf(),
-    })
-}
-mod section;
-mod text;
-mod facts;
-mod types;
-
 pub use facts::extract_facts;
 
 use anyhow::Result;
 use quick_xml::Reader;
 use std::path::Path;
 
-pub use types::{FilingDocument, FilingFact, FilingSection, SectionType};
-
 pub struct XBRLParser {
     reader: Reader<std::io::BufReader<std::fs::File>>,
+    output_path: std::path::PathBuf,
 }
 
 impl XBRLParser {
-    pub fn new(path: &Path) -> Result<Self> {
+    pub fn new(path: &Path, output_path: &Path) -> Result<Self> {
         let file = std::fs::File::open(path)?;
         let reader = Reader::from_reader(std::io::BufReader::new(file));
-        Ok(Self { reader })
+        Ok(Self { 
+            reader,
+            output_path: output_path.to_path_buf(),
+        })
     }
 
     pub fn parse(&mut self) -> Result<FilingDocument> {
@@ -69,7 +37,7 @@ impl XBRLParser {
         Ok(FilingDocument {
             sections: processed_sections,
             facts,
-            path: output_path.to_path_buf(),
+            path: self.output_path.clone(),
         })
     }
 

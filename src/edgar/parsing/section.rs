@@ -27,7 +27,7 @@ pub fn identify_sections(reader: &mut Reader<std::io::BufReader<std::fs::File>>)
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = std::str::from_utf8(e.name().as_ref())?;
+                let name = std::str::from_utf8(e.name().as_ref())?.to_string();
                 if name == "div" || name == "section" {
                     for attr in e.attributes() {
                         let attr = attr?;
@@ -48,7 +48,7 @@ pub fn identify_sections(reader: &mut Reader<std::io::BufReader<std::fs::File>>)
                 }
             }
             Ok(Event::End(ref e)) => {
-                let name = std::str::from_utf8(e.name().as_ref())?;
+                let name = std::str::from_utf8(e.name().as_ref())?.to_string();
                 if (name == "div" || name == "section") && in_section {
                     if !current_section.trim().is_empty() {
                         // Try to identify section type
