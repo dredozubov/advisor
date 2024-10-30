@@ -516,7 +516,7 @@ pub async fn fetch_matching_filings(
                 let cik = format!("{:0>10}", cik);
                 let accession_number = filing.accession_number.replace("-", "");
                 let document_url = format!(
-                    "{}/{}/{}/{}",
+                    "{}/{}/{}/{}.xml",
                     base, cik, accession_number, filing.primary_document
                 );
 
