@@ -34,6 +34,8 @@ mod text;
 mod facts;
 mod types;
 
+pub use facts::extract_facts;
+
 use anyhow::Result;
 use quick_xml::Reader;
 use std::path::Path;
