@@ -1,4 +1,5 @@
-use crate::edgar::{self, filing, query::Query};
+use crate::query::Query;
+use crate::edgar::{self, filing};
 use anyhow::Result;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -19,68 +20,110 @@ pub async fn eval(
             // Step 1: Extract date ranges and report types using Anthropic LLM
             println!("{:?}", query_json);
 
-            // // Step 2: Construct Query and fetch data
-            let query = Query::from_json(&query_json)?;
-            // Fetch relevant filings based on the query
-            for ticker in &query.tickers {
-                log::info!("Fetching filings for ticker: {}", ticker);
-                let filings = filing::fetch_matching_filings(http_client, &query).await?;
+            // Parse into our new high-level Query type
+            let base_query: Query = serde_json::from_str(&query_json)?;
+            
+            // Add EDGAR query if report types were specified
+            let query = if let Some(report_types) = extract_report_types(&query_json)? {
+                base_query.with_edgar_query(report_types)
+            } else {
+                base_query
+            };
 
-                // Process the fetched filings (you can modify this as needed)
-                for (input_file, filing) in &filings {
-                    log::info!("Fetched filing ({:?}): {:?}", input_file, filing);
-                    let company_name = ticker;
-                    let filing_type_with_date =
-                        format!("{}_{}", filing.report_type, filing.filing_date);
-                    let output_file_path = format!(
-                        "data/edgar/parsed/{}/{}",
-                        company_name, filing_type_with_date
-                    );
-
-                    // Check if the output file already exists
-                    let output_path = std::path::Path::new(&output_file_path);
-                    if output_path.exists() {
-                        log::info!(
-                            "Output file already exists for filing: {}",
-                            output_file_path
-                        );
-                    } else {
-                        log::debug!(
-                            "Parsing filing: {} with output path: {:?}",
-                            &input_file,
-                            output_path.parent().unwrap()
-                        );
-
-                        match filing::extract_complete_submission_filing(input_file) {
-                            Ok(parsed) => {
-                                log::debug!("{:?}", parsed.keys());
-                                log::debug!("Filing content: {:?}", filing);
-
-                                // Create output directory if it doesn't exist
-                                if !output_path.exists() {
-                                    std::fs::create_dir_all(output_path.parent().unwrap())?;
-                                }
-
-                                // Save parsed results as JSON
-                                let output_file = output_path.with_extension("json");
-                                std::fs::write(
-                                    &output_file,
-                                    serde_json::to_string_pretty(&parsed)?,
-                                )?;
-                                log::info!("Saved parsed results to: {:?}", output_file);
-                            }
-                            Err(e) => log::error!("Failed to parse filing: {}", e),
-                        }
-                    }
+            // Process EDGAR filings if requested
+            if let Some(edgar_query) = &query.edgar_query {
+                for ticker in &edgar_query.tickers {
+                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                    let filings = filing::fetch_matching_filings(http_client, edgar_query).await?;
+                    process_edgar_filings(filings)?;
                 }
             }
+
+            // Process earnings data if requested
+            if let Some(earnings_query) = &query.earnings_query {
+                log::info!("Fetching earnings data for ticker: {}", earnings_query.ticker);
+                let transcripts = earnings::fetch_transcripts(
+                    http_client,
+                    &earnings_query.ticker,
+                    earnings_query.start_date,
+                    earnings_query.end_date,
+                ).await?;
+                process_earnings_transcripts(transcripts)?;
+            }
+
+            Ok("Query processed successfully".to_string())
         }
         Err(e) => {
             log::error!("Failure to create an EDGAR query: {e}")
         }
     }
 
-    Ok("OK".to_string())
+}
+
+fn extract_report_types(query_json: &str) -> Result<Option<Vec<edgar::report::ReportType>>> {
+    let v: serde_json::Value = serde_json::from_str(query_json)?;
+    if let Some(types) = v.get("report_types") {
+        let report_types = types
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("report_types is not an array"))?
+            .iter()
+            .map(|t| t.as_str().unwrap().parse())
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(report_types))
+    } else {
+        Ok(None)
+    }
+}
+
+fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()> {
+    for (input_file, filing) in &filings {
+        log::info!("Processing filing ({:?}): {:?}", input_file, filing);
+        let company_name = &filing.accession_number;
+        let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
+        let output_file_path = format!(
+            "data/edgar/parsed/{}/{}",
+            company_name, filing_type_with_date
+        );
+
+        let output_path = std::path::Path::new(&output_file_path);
+        if output_path.exists() {
+            log::info!(
+                "Output file already exists for filing: {}",
+                output_file_path
+            );
+            continue;
+        }
+
+        log::debug!(
+            "Parsing filing: {} with output path: {:?}",
+            input_file,
+            output_path.parent().unwrap()
+        );
+
+        match filing::extract_complete_submission_filing(input_file) {
+            Ok(parsed) => {
+                if !output_path.exists() {
+                    std::fs::create_dir_all(output_path.parent().unwrap())?;
+                }
+                let output_file = output_path.with_extension("json");
+                std::fs::write(
+                    &output_file,
+                    serde_json::to_string_pretty(&parsed)?,
+                )?;
+                log::info!("Saved parsed results to: {:?}", output_file);
+            }
+            Err(e) => log::error!("Failed to parse filing: {}", e),
+        }
+    }
+    Ok(())
+}
+
+fn process_earnings_transcripts(transcripts: Vec<earnings::Transcript>) -> Result<()> {
+    for transcript in transcripts {
+        log::info!("Processing transcript for {} on {}", transcript.ticker, transcript.date);
+        // Add transcript processing logic here
+    }
+    Ok(())
 }
 
 async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
