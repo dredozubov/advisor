@@ -21,13 +21,20 @@ pub struct Transcript {
     pub content: String,
 }
 
+fn ensure_data_dirs() -> Result<()> {
+    // Create base data directory if it doesn't exist
+    fs::create_dir_all("data")?;
+    // Create earnings directory if it doesn't exist 
+    fs::create_dir_all(EARNINGS_DATA_DIR)?;
+    Ok(())
+}
+
 pub async fn fetch_transcript(
     client: &Client,
     ticker: &str,
     date: NaiveDate,
 ) -> Result<Transcript> {
-    // Create earnings directory if it doesn't exist
-    fs::create_dir_all(EARNINGS_DATA_DIR)?;
+    ensure_data_dirs()?;
 
     let url = format!(
         "https://api.example.com/earnings/{}/{}",
