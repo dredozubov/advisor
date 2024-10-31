@@ -10,7 +10,7 @@ pub async fn fetch_and_save(
     user_agent: &str,
 ) -> Result<()> {
     log::debug!("Fetching URL: {}", url);
-    
+
     let response = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, user_agent)
@@ -55,7 +55,7 @@ pub async fn fetch_and_save(
     // Verify the saved content
     let saved_content = std::fs::read_to_string(filepath)?;
     log::debug!("Verified saved content length: {}", saved_content.len());
-    
+
     if saved_content.len() != content.len() {
         return Err(anyhow::anyhow!(
             "Content length mismatch: received {} bytes but saved {} bytes",
