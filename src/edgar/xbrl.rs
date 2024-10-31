@@ -29,13 +29,9 @@ pub mod xml {
         pub unit_value: String,
     }
 
-    impl Unit {
-        pub fn to_string(&self) -> String {
-            let mut unit_string = String::new();
-            unit_string.push_str(&self.unit_type);
-            unit_string.push_str(" -- ");
-            unit_string.push_str(&self.unit_value);
-            unit_string
+    impl std::fmt::Display for Unit {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{} -- {}", self.unit_type, self.unit_value)
         }
     }
 
