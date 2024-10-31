@@ -59,7 +59,15 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
 
     if !path.exists() {
         log::debug!("Tickers file not found, downloading from SEC");
-        super::utils::fetch_and_save(&client, &url, path, USER_AGENT, APPLICATION_JSON).await?;
+        crate::utils::http::fetch_and_save(
+            &client,
+            &url,
+            path,
+            USER_AGENT,
+            APPLICATION_JSON,
+            crate::utils::rate_limit::RateLimiter::edgar(),
+        )
+        .await?;
         log::debug!("Successfully downloaded tickers file");
     } else {
         log::debug!("Using existing tickers file");

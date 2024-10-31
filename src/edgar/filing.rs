@@ -309,12 +309,13 @@ pub async fn get_company_filings(
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            match super::utils::fetch_and_save(
+            match fetch_and_save(
                 client,
                 &Url::parse(&current_url)?,
                 &filepath,
                 USER_AGENT,
                 APPLICATION_JSON,
+                RateLimiter::edgar(),
             )
             .await
             {
@@ -530,8 +531,15 @@ pub async fn fetch_matching_filings(
             log::info!("Fetching: {}", document_url);
 
             // Fetch and save the document with XML content type
-            let result =
-                fetch_and_save(&client, &document_url_obj, local_path, USER_AGENT, TEXT_XML).await;
+            let result = fetch_and_save(
+                &client,
+                &document_url_obj,
+                local_path,
+                USER_AGENT,
+                TEXT_XML,
+                RateLimiter::edgar(),
+            )
+            .await;
 
             if let Err(e) = result {
                 log::error!("Error processing filing: {}", e);
