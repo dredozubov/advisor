@@ -1,4 +1,4 @@
-use advisor::{edgar::filing, eval, repl};
+use advisor::{edgar::filing, eval, repl, utils::dirs};
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
@@ -11,8 +11,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    log::debug!("Creating data directory at {}", filing::FILING_DATA_DIR);
-    fs::create_dir_all(filing::FILING_DATA_DIR)?;
+    log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
+    fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
     log::debug!("Data directory created successfully");
 
     // Initialize ChatGPT executor with API key from environment
