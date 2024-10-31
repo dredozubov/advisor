@@ -1,8 +1,8 @@
 use anyhow::Result;
-use reqwest::{Client, header::HeaderValue};
+use mime::Mime;
+use reqwest::{header::HeaderValue, Client};
 use std::path::Path;
 use url::Url;
-use mime::Mime;
 
 pub async fn fetch_and_save(
     client: &Client,
@@ -14,16 +14,14 @@ pub async fn fetch_and_save(
     log::debug!("Fetching URL: {}", url);
 
     let content_type_value = HeaderValue::from_str(content_type.as_ref())?;
-    let mut request = client
+    let request = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, user_agent)
         .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate")
         .header(reqwest::header::ACCEPT, &content_type_value)
         .header(reqwest::header::CONTENT_TYPE, &content_type_value);
 
-    let response = request
-        .send()
-        .await?;
+    let response = request.send().await?;
 
     log::debug!("Response status: {}", response.status());
     log::debug!("Response headers: {:?}", response.headers());
@@ -50,11 +48,6 @@ pub async fn fetch_and_save(
     let content = response.text().await?;
     log::debug!("Received content length: {}", content.len());
 
-    // Verify content is complete JSON
-    if !content.trim_end().ends_with("}") {
-        return Err(anyhow::anyhow!("Incomplete JSON response"));
-    }
-
     std::fs::write(filepath, &content)?;
     log::debug!("Saved content to {:?}", filepath);
 
@@ -69,10 +62,6 @@ pub async fn fetch_and_save(
             saved_content.len()
         ));
     }
-
-    // Verify saved content is valid JSON
-    serde_json::from_str::<serde_json::Value>(&saved_content)
-        .map_err(|e| anyhow::anyhow!("Invalid JSON in saved file: {}", e))?;
 
     Ok(())
 }

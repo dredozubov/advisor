@@ -538,14 +538,8 @@ pub async fn fetch_matching_filings(
             log::info!("Fetching: {}", document_url);
 
             // Fetch and save the document with XML content type
-            let result = fetch_and_save(
-                &client,
-                &document_url_obj,
-                &local_path,
-                &USER_AGENT,
-                TEXT_XML,
-            )
-            .await;
+            let result =
+                fetch_and_save(&client, &document_url_obj, local_path, USER_AGENT, TEXT_XML).await;
 
             if let Err(e) = result {
                 log::error!("Error processing filing: {}", e);
@@ -618,10 +612,8 @@ pub fn extract_complete_submission_filing(
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
 
-    // Parse the header
-    log::debug!("Parsing filing header...");
     // Initialize filing documents
-    let mut filing_documents = HashMap::new();
+    let filing_documents = HashMap::new();
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
