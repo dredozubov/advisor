@@ -2,9 +2,9 @@ use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
-use mime::{APPLICATION_JSON, APPLICATION_XML};
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use log::{error, info, warn};
+use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -522,11 +522,7 @@ pub async fn fetch_matching_filings(
             let accession_number = filing.accession_number.replace("-", "");
             // The primary_document from FilingEntry contains the original .htm file
             // We need to construct URL for the XBRL version by transforming .htm to _htm.xml
-            let xbrl_document = if filing.primary_document.ends_with(".htm") {
-                filing.primary_document.replace(".htm", "_htm.xml")
-            } else {
-                filing.primary_document.to_string()
-            };
+            let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
 
             let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
 
@@ -542,7 +538,14 @@ pub async fn fetch_matching_filings(
             log::info!("Fetching: {}", document_url);
 
             // Fetch and save the document with XML content type
-            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT, APPLICATION_XML).await;
+            let result = fetch_and_save(
+                &client,
+                &document_url_obj,
+                &local_path,
+                &USER_AGENT,
+                TEXT_XML,
+            )
+            .await;
 
             if let Err(e) = result {
                 log::error!("Error processing filing: {}", e);
