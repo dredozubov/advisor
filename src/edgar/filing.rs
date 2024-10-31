@@ -94,7 +94,7 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
 }
 
 // Hardcoded values
-pub const FILING_DATA_DIR: &str = "data/edgar/filings";
+use crate::utils::dirs::EDGAR_FILINGS_DIR;
 pub const EDGAR_DATA_URL: &str = "https://data.sec.gov";
 pub const USER_AGENT: &str = "software@example.com";
 
@@ -296,8 +296,7 @@ pub async fn get_company_filings(
 
     info!("Fetching company filings from {}", initial_url);
 
-    // Create filings directory if it doesn't exist
-    fs::create_dir_all(FILING_DATA_DIR)?;
+    crate::utils::dirs::ensure_edgar_dirs()?;
 
     let mut all_filings = Vec::new();
     let mut fetched_count = 0;
@@ -305,7 +304,7 @@ pub async fn get_company_filings(
     let mut additional_files = Vec::new();
 
     loop {
-        let filepath = PathBuf::from(FILING_DATA_DIR)
+        let filepath = PathBuf::from(EDGAR_FILINGS_DIR)
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
@@ -421,7 +420,7 @@ pub async fn get_company_filings(
 
     // Get the initial response which contains company info
     let content = fs::read_to_string(
-        PathBuf::from(FILING_DATA_DIR).join(format!("CIK{}_{}.json", padded_cik, 0)),
+        PathBuf::from(EDGAR_FILINGS_DIR).join(format!("CIK{}_{}.json", padded_cik, 0)),
     )?;
 
     let mut initial_response: CompanyFilings = serde_json::from_str(&content)
@@ -490,8 +489,7 @@ pub async fn fetch_matching_filings(
     let filings = get_company_filings(client, cik, None).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query);
 
-    // Create the base directory if it doesn't exist
-    fs::create_dir_all(FILING_DATA_DIR)?;
+    crate::utils::dirs::ensure_edgar_dirs()?;
 
     // Create a bounded channel
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
@@ -520,7 +518,7 @@ pub async fn fetch_matching_filings(
             let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
 
             // Create the directory structure for the filing
-            let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
+            let filing_dir = format!("{}/{}/{}", EDGAR_FILINGS_DIR, cik, accession_number);
             fs::create_dir_all(&filing_dir)?;
 
             // Define the path to save the document using the XBRL document name

@@ -9,7 +9,7 @@ use url::Url;
 
 use crate::utils::{http::fetch_and_save, rate_limit::RateLimiter};
 
-pub const EARNINGS_DATA_DIR: &str = "data/earnings";
+use crate::utils::dirs::EARNINGS_DIR;
 const USER_AGENT: &str = "software@example.com";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,20 +21,13 @@ pub struct Transcript {
     pub content: String,
 }
 
-fn ensure_data_dirs() -> Result<()> {
-    // Create base data directory if it doesn't exist
-    fs::create_dir_all("data")?;
-    // Create earnings directory if it doesn't exist 
-    fs::create_dir_all(EARNINGS_DATA_DIR)?;
-    Ok(())
-}
 
 pub async fn fetch_transcript(
     client: &Client,
     ticker: &str,
     date: NaiveDate,
 ) -> Result<Transcript> {
-    ensure_data_dirs()?;
+    crate::utils::dirs::ensure_earnings_dirs()?;
 
     let url = format!(
         "https://api.example.com/earnings/{}/{}",
@@ -42,7 +35,7 @@ pub async fn fetch_transcript(
         date.format("%Y-%m-%d")
     );
 
-    let filepath = PathBuf::from(EARNINGS_DATA_DIR)
+    let filepath = PathBuf::from(EARNINGS_DIR)
         .join(ticker)
         .join(format!("{}.json", date.format("%Y-%m-%d")));
 
