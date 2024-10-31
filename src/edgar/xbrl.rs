@@ -1,10 +1,12 @@
+use regex::Regex;
+use scraper::Html;
 pub mod xml {
 
     const _VERBOSE: u8 = 0;
 
     use regex::Regex;
     use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
+    use std::{collections::HashMap, fs};
 
     // Define structs
 
@@ -80,9 +82,8 @@ pub mod xml {
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct DimensionTableRow {
-        pub cik: String,
-        pub accession_number: String,
-        pub xml_name: String,
+        // pub cik: String,
+        // pub accession_number: String,
         pub context_ref: String,
         pub axis_prefix: String,
         pub axis_tag: String,
@@ -90,10 +91,7 @@ pub mod xml {
         pub member_tag: String,
     }
 
-    pub fn dimensions_to_table(
-        facts: Vec<FactItem>,
-        input_details: InputDetails,
-    ) -> Vec<DimensionTableRow> {
+    pub fn dimensions_to_table(facts: Vec<FactItem>) -> Vec<DimensionTableRow> {
         let mut table_rows: Vec<DimensionTableRow> = Vec::new();
         let mut context_ref_tracker = Vec::new();
 
@@ -106,9 +104,8 @@ pub mod xml {
                         .contains(&fact.context_ref.clone().expect("No context ref"))
                     {
                         let row = DimensionTableRow {
-                            cik: input_details.cik.clone(),
-                            accession_number: input_details.accession_number.clone(),
-                            xml_name: input_details.xml_name.clone(),
+                            // cik: input_details.cik.clone(),
+                            // accession_number: input_details.accession_number.clone(),
                             context_ref: fact.context_ref.clone().expect("No context ref"),
                             axis_tag: dimension.key_value.clone(),
                             axis_prefix: dimension.key_ns.clone(),
@@ -130,9 +127,8 @@ pub mod xml {
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct FactTableRow {
-        pub cik: Option<String>,
-        pub accession_number: Option<String>,
-        pub xml_name: String,
+        // pub cik: String,
+        // pub accession_number: String,
         pub context_ref: Option<String>,
         pub tag: String,
         pub value: String,
@@ -144,43 +140,24 @@ pub mod xml {
         pub num_dim: u32,
     }
 
-    impl FactTableRow {
-        fn default() -> FactTableRow {
-            FactTableRow {
-                cik: None,
-                accession_number: None,
-                xml_name: "".to_string(),
-                context_ref: None,
-                tag: "".to_string(),
-                value: "".to_string(),
-                prefix: "".to_string(),
-                period_start: None,
-                period_end: None,
-                point_in_time: None,
-                unit: None,
-                num_dim: 0,
-            }
-        }
-    }
-
-    pub fn facts_to_table(facts: Vec<FactItem>, input_details: InputDetails) -> Vec<FactTableRow> {
+    pub fn facts_to_table(facts: Vec<FactItem>) -> Vec<FactTableRow> {
         let mut table_rows: Vec<FactTableRow> = Vec::new();
 
         //let standard_tags = ["us-gaap", "dei"];
 
         // Add rows
         for fact in facts {
-            // let prefix_type = if standard_tags.contains(&fact.prefix.as_str()) {"standard"} else {"custom"};
-
-            let mut row = FactTableRow::default();
-            row.cik = input_details.cik.clone();
-            row.accession_number = input_details.accession_number.clone();
-            row.xml_name = input_details.xml_name.clone();
-            row.context_ref = fact.context_ref.clone();
-            row.tag = fact.name.clone();
-            row.prefix = fact.prefix.clone();
-            row.num_dim = fact.dimensions.len() as u32;
-            row.value = fact.value.clone();
+            let mut row = FactTableRow {
+                context_ref: fact.context_ref.clone(),
+                tag: fact.name.clone(),
+                prefix: fact.prefix.clone(),
+                num_dim: fact.dimensions.len() as u32,
+                value: fact.value.clone(),
+                period_start: None,
+                period_end: None,
+                point_in_time: None,
+                unit: None,
+            };
 
             // Periods are processed into three different columns
             for period in &fact.periods {
@@ -247,14 +224,6 @@ pub mod xml {
                     unit_type: name.to_string(),
                     unit_value: value.to_string(),
                 });
-
-                if _VERBOSE > 1 {
-                    println!(
-                        "{} {}",
-                        m_ele.parent().unwrap().tag_name().name(),
-                        m_ele.text().unwrap_or("")
-                    );
-                }
             }
         }
 
@@ -372,7 +341,7 @@ pub mod xml {
             let value = child.text().unwrap_or("");
 
             // Sanitize the value
-            let clean_value = sanitize::html(value.to_string().clone());
+            let clean_value = super::sanitize_html(value.to_string().clone());
 
             let mut fact_dimensions: Vec<Dimension> = Vec::new();
             let mut fact_units: Vec<Unit> = Vec::new();
@@ -443,7 +412,6 @@ pub mod xml {
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct XBRLFiling {
-        pub info: InputDetails,
         pub json: Option<Vec<FactItem>>,
         pub facts: Option<Vec<FactTableRow>>,
         pub dimensions: Option<Vec<DimensionTableRow>>,
@@ -451,21 +419,10 @@ pub mod xml {
 
     impl XBRLFiling {
         pub fn new(input: String, email: String, output: Vec<&str>) -> XBRLFiling {
-            // Parse input
-
-            let input_info = Input::new(input.clone());
-
-            // Get XML data
-
-            let raw_xml: String = match input_info.input_type {
-                InputType::Remote => io::load::download(input.clone(), email.to_string()),
-                InputType::Local => io::load::load_xml(input.clone()),
-            };
-
-            // Init filing object
+            let raw_xml =
+                fs::read_to_string(input).expect("Something went wrong while reading XML file");
 
             let mut filing_obj = XBRLFiling {
-                info: input_info.clone(),
                 json: None,
                 facts: None,
                 dimensions: None,
@@ -486,14 +443,14 @@ pub mod xml {
                 // Parse facts tables
 
                 if output.contains(&"facts") {
-                    let facts_table = facts_to_table(json.clone(), input_info.clone());
+                    let facts_table = facts_to_table(json.clone());
                     filing_obj.facts = Some(facts_table);
                 }
 
                 // Parse dimensions tables
 
                 if output.contains(&"dimensions") {
-                    let dimensions_table = dimensions_to_table(json.clone(), input_info.clone());
+                    let dimensions_table = dimensions_to_table(json.clone());
                     filing_obj.dimensions = Some(dimensions_table);
                 }
             }
@@ -502,39 +459,28 @@ pub mod xml {
 
             filing_obj
         }
-
-        pub fn _pretty_print(&self) {
-            // print all the information in the struct in a pretty format with human readable labels
-            self.info._pretty_print();
-            //println!("Number of facts found: {}", self.num_facts);
-        }
     }
 }
 
-pub mod sanitize {
-    use regex::Regex;
-    use scraper::Html;
+fn sanitize_html(input: String) -> String {
+    let mut output = input.clone();
 
-    pub fn html(input: String) -> String {
-        let mut output = input.clone();
+    // Remove non ascii characters and replace them with a space
+    output = output.replace(|c: char| !c.is_ascii(), " ");
 
-        // Remove non ascii characters and replace them with a space
-        output = output.replace(|c: char| !c.is_ascii(), " ");
-
-        // Remove HTML
-        if output.contains("<") {
-            // Remove HTML tags
-            let fragment = Html::parse_fragment(output.as_str());
-            let root = fragment.root_element();
-            output = root.text().collect::<Vec<_>>().join(" ");
-        }
-
-        // Remove duplicate white spaces
-
-        let re = Regex::new(r"\s+").unwrap();
-        output = re.replace_all(output.as_str(), " ").to_string();
-
-        // Return
-        return output;
+    // Remove HTML
+    if output.contains("<") {
+        // Remove HTML tags
+        let fragment = Html::parse_fragment(output.as_str());
+        let root = fragment.root_element();
+        output = root.text().collect::<Vec<_>>().join(" ");
     }
+
+    // Remove duplicate white spaces
+
+    let re = Regex::new(r"\s+").unwrap();
+    output = re.replace_all(output.as_str(), " ").to_string();
+
+    // Return
+    return output;
 }
