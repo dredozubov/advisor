@@ -62,15 +62,31 @@ pub async fn fetch_transcript(
         fs::create_dir_all(parent)?;
     }
 
-    // Fetch and save transcript
-    fetch_and_save(
-        client,
-        &Url::parse(&url)?,
-        &filepath,
-        USER_AGENT,
-        APPLICATION_JSON,
-        RateLimiter::earnings(),
-    )
+    // Fetch and save transcript with proper headers
+    let request = client
+        .get(&url)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(reqwest::header::ACCEPT_ENCODING, "gzip");
+
+    // Acquire rate limit permit before making request
+    let _permit = RateLimiter::earnings().acquire().await;
+    
+    let response = request.send().await?;
+    
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "HTTP request failed with status: {}",
+            response.status()
+        ));
+    }
+
+    // Read the response body
+    let content = response.text().await?;
+    
+    // Save the content
+    std::fs::write(&filepath, &content)?;
     .await?;
 
     // Read and parse the saved transcript
