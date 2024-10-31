@@ -2,7 +2,7 @@ mod query;
 pub use query::Query;
 
 use anyhow::{anyhow, Result};
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use mime::APPLICATION_JSON;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
