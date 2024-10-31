@@ -81,8 +81,6 @@ pub mod date_format {
     use chrono::NaiveDate;
     use serde::{self, Deserialize, Deserializer, Serializer};
     const FORMAT: &str = "%Y-%m-%d";
-    use chrono::NaiveDate;
-    use serde::{self, Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(date: &NaiveDate, serializer: S) -> Result<S::Ok, S::Error>
     where

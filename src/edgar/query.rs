@@ -15,11 +15,18 @@ pub struct Query {
     pub report_types: Vec<ReportType>,
 }
 
-mod date_format {
+pub mod date_format {
     use chrono::NaiveDate;
-    use serde::{self, Deserialize, Deserializer};
+    use serde::{self, Deserialize, Deserializer, Serializer};
 
     const FORMAT: &str = "%Y-%m-%d";
+
+    pub fn serialize<S>(date: &NaiveDate, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&date.format(FORMAT).to_string())
+    }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
     where
