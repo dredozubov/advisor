@@ -518,10 +518,17 @@ pub async fn fetch_matching_filings(
             log::info!("calling fetching task");
             let base = "https://www.sec.gov/Archives/edgar/data";
             let accession_number = filing.accession_number.replace("-", "");
+            // The primary_document from FilingEntry contains the original .htm file
+            // We need to construct URL for the XBRL version by transforming .htm to _htm.xml
+            let xbrl_document = if filing.primary_document.ends_with(".htm") {
+                filing.primary_document.replace(".htm", "_htm.xml")
+            } else {
+                filing.primary_document.to_string()
+            };
+            
             let document_url = format!(
                 "{}/{}/{}/{}",
-                base, cik, accession_number,
-                filing.primary_document.replace(".htm", "_htm.xml")
+                base, cik, accession_number, xbrl_document
             );
 
             // Create the directory structure for the filing
