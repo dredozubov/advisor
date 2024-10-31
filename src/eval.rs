@@ -71,7 +71,8 @@ fn extract_report_types(query_json: &str) -> Result<Option<Vec<edgar::report::Re
             .ok_or_else(|| anyhow::anyhow!("report_types is not an array"))?
             .iter()
             .map(|t| t.as_str().unwrap().parse())
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, String>>()
+            .map_err(|e| anyhow!(e))?;
         Ok(Some(report_types))
     } else {
         Ok(None)

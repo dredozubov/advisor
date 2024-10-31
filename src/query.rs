@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use crate::edgar;
 use crate::earnings;
 use chrono::NaiveDate;
-use serde::{self, Deserialize, Serialize, Serializer, Deserializer};
+use serde::{self, Deserialize, Serialize};
 
 /// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,7 +77,10 @@ impl Query {
     }
 }
 
-mod date_format {
+pub mod date_format {
+    use chrono::NaiveDate;
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    const FORMAT: &str = "%Y-%m-%d";
     use chrono::NaiveDate;
     use serde::{self, Deserialize, Deserializer, Serializer};
 
