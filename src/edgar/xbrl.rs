@@ -164,7 +164,7 @@ pub mod xml {
             }
 
             // The units are converted into a single string
-            if fact.units.len() > 0 {
+            if !fact.units.is_empty() {
                 let tmp = fact
                     .units
                     .clone()
@@ -205,13 +205,13 @@ pub mod xml {
         // --- Process the unit elements ---
 
         let unit_ele = elem.clone().filter(|e| e.tag_name().name() == "unit");
-        '_unit_loop: for (_i, child) in unit_ele.enumerate() {
+        '_unit_loop: for child in unit_ele.into_iter() {
             let id = child.attribute("id").unwrap_or("");
             let measure_nodes = child
                 .descendants()
                 .filter(|e| e.tag_name().name() == "measure");
 
-            for (_i, m_ele) in measure_nodes.enumerate() {
+            for m_ele in measure_nodes.into_iter() {
                 let name = m_ele.parent().unwrap().tag_name().name();
                 let value = m_ele.text().unwrap_or("");
                 units.entry(id.to_string()).or_default().push(Unit {
@@ -224,7 +224,7 @@ pub mod xml {
         // --- Process the context elements ---
 
         let context_ele = elem.clone().filter(|e| e.tag_name().name() == "context");
-        '_context_loop: for (_i, child) in context_ele.enumerate() {
+        '_context_loop: for child in context_ele.into_iter() {
             let id = child.attribute("id").unwrap_or("");
             log::debug!("ID {}", id);
 
