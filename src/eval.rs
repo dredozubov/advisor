@@ -55,6 +55,19 @@ pub async fn eval(
                             Ok(parsed) => {
                                 log::debug!("{:?}", parsed.keys());
                                 log::debug!("Filing content: {:?}", filing);
+                                
+                                // Create output directory if it doesn't exist
+                                if !output_path.exists() {
+                                    std::fs::create_dir_all(output_path.parent().unwrap())?;
+                                }
+                                
+                                // Save parsed results as JSON
+                                let output_file = output_path.with_extension("json");
+                                std::fs::write(
+                                    &output_file,
+                                    serde_json::to_string_pretty(&parsed)?,
+                                )?;
+                                log::info!("Saved parsed results to: {:?}", output_file);
                             }
                             Err(e) => log::error!("Failed to parse filing: {}", e),
                         }
