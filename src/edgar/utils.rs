@@ -2,17 +2,18 @@ use anyhow::Result;
 use reqwest::{Client, header::HeaderValue};
 use std::path::Path;
 use url::Url;
+use mime::Mime;
 
 pub async fn fetch_and_save(
     client: &Client,
     url: &Url,
     filepath: &Path,
     user_agent: &str,
-    content_type: &str,
+    content_type: Mime,
 ) -> Result<()> {
     log::debug!("Fetching URL: {}", url);
 
-    let content_type_value = HeaderValue::from_str(content_type)?;
+    let content_type_value = HeaderValue::from_str(content_type.as_ref())?;
     let mut request = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, user_agent)

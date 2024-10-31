@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
+use mime::{APPLICATION_JSON, APPLICATION_XML};
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use log::{error, info, warn};
 use reqwest::Client;
@@ -317,7 +318,7 @@ pub async fn get_company_filings(
                 &Url::parse(&current_url)?,
                 &filepath,
                 USER_AGENT,
-                "application/json",
+                APPLICATION_JSON,
             )
             .await
             {
@@ -541,7 +542,7 @@ pub async fn fetch_matching_filings(
             log::info!("Fetching: {}", document_url);
 
             // Fetch and save the document with XML content type
-            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT, "application/xml").await;
+            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT, APPLICATION_XML).await;
 
             if let Err(e) = result {
                 log::error!("Error processing filing: {}", e);
