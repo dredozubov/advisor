@@ -525,11 +525,8 @@ pub async fn fetch_matching_filings(
             } else {
                 filing.primary_document.to_string()
             };
-            
-            let document_url = format!(
-                "{}/{}/{}/{}",
-                base, cik, accession_number, xbrl_document
-            );
+
+            let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
 
             // Create the directory structure for the filing
             let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
@@ -541,7 +538,7 @@ pub async fn fetch_matching_filings(
             let document_url_obj = Url::parse(&document_url[..]).unwrap();
             let local_path = Path::new(&document_path[..]);
             log::info!("Fetching: {}", document_url);
-            
+
             // Fetch and save the document
             let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT).await;
 
