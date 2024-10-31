@@ -2,7 +2,6 @@ use regex::Regex;
 use scraper::Html;
 pub mod xml {
 
-
     use regex::Regex;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, fs};
@@ -299,7 +298,10 @@ pub mod xml {
 
                                 log::debug!(
                                     "Segment: {} {} {} {}",
-                                    dimension_ns, dimension_value, key_ns, key_value
+                                    dimension_ns,
+                                    dimension_value,
+                                    key_ns,
+                                    key_value
                                 );
                             }
                         }
