@@ -605,8 +605,15 @@ pub fn extract_complete_submission_filing(
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
 
-    // Initialize filing documents
-    let filing_documents = HashMap::new();
+    // Parse XBRL using the xml module
+    let facts = super::xbrl::xml::parse_xml_to_facts(raw_text_string);
+    
+    // Convert facts to JSON value
+    let json_facts = serde_json::to_value(&facts)?;
+    
+    // Create filing documents map
+    let mut filing_documents = HashMap::new();
+    filing_documents.insert("facts".to_string(), json_facts);
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
