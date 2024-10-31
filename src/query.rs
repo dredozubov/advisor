@@ -1,16 +1,23 @@
+use anyhow::{anyhow, Result};
 use crate::edgar;
 use crate::earnings;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+/// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Query {
+    /// List of stock tickers to query
     pub tickers: Vec<String>,
+    /// Start date for the query period
     #[serde(with = "date_format")]
     pub start_date: NaiveDate,
+    /// End date for the query period
     #[serde(with = "date_format")]
     pub end_date: NaiveDate,
+    /// Optional EDGAR query parameters
     pub edgar_query: Option<edgar::query::Query>,
+    /// Optional earnings query parameters
     pub earnings_query: Option<earnings::Query>,
 }
 
@@ -46,6 +53,27 @@ impl Query {
             end_date: self.end_date,
         });
         self
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.tickers.is_empty() {
+            return Err(anyhow!("At least one ticker must be specified"));
+        }
+        if self.start_date > self.end_date {
+            return Err(anyhow!("Start date must be before or equal to end date"));
+        }
+        if self.edgar_query.is_none() && self.earnings_query.is_none() {
+            return Err(anyhow!("At least one query type (EDGAR or earnings) must be specified"));
+        }
+        Ok(())
+    }
+
+    pub fn has_edgar_query(&self) -> bool {
+        self.edgar_query.is_some()
+    }
+
+    pub fn has_earnings_query(&self) -> bool {
+        self.earnings_query.is_some()
     }
 }
 
