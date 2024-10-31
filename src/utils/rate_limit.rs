@@ -7,6 +7,7 @@ pub struct RateLimiter {
 }
 
 static EDGAR_RATE_LIMITER: OnceCell<RateLimiter> = OnceCell::new();
+static EARNINGS_RATE_LIMITER: OnceCell<RateLimiter> = OnceCell::new();
 
 impl RateLimiter {
     pub fn new(max_concurrent: usize) -> Self {
@@ -21,5 +22,9 @@ impl RateLimiter {
 
     pub fn edgar() -> &'static RateLimiter {
         EDGAR_RATE_LIMITER.get_or_init(|| RateLimiter::new(10))
+    }
+
+    pub fn earnings() -> &'static RateLimiter {
+        EARNINGS_RATE_LIMITER.get_or_init(|| RateLimiter::new(10))
     }
 }
