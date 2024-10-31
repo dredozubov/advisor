@@ -1,11 +1,11 @@
 use crate::edgar::report::ReportType;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::report;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
     #[serde(with = "date_format")]
@@ -36,13 +36,32 @@ impl Query {
         start_date: NaiveDate,
         end_date: NaiveDate,
         report_types: Vec<report::ReportType>,
-    ) -> Self {
-        Query {
+    ) -> Result<Self> {
+        let query = Query {
             tickers,
             start_date,
             end_date,
             report_types,
+        };
+        query.validate()?;
+        Ok(query)
+    }
+
+    pub fn builder() -> QueryBuilder {
+        QueryBuilder::default()
+    }
+
+    fn validate(&self) -> Result<()> {
+        if self.tickers.is_empty() {
+            return Err(anyhow!("At least one ticker must be specified"));
         }
+        if self.report_types.is_empty() {
+            return Err(anyhow!("At least one report type must be specified"));
+        }
+        if self.start_date > self.end_date {
+            return Err(anyhow!("Start date must be before or equal to end date"));
+        }
+        Ok(())
     }
 
     /// Parse a JSON string into a Query object
@@ -64,6 +83,45 @@ impl Query {
     /// "DEF 14A", "13F", "13G", "13D", "SD", "6-K", "20-F", "N-1A", "N-CSR", "N-PORT", "N-Q"
     pub fn from_json(json_str: &str) -> Result<Self> {
         serde_json::from_str(json_str).map_err(|e| anyhow!("Failed to parse JSON: {}", e))
+    }
+}
+
+#[derive(Default)]
+pub struct QueryBuilder {
+    tickers: Option<Vec<String>>,
+    start_date: Option<NaiveDate>,
+    end_date: Option<NaiveDate>,
+    report_types: Option<Vec<report::ReportType>>,
+}
+
+impl QueryBuilder {
+    pub fn tickers(mut self, tickers: Vec<String>) -> Self {
+        self.tickers = Some(tickers);
+        self
+    }
+
+    pub fn start_date(mut self, start_date: NaiveDate) -> Self {
+        self.start_date = Some(start_date);
+        self
+    }
+
+    pub fn end_date(mut self, end_date: NaiveDate) -> Self {
+        self.end_date = Some(end_date);
+        self
+    }
+
+    pub fn report_types(mut self, report_types: Vec<report::ReportType>) -> Self {
+        self.report_types = Some(report_types);
+        self
+    }
+
+    pub fn build(self) -> Result<Query> {
+        let tickers = self.tickers.ok_or_else(|| anyhow!("Tickers must be specified"))?;
+        let start_date = self.start_date.ok_or_else(|| anyhow!("Start date must be specified"))?;
+        let end_date = self.end_date.ok_or_else(|| anyhow!("End date must be specified"))?;
+        let report_types = self.report_types.ok_or_else(|| anyhow!("Report types must be specified"))?;
+
+        Query::new(tickers, start_date, end_date, report_types)
     }
 }
 
@@ -97,5 +155,40 @@ mod tests {
             query.report_types,
             vec![report::ReportType::Form10K, report::ReportType::Form10Q]
         );
+    }
+
+    #[test]
+    fn test_query_builder() {
+        let query = Query::builder()
+            .tickers(vec!["AAPL".to_string()])
+            .start_date(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
+            .end_date(NaiveDate::from_ymd_opt(2024, 12, 31).unwrap())
+            .report_types(vec![report::ReportType::Form10K])
+            .build()
+            .unwrap();
+
+        assert_eq!(query.tickers, vec!["AAPL"]);
+        assert_eq!(query.report_types, vec![report::ReportType::Form10K]);
+    }
+
+    #[test]
+    fn test_query_validation() {
+        // Test empty tickers
+        let result = Query::builder()
+            .tickers(vec![])
+            .start_date(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
+            .end_date(NaiveDate::from_ymd_opt(2024, 12, 31).unwrap())
+            .report_types(vec![report::ReportType::Form10K])
+            .build();
+        assert!(result.is_err());
+
+        // Test invalid date range
+        let result = Query::builder()
+            .tickers(vec!["AAPL".to_string()])
+            .start_date(NaiveDate::from_ymd_opt(2024, 12, 31).unwrap())
+            .end_date(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
+            .report_types(vec![report::ReportType::Form10K])
+            .build();
+        assert!(result.is_err());
     }
 }
