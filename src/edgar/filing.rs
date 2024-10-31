@@ -607,10 +607,10 @@ pub fn extract_complete_submission_filing(
 
     // Parse XBRL using the xml module
     let facts = super::xbrl::xml::parse_xml_to_facts(raw_text_string);
-    
+
     // Convert facts to JSON value
     let json_facts = serde_json::to_value(&facts)?;
-    
+
     // Create filing documents map
     let mut filing_documents = HashMap::new();
     filing_documents.insert("facts".to_string(), json_facts);
