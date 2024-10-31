@@ -2,7 +2,6 @@ use regex::Regex;
 use scraper::Html;
 pub mod xml {
 
-    const _VERBOSE: u8 = 0;
 
     use regex::Regex;
     use serde::{Deserialize, Serialize};
@@ -232,9 +231,7 @@ pub mod xml {
         let context_ele = elem.clone().filter(|e| e.tag_name().name() == "context");
         '_context_loop: for (_i, child) in context_ele.enumerate() {
             let id = child.attribute("id").unwrap_or("");
-            if _VERBOSE > 1 {
-                println!("ID {}\n", id);
-            }
+            log::debug!("ID {}", id);
 
             let node_desc = child
                 .children()
@@ -244,9 +241,7 @@ pub mod xml {
             for (_i, child_ele) in node_desc.enumerate() {
                 match child_ele.tag_name().name() {
                     "period" => {
-                        if _VERBOSE > 1 {
-                            println!("\n -- Found period -- \n");
-                        }
+                        log::debug!("Found period");
 
                         let to_keep = ["instant", "startDate", "endDate"];
                         let node_desc_filtered = child_ele
@@ -264,15 +259,11 @@ pub mod xml {
                                 period_value: value.to_string(),
                             });
 
-                            if _VERBOSE > 1 {
-                                println!("Period: {} {}", name, value);
-                            }
+                            log::debug!("Period: {} {}", name, value);
                         }
                     }
                     "entity" => {
-                        if _VERBOSE > 1 {
-                            println!("\n -- Found entity -- \n");
-                        }
+                        log::debug!("Found entity");
 
                         let to_keep = ["explicitMember"];
                         let node_desc_filtered = child_ele
@@ -306,12 +297,10 @@ pub mod xml {
                                         member_value: key_value.to_string(),
                                     });
 
-                                if _VERBOSE > 1 {
-                                    println!(
-                                        "Segment: {} {} {} {}",
-                                        dimension_ns, dimension_value, key_ns, key_value
-                                    );
-                                }
+                                log::debug!(
+                                    "Segment: {} {} {} {}",
+                                    dimension_ns, dimension_value, key_ns, key_value
+                                );
                             }
                         }
                     }
@@ -378,17 +367,15 @@ pub mod xml {
                 }
             }
 
-            if _VERBOSE > 0 {
-                println!(
-                    "Fact: {} {} {} {} \n {} {}",
-                    prefix,
-                    name,
-                    value,
-                    decimals,
-                    context_ref.unwrap_or("no context"),
-                    unit_ref.unwrap_or("no unit")
-                );
-            }
+            log::debug!(
+                "Fact: {} {} {} {} {} {}",
+                prefix,
+                name,
+                value,
+                decimals,
+                context_ref.unwrap_or("no context"),
+                unit_ref.unwrap_or("no unit")
+            );
 
             // Push to vector
 
