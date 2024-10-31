@@ -535,7 +535,7 @@ pub async fn fetch_matching_filings(
                 local_path,
                 USER_AGENT,
                 TEXT_XML,
-                RateLimiter::edgar(),
+                crate::edgar::rate_limiter(),
             )
             .await;
 
