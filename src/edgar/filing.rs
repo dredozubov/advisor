@@ -530,8 +530,8 @@ pub async fn fetch_matching_filings(
             let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
             fs::create_dir_all(&filing_dir)?;
 
-            // Define the path to save the document
-            let document_path = format!("{}/{}", filing_dir, filing.primary_document);
+            // Define the path to save the document using the XBRL document name
+            let document_path = format!("{}/{}", filing_dir, xbrl_document);
 
             let document_url_obj = Url::parse(&document_url[..]).unwrap();
             let local_path = Path::new(&document_path[..]);
