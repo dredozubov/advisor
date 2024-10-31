@@ -312,18 +312,12 @@ pub async fn get_company_filings(
             // Acquire rate limit permit
             let _permit = rate_limiter.acquire().await;
 
-            // Set headers for JSON content
-            let headers = vec![
-                ("Accept", "application/json"),
-                ("Content-Type", "application/json"),
-            ];
-
             match super::utils::fetch_and_save(
                 client,
                 &Url::parse(&current_url)?,
                 &filepath,
                 USER_AGENT,
-                &headers,
+                "application/json",
             )
             .await
             {
@@ -546,14 +540,8 @@ pub async fn fetch_matching_filings(
             let local_path = Path::new(&document_path[..]);
             log::info!("Fetching: {}", document_url);
 
-            // Set headers for XML content
-            let headers = vec![
-                ("Accept", "application/xml"),
-                ("Content-Type", "application/xml"),
-            ];
-
-            // Fetch and save the document
-            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT, &headers).await;
+            // Fetch and save the document with XML content type
+            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT, "application/xml").await;
 
             if let Err(e) = result {
                 log::error!("Error processing filing: {}", e);

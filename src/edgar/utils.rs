@@ -1,5 +1,5 @@
 use anyhow::Result;
-use reqwest::Client;
+use reqwest::{Client, header::HeaderValue};
 use std::path::Path;
 use url::Url;
 
@@ -8,19 +8,17 @@ pub async fn fetch_and_save(
     url: &Url,
     filepath: &Path,
     user_agent: &str,
-    headers: &[(&str, &str)],
+    content_type: &str,
 ) -> Result<()> {
     log::debug!("Fetching URL: {}", url);
 
+    let content_type_value = HeaderValue::from_str(content_type)?;
     let mut request = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, user_agent)
-        .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate");
-
-    // Add custom headers
-    for (key, value) in headers {
-        request = request.header(*key, *value);
-    }
+        .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate")
+        .header(reqwest::header::ACCEPT, &content_type_value)
+        .header(reqwest::header::CONTENT_TYPE, &content_type_value);
 
     let response = request
         .send()
