@@ -94,7 +94,7 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
 }
 
 // Hardcoded values
-pub const FILING_DATA_DIR: &str = "edgar_data/filings";
+pub const FILING_DATA_DIR: &str = "data/edgar/filings";
 pub const EDGAR_DATA_URL: &str = "https://data.sec.gov";
 pub const USER_AGENT: &str = "software@example.com";
 

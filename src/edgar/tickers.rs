@@ -54,7 +54,7 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     log::debug!("Fetching tickers from SEC");
     let client = Client::new();
     let url = Url::parse(TICKER_URL)?;
-    let path = Path::new("edgar_data/tickers.json");
+    let path = Path::new("data/edgar/tickers.json");
     log::debug!("Checking for existing tickers file at {:?}", path);
 
     if !path.exists() {
@@ -69,7 +69,7 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
 }
 
 pub fn load_tickers() -> Result<Vec<TickerData>> {
-    let path = Path::new("edgar_data/tickers.json");
+    let path = Path::new("data/edgar/tickers.json");
     log::debug!("Loading tickers from {:?}", path);
     if path.exists() {
         log::debug!("Reading tickers file");
