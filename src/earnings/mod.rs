@@ -4,6 +4,7 @@ pub use query::Query;
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate};
 use mime::APPLICATION_JSON;
+use once_cell::sync::OnceCell;
 use reqwest::Client;
 use url::Url;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,12 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::utils::rate_limit::RateLimiter;
+
+static RATE_LIMITER: OnceCell<RateLimiter> = OnceCell::new();
+
+fn rate_limiter() -> &'static RateLimiter {
+    RATE_LIMITER.get_or_init(|| RateLimiter::new(10))
+}
 
 use crate::utils::dirs::EARNINGS_DIR;
 const USER_AGENT: &str = "software@example.com";
@@ -69,7 +76,7 @@ pub async fn fetch_transcript(
         &filepath,
         USER_AGENT,
         mime::APPLICATION_JSON,
-        RateLimiter::earnings(),
+        rate_limiter(),
     )
     .await?;
 

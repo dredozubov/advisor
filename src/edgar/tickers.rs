@@ -65,7 +65,7 @@ pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
             path,
             USER_AGENT,
             APPLICATION_JSON,
-            crate::utils::rate_limit::RateLimiter::edgar(),
+            crate::edgar::rate_limiter(),
         )
         .await?;
         log::debug!("Successfully downloaded tickers file");

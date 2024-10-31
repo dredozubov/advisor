@@ -314,7 +314,7 @@ pub async fn get_company_filings(
                 &filepath,
                 USER_AGENT,
                 APPLICATION_JSON,
-                RateLimiter::edgar(),
+                crate::edgar::rate_limiter(),
             )
             .await
             {
