@@ -12,6 +12,8 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
+use crate::edgar::utils::fetch_and_save;
+
 use super::query::Query;
 use super::report::ReportType;
 
@@ -501,6 +503,8 @@ pub async fn fetch_matching_filings(
     let total_tasks = matching_filings.len();
     let mut completed_tasks = 0;
 
+    log::info!("Matching filings: {:?}", matching_filings);
+
     // Spawn async tasks to fetch and save each matching filing
     let mut handles = Vec::new();
     for filing in matching_filings {
@@ -512,8 +516,8 @@ pub async fn fetch_matching_filings(
         let handle = tokio::spawn(async move {
             let filing_clone = filing.clone();
             let result = async {
+                log::info!("calling fetching task");
                 let base = "https://www.sec.gov/Archives/edgar/data";
-                let cik = format!("{:0>10}", cik);
                 let accession_number = filing.accession_number.replace("-", "");
                 let document_url = format!(
                     "{}/{}/{}/{}.xml",
@@ -527,22 +531,26 @@ pub async fn fetch_matching_filings(
                 // Define the path to save the document
                 let document_path = format!("{}/{}", filing_dir, filing.primary_document);
 
+                let document_url_obj = Url::parse(&document_url[..]).unwrap();
+                let local_path = Path::new(&document_path[..]);
+                log::info!("Fetching: {}", document_url);
                 // Fetch and save the document
-                let response = client.get(&document_url).send().await?;
-                let content = response.bytes().await?;
-                fs::write(&document_path, &content)?;
+
+                let result =
+                    fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT).await;
+
+                if let Err(e) = result {
+                    log::error!("Error processing filing: {}", e);
+                    // Still send a completion signal even on error
+                    let _ = tx.send(("".to_string(), filing_clone)).await;
+                }
 
                 log::info!("Saved filing document to {}", document_path);
 
                 tx.send((document_path, filing)).await?;
                 Ok::<(), anyhow::Error>(())
             };
-
-            if let Err(e) = result.await {
-                log::error!("Error processing filing: {}", e);
-                // Still send a completion signal even on error
-                let _ = tx.send(("".to_string(), filing_clone)).await;
-            }
+            result
         });
         handles.push(handle);
     }
@@ -574,8 +582,6 @@ pub async fn fetch_matching_filings(
 
     Ok(filing_map)
 }
-
-use super::parsing;
 
 pub fn extract_complete_submission_filing(
     filepath: &str,
@@ -609,14 +615,6 @@ pub fn extract_complete_submission_filing(
     log::debug!("Parsing filing header...");
     // Initialize filing documents
     let mut filing_documents = HashMap::new();
-    
-    // Create FilingDocument with raw text
-    let doc = parsing::FilingDocument {
-        facts: vec![],
-        path: output_directory.to_path_buf(),
-        raw_text: raw_text_string.clone(),
-    };
-    filing_documents.insert("document".to_string(), serde_json::json!(doc));
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
