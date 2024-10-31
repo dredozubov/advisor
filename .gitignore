@@ -1,4 +1,4 @@
 .aider*
-edgar_data/
+data/
 target/
 .env

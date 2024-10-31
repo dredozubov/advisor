@@ -33,7 +33,7 @@ pub async fn eval(
                     let filing_type_with_date =
                         format!("{}_{}", filing.report_type, filing.filing_date);
                     let output_file_path = format!(
-                        "edgar_data/parsed/{}/{}",
+                        "data/edgar/parsed/{}/{}",
                         company_name, filing_type_with_date
                     );
 
