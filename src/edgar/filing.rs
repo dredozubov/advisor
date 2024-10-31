@@ -515,42 +515,39 @@ pub async fn fetch_matching_filings(
 
         let handle = tokio::spawn(async move {
             let filing_clone = filing.clone();
-            let result = async {
-                log::info!("calling fetching task");
-                let base = "https://www.sec.gov/Archives/edgar/data";
-                let accession_number = filing.accession_number.replace("-", "");
-                let document_url = format!(
-                    "{}/{}/{}/{}.xml",
-                    base, cik, accession_number, filing.primary_document
-                );
+            log::info!("calling fetching task");
+            let base = "https://www.sec.gov/Archives/edgar/data";
+            let accession_number = filing.accession_number.replace("-", "");
+            let document_url = format!(
+                "{}/{}/{}/{}.xml",
+                base, cik, accession_number, filing.primary_document
+            );
 
-                // Create the directory structure for the filing
-                let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
-                fs::create_dir_all(&filing_dir)?;
+            // Create the directory structure for the filing
+            let filing_dir = format!("{}/{}/{}", FILING_DATA_DIR, cik, accession_number);
+            fs::create_dir_all(&filing_dir)?;
 
-                // Define the path to save the document
-                let document_path = format!("{}/{}", filing_dir, filing.primary_document);
+            // Define the path to save the document
+            let document_path = format!("{}/{}", filing_dir, filing.primary_document);
 
-                let document_url_obj = Url::parse(&document_url[..]).unwrap();
-                let local_path = Path::new(&document_path[..]);
-                log::info!("Fetching: {}", document_url);
-                // Fetch and save the document
+            let document_url_obj = Url::parse(&document_url[..]).unwrap();
+            let local_path = Path::new(&document_path[..]);
+            log::info!("Fetching: {}", document_url);
+            
+            // Fetch and save the document
+            let result = fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT).await;
 
-                let result =
-                    fetch_and_save(&client, &document_url_obj, &local_path, &USER_AGENT).await;
+            if let Err(e) = result {
+                log::error!("Error processing filing: {}", e);
+                // Still send a completion signal even on error
+                let _ = tx.send(("".to_string(), filing_clone)).await;
+                return Ok(());
+            }
 
-                if let Err(e) = result {
-                    log::error!("Error processing filing: {}", e);
-                    // Still send a completion signal even on error
-                    let _ = tx.send(("".to_string(), filing_clone)).await;
-                }
+            log::info!("Saved filing document to {}", document_path);
 
-                log::info!("Saved filing document to {}", document_path);
-
-                tx.send((document_path, filing)).await?;
-                Ok::<(), anyhow::Error>(())
-            };
-            result
+            tx.send((document_path, filing)).await?;
+            Ok::<(), anyhow::Error>(())
         });
         handles.push(handle);
     }
