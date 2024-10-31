@@ -233,7 +233,7 @@ pub mod xml {
                 .filter(|e| e.node_type() == roxmltree::NodeType::Element);
 
             // loop over descendants and process the different types of elements
-            for (_i, child_ele) in node_desc.enumerate() {
+            for child_ele in node_desc.into_iter() {
                 match child_ele.tag_name().name() {
                     "period" => {
                         log::debug!("Found period");
@@ -243,7 +243,7 @@ pub mod xml {
                             .descendants()
                             .filter(|e| to_keep.contains(&e.tag_name().name()));
 
-                        for (_i, child_ele_filtered) in node_desc_filtered.enumerate() {
+                        for child_ele_filtered in node_desc_filtered.into_iter() {
                             let value = child_ele_filtered.text().unwrap_or("");
                             let name = child_ele_filtered.tag_name().name();
                             let _namespace =
@@ -265,7 +265,7 @@ pub mod xml {
                             .descendants()
                             .filter(|e| to_keep.contains(&e.tag_name().name()));
 
-                        for (_i, child_ele_filtered) in node_desc_filtered.enumerate() {
+                        for child_ele_filtered in node_desc_filtered.into_iter() {
                             let value = child_ele_filtered.text().unwrap_or("");
                             let _name = child_ele_filtered.tag_name().name();
                             let _namespace =
@@ -317,7 +317,7 @@ pub mod xml {
         });
 
         // loop over fact_ele using enumerate
-        '_fact_loop: for (_i, child) in fact_ele.enumerate() {
+        '_fact_loop: for child in fact_ele.into_iter() {
             let id = child.attribute("id").unwrap_or(""); // Issue here
             let name: String = child.tag_name().name().to_string();
             let namespace: String = child.tag_name().namespace().unwrap_or("").to_string();
