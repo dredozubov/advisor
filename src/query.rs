@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use crate::edgar;
 use crate::earnings;
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize, Serializer, Deserializer};
 
 /// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]

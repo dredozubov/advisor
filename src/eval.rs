@@ -1,6 +1,8 @@
 use crate::query::Query;
 use crate::edgar::{self, filing};
-use anyhow::Result;
+use crate::earnings;
+use anyhow::{Result, anyhow};
+use std::collections::HashMap;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -54,7 +56,8 @@ pub async fn eval(
             Ok("Query processed successfully".to_string())
         }
         Err(e) => {
-            log::error!("Failure to create an EDGAR query: {e}")
+            log::error!("Failure to create an EDGAR query: {e}");
+            Err(anyhow!("Failed to create query: {}", e))
         }
     }
 

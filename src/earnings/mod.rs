@@ -1,3 +1,6 @@
+mod query;
+pub use query::Query;
+
 use anyhow::Result;
 use chrono::NaiveDate;
 use mime::APPLICATION_JSON;
