@@ -3,6 +3,7 @@ use mime::Mime;
 use reqwest::{header::HeaderValue, Client};
 use std::path::Path;
 use url::Url;
+use super::rate_limiter::RateLimiter;
 
 pub async fn fetch_and_save(
     client: &Client,
@@ -12,6 +13,10 @@ pub async fn fetch_and_save(
     content_type: Mime,
 ) -> Result<()> {
     log::debug!("Fetching URL: {}", url);
+    
+    // Acquire rate limit permit before making request
+    let rate_limiter = RateLimiter::global();
+    let _permit = rate_limiter.acquire().await;
 
     let content_type_value = HeaderValue::from_str(content_type.as_ref())?;
     let request = client

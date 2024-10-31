@@ -290,7 +290,6 @@ pub async fn get_company_filings(
     cik: &str,
     limit: Option<usize>,
 ) -> Result<CompanyFilings> {
-    let rate_limiter = super::rate_limiter::RateLimiter::global();
     // Ensure CIK is 10 digits with leading zeros
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
@@ -310,9 +309,6 @@ pub async fn get_company_filings(
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            // Acquire rate limit permit
-            let _permit = rate_limiter.acquire().await;
-
             match super::utils::fetch_and_save(
                 client,
                 &Url::parse(&current_url)?,
@@ -493,8 +489,6 @@ pub async fn fetch_matching_filings(
     let filings = get_company_filings(client, cik, None).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query);
 
-    let rate_limiter = super::rate_limiter::RateLimiter::global();
-
     // Create the base directory if it doesn't exist
     fs::create_dir_all(FILING_DATA_DIR)?;
 
@@ -513,8 +507,6 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.to_string();
-        let _permit = rate_limiter.acquire().await;
-
         let handle = tokio::spawn(async move {
             let filing_clone = filing.clone();
             log::info!("calling fetching task");
