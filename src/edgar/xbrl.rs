@@ -105,15 +105,16 @@ pub mod xml {
                     if !context_ref_tracker
                         .contains(&fact.context_ref.clone().expect("No context ref"))
                     {
-                        let mut row = DimensionTableRow::default();
-                        row.cik = input_details.cik.clone();
-                        row.accession_number = input_details.accession_number.clone();
-                        row.xml_name = input_details.xml_name.clone();
-                        row.context_ref = fact.context_ref.clone().expect("No context ref");
-                        row.axis_tag = dimension.key_value.clone();
-                        row.axis_prefix = dimension.key_ns.clone();
-                        row.member_tag = dimension.member_value.clone();
-                        row.member_prefix = dimension.member_ns.clone();
+                        let row = DimensionTableRow {
+                            cik: input_details.cik.clone(),
+                            accession_number: input_details.accession_number.clone(),
+                            xml_name: input_details.xml_name.clone(),
+                            context_ref: fact.context_ref.clone().expect("No context ref"),
+                            axis_tag: dimension.key_value.clone(),
+                            axis_prefix: dimension.key_ns.clone(),
+                            member_tag: dimension.member_value.clone(),
+                            member_prefix: dimension.member_ns.clone(),
+                        };
 
                         table_rows.push(row);
                         context_ref_tracker.push(fact.context_ref.clone().expect("No context ref"));
