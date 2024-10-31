@@ -1,7 +1,7 @@
 mod query;
 pub use query::Query;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use mime::APPLICATION_JSON;
 use reqwest::Client;
@@ -14,6 +14,7 @@ use crate::utils::{http::fetch_and_save, rate_limit::RateLimiter};
 
 use crate::utils::dirs::EARNINGS_DIR;
 const USER_AGENT: &str = "software@example.com";
+const API_BASE_URL: &str = "https://discountingcashflows.com/api/transcript";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transcript {
@@ -24,6 +25,15 @@ pub struct Transcript {
     pub content: String,
 }
 
+fn get_quarter_for_date(date: NaiveDate) -> &'static str {
+    match date.month() {
+        1..=3 => "Q1",
+        4..=6 => "Q2",
+        7..=9 => "Q3",
+        10..=12 => "Q4",
+        _ => unreachable!(),
+    }
+}
 
 pub async fn fetch_transcript(
     client: &Client,
@@ -32,15 +42,20 @@ pub async fn fetch_transcript(
 ) -> Result<Transcript> {
     crate::utils::dirs::ensure_earnings_dirs()?;
 
+    let quarter = get_quarter_for_date(date);
+    let year = date.year();
+
     let url = format!(
-        "https://api.example.com/earnings/{}/{}",
+        "{}/{}/{}/{}/",
+        API_BASE_URL,
         ticker,
-        date.format("%Y-%m-%d")
+        quarter,
+        year
     );
 
     let filepath = PathBuf::from(EARNINGS_DIR)
         .join(ticker)
-        .join(format!("{}.json", date.format("%Y-%m-%d")));
+        .join(format!("{}_{}_Q{}.json", ticker, year, quarter));
 
     // Create ticker directory if it doesn't exist
     if let Some(parent) = filepath.parent() {
@@ -60,7 +75,30 @@ pub async fn fetch_transcript(
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;
-    let transcript: Transcript = serde_json::from_str(&content)?;
+    let transcript: Transcript = serde_json::from_str(&content).map_err(|e| {
+        anyhow!(
+            "Failed to parse transcript for {} {} Q{}: {}",
+            ticker,
+            year,
+            quarter,
+            e
+        )
+    })?;
+
+    // Validate the response
+    if transcript.ticker != ticker || 
+       transcript.year != year || 
+       transcript.quarter != quarter {
+        return Err(anyhow!(
+            "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/{}",
+            ticker,
+            year,
+            quarter,
+            transcript.ticker,
+            transcript.year,
+            transcript.quarter
+        ));
+    }
 
     Ok(transcript)
 }
