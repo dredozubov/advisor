@@ -586,18 +586,11 @@ pub async fn fetch_matching_filings(
 
 pub fn extract_complete_submission_filing(
     filepath: &str,
-    output_directory: &Path,
 ) -> Result<HashMap<String, serde_json::Value>> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
     );
-
-    // Create output directory if it doesn't exist
-    if !output_directory.exists() {
-        log::debug!("Creating output directory: {:?}", output_directory);
-        fs::create_dir_all(output_directory)?;
-    }
 
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
