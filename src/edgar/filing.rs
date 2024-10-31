@@ -519,8 +519,9 @@ pub async fn fetch_matching_filings(
             let base = "https://www.sec.gov/Archives/edgar/data";
             let accession_number = filing.accession_number.replace("-", "");
             let document_url = format!(
-                "{}/{}/{}/{}.xml",
-                base, cik, accession_number, filing.primary_document
+                "{}/{}/{}/{}",
+                base, cik, accession_number,
+                filing.primary_document.replace(".htm", "_htm.xml")
             );
 
             // Create the directory structure for the filing
