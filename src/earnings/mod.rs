@@ -4,7 +4,7 @@ use mime::APPLICATION_JSON;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use url::Url;
 
 use crate::utils::{http::fetch_and_save, rate_limit::RateLimiter};
