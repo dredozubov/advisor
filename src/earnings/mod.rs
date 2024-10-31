@@ -3,7 +3,9 @@ pub use query::Query;
 
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate};
+use mime::APPLICATION_JSON;
 use reqwest::Client;
+use url::Url;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -60,31 +62,16 @@ pub async fn fetch_transcript(
         fs::create_dir_all(parent)?;
     }
 
-    // Fetch and save transcript with proper headers
-    let request = client
-        .get(&url)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .header(reqwest::header::ACCEPT_ENCODING, "gzip");
-
-    // Acquire rate limit permit before making request
-    let _permit = RateLimiter::earnings().acquire().await;
-    
-    let response = request.send().await?;
-    
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "HTTP request failed with status: {}",
-            response.status()
-        ));
-    }
-
-    // Read the response body
-    let content = response.text().await?;
-    
-    // Save the content
-    std::fs::write(&filepath, &content)?;
+    // Fetch and save transcript
+    crate::utils::http::fetch_and_save(
+        client,
+        &url::Url::parse(&url)?,
+        &filepath,
+        USER_AGENT,
+        mime::APPLICATION_JSON,
+        RateLimiter::earnings(),
+    )
+    .await?;
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;
