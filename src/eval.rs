@@ -51,10 +51,9 @@ pub async fn eval(
                             output_path.parent().unwrap()
                         );
 
-                        match filing::extract_complete_submission_filing(input_file, output_path) {
+                        match filing::extract_complete_submission_filing(input_file) {
                             Ok(parsed) => {
                                 log::debug!("{:?}", parsed.keys());
-                                log::info!("Parsed and saved filing to {:?}", output_path);
                                 log::debug!("Filing content: {:?}", filing);
                             }
                             Err(e) => log::error!("Failed to parse filing: {}", e),
