@@ -1,6 +1,3 @@
-fn main() {
-    println!("dummy");
-}
 use advisor::edgar::filing;
 use anyhow::Result;
 use std::path::Path;
@@ -27,11 +24,6 @@ async fn main() -> Result<()> {
     if !opt.input.exists() {
         eprintln!("Input file does not exist: {:?}", opt.input);
         std::process::exit(1);
-    }
-
-    // Create output directory if it doesn't exist
-    if !opt.output_dir.exists() {
-        std::fs::create_dir_all(&opt.output_dir)?;
     }
 
     // Parse the XBRL file
