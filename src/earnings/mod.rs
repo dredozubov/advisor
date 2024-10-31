@@ -1,12 +1,10 @@
 mod query;
 pub use query::Query;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result}; 
 use chrono::{Datelike, NaiveDate};
-use mime::APPLICATION_JSON;
 use once_cell::sync::OnceCell;
 use reqwest::Client;
-use url::Url;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
