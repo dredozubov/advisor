@@ -4,4 +4,4 @@ pub mod rate_limiter;
 pub mod report;
 pub mod tickers;
 mod utils;
-// pub mod xbrl;
+pub mod xbrl;

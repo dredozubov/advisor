@@ -1,6 +1,5 @@
 use advisor::edgar::filing;
 use anyhow::Result;
-use std::path::Path;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -35,17 +34,16 @@ async fn main() -> Result<()> {
             }
 
             // Generate output filename based on input filename
-            let input_filename = opt.input.file_name()
+            let input_filename = opt
+                .input
+                .file_name()
                 .and_then(|f| f.to_str())
                 .unwrap_or("output");
             let output_path = opt.output_dir.join(format!("{}.json", input_filename));
 
             // Save the result to a file if output directory was specified
             if opt.output_dir.to_str().unwrap() != "parsed_output" {
-                std::fs::write(
-                    &output_path,
-                    serde_json::to_string_pretty(&result)?,
-                )?;
+                std::fs::write(&output_path, serde_json::to_string_pretty(&result)?)?;
                 println!("Results saved to: {:?}", output_path);
             }
 

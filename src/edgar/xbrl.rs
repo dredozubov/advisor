@@ -55,23 +55,6 @@ pub mod xml {
         pub periods: Vec<Period>,
     }
 
-    impl FactItem {
-        fn default() -> FactItem {
-            FactItem {
-                id: "".to_string(),
-                prefix: "".to_string(),
-                name: "".to_string(),
-                value: "".to_string(),
-                decimals: "".to_string(),
-                context_ref: None,
-                unit_ref: None,
-                dimensions: Vec::new(),
-                units: Vec::new(),
-                periods: Vec::new(),
-            }
-        }
-    }
-
     // Logic for dimensions table
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -388,11 +371,10 @@ pub mod xml {
                 units: fact_units,
                 dimensions: fact_dimensions,
                 periods: fact_periods,
-                ..FactItem::default()
             });
         }
 
-        return facts;
+        facts
     }
 
     #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -403,7 +385,7 @@ pub mod xml {
     }
 
     impl XBRLFiling {
-        pub fn new(input: String, email: String, output: Vec<&str>) -> XBRLFiling {
+        pub fn new(input: String, output: Vec<&str>) -> XBRLFiling {
             let raw_xml =
                 fs::read_to_string(input).expect("Something went wrong while reading XML file");
 
@@ -464,8 +446,5 @@ fn sanitize_html(input: String) -> String {
     // Remove duplicate white spaces
 
     let re = Regex::new(r"\s+").unwrap();
-    output = re.replace_all(output.as_str(), " ").to_string();
-
-    // Return
-    return output;
+    re.replace_all(output.as_str(), " ").to_string()
 }
