@@ -8,14 +8,21 @@ pub async fn fetch_and_save(
     url: &Url,
     filepath: &Path,
     user_agent: &str,
+    headers: &[(&str, &str)],
 ) -> Result<()> {
     log::debug!("Fetching URL: {}", url);
 
-    let response = client
+    let mut request = client
         .get(url.as_str())
         .header(reqwest::header::USER_AGENT, user_agent)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate")
+        .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate");
+
+    // Add custom headers
+    for (key, value) in headers {
+        request = request.header(*key, *value);
+    }
+
+    let response = request
         .send()
         .await?;
 
