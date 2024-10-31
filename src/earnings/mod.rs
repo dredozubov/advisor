@@ -3,14 +3,12 @@ pub use query::Query;
 
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate};
-use mime::APPLICATION_JSON;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use url::Url;
 
-use crate::utils::{http::fetch_and_save, rate_limit::RateLimiter};
+use crate::utils::rate_limit::RateLimiter;
 
 use crate::utils::dirs::EARNINGS_DIR;
 const USER_AGENT: &str = "software@example.com";
@@ -87,7 +85,6 @@ pub async fn fetch_transcript(
     
     // Save the content
     std::fs::write(&filepath, &content)?;
-    .await?;
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;
