@@ -68,7 +68,7 @@ pub async fn eval(
                 }
             }
 
-            Ok("Query processed successfully".to_string())
+            Ok("OK".to_string())
         }
         Err(e) => {
             log::error!("Failure to create an EDGAR query: {e}");
@@ -130,7 +130,7 @@ fn process_earnings_transcripts(transcripts: Vec<earnings::Transcript>) -> Resul
 }
 
 async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
-    println!("Starting extract_query_params with input: {}", input);
+    log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
     let _today_month = now.format("%M");
@@ -166,7 +166,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     - Earnings analysis: automatically include earnings call transcripts
     
     Current date is: {}.
-    Return only a json document, as it's meant to be parsed by the software.
+    Return only a json document, as it's meant to be parsed by the software. No markdown formatting is allowed. No JSON formatting is allowed including pretty-printing and newlines.
     
     Parse this user input:
     {input}"#, *edgar::report::REPORT_TYPES, now.format("%Y-%m-%d")
@@ -191,7 +191,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
 
     match chain.invoke(prompt_args! {}).await {
         Ok(result) => {
-            println!("Result: {:?}", result);
+            log::debug!("Result: {:?}", result);
             Ok(result)
         }
         Err(e) => panic!("Error invoking LLMChain: {:?}", e),
