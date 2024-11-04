@@ -13,7 +13,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::utils::{http::fetch_and_save, rate_limit::RateLimiter};
+use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
 use super::report::ReportType;

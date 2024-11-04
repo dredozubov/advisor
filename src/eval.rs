@@ -25,36 +25,33 @@ pub async fn eval(
             // Parse into our new high-level Query type
             let base_query: Query = serde_json::from_str(&query_json)?;
 
-            // Add EDGAR query if report types were specified
-            let query = if let Some(report_types) = extract_report_types(&query_json)? {
-                base_query.with_edgar_query(report_types)
-            } else {
-                base_query
-            };
-
             // Process EDGAR filings if requested
-            if let Some(edgar_query) = &query.edgar_query {
-                for ticker in &edgar_query.tickers {
-                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                    let filings = filing::fetch_matching_filings(http_client, edgar_query).await?;
-                    process_edgar_filings(filings)?;
+            if let Some(filings) = base_query.parameters.get("filings") {
+                if let Ok(edgar_query) = base_query.to_edgar_query() {
+                    for ticker in &edgar_query.tickers {
+                        log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                        let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                        process_edgar_filings(filings)?;
+                    }
                 }
             }
 
             // Process earnings data if requested
-            if let Some(earnings_query) = &query.earnings_query {
-                log::info!(
-                    "Fetching earnings data for ticker: {}",
-                    earnings_query.ticker
-                );
-                let transcripts = earnings::fetch_transcripts(
-                    http_client,
-                    &earnings_query.ticker,
-                    earnings_query.start_date,
-                    earnings_query.end_date,
-                )
-                .await?;
-                process_earnings_transcripts(transcripts)?;
+            if let Some(earnings) = base_query.parameters.get("earnings") {
+                if let Ok(earnings_query) = base_query.to_earnings_query() {
+                    log::info!(
+                        "Fetching earnings data for ticker: {}",
+                        earnings_query.ticker
+                    );
+                    let transcripts = earnings::fetch_transcripts(
+                        http_client,
+                        &earnings_query.ticker,
+                        earnings_query.start_date,
+                        earnings_query.end_date,
+                    )
+                    .await?;
+                    process_earnings_transcripts(transcripts)?;
+                }
             }
 
             Ok("Query processed successfully".to_string())

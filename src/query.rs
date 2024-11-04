@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Result};
-use crate::edgar;
-use crate::earnings;
-use chrono::NaiveDate;
 use serde::{self, Deserialize, Serialize};
+use serde_json::Value;
 
 /// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,26 +8,26 @@ pub struct Query {
     /// List of stock tickers to query
     pub tickers: Vec<String>,
     /// Parameters for different data sources
-    pub parameters: serde_json::Value,
+    pub parameters: Value,
 }
 
 impl Query {
     pub fn new(tickers: Vec<String>) -> Self {
         Query {
             tickers,
-            parameters: serde_json::Value::Object(serde_json::Map::new()),
+            parameters: Value::Object(serde_json::Map::new()),
         }
     }
 
-    pub fn with_edgar_query(mut self, params: serde_json::Value) -> Self {
-        if let serde_json::Value::Object(ref mut map) = self.parameters {
+    pub fn with_edgar_query(mut self, params: Value) -> Self {
+        if let Value::Object(ref mut map) = self.parameters {
             map.insert("filings".to_string(), params);
         }
         self
     }
 
-    pub fn with_earnings_query(mut self, params: serde_json::Value) -> Self {
-        if let serde_json::Value::Object(ref mut map) = self.parameters {
+    pub fn with_earnings_query(mut self, params: Value) -> Self {
+        if let Value::Object(ref mut map) = self.parameters {
             map.insert("earnings".to_string(), params);
         }
         self
@@ -39,21 +37,22 @@ impl Query {
         if self.tickers.is_empty() {
             return Err(anyhow!("At least one ticker must be specified"));
         }
-        if self.start_date > self.end_date {
-            return Err(anyhow!("Start date must be before or equal to end date"));
-        }
-        if self.edgar_query.is_none() && self.earnings_query.is_none() {
-            return Err(anyhow!("At least one query type (EDGAR or earnings) must be specified"));
+        
+        let has_filings = self.parameters.get("filings").is_some();
+        let has_earnings = self.parameters.get("earnings").is_some();
+        
+        if !has_filings && !has_earnings {
+            return Err(anyhow!("At least one query type (filings or earnings) must be specified"));
         }
         Ok(())
     }
 
     pub fn has_edgar_query(&self) -> bool {
-        self.edgar_query.is_some()
+        self.parameters.get("filings").is_some()
     }
 
     pub fn has_earnings_query(&self) -> bool {
-        self.earnings_query.is_some()
+        self.parameters.get("earnings").is_some()
     }
 }
 
