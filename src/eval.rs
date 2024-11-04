@@ -1,8 +1,7 @@
-use crate::query::Query;
-use crate::edgar::{self, filing};
 use crate::earnings;
-use anyhow::{Result, anyhow};
-use std::collections::HashMap;
+use crate::edgar::{self, filing};
+use crate::query::Query;
+use anyhow::{anyhow, Result};
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -10,6 +9,7 @@ use langchain_rust::{
     message_formatter, prompt_args,
     schemas::Message,
 };
+use std::collections::HashMap;
 
 pub async fn eval(
     input: &str,
@@ -24,7 +24,7 @@ pub async fn eval(
 
             // Parse into our new high-level Query type
             let base_query: Query = serde_json::from_str(&query_json)?;
-            
+
             // Add EDGAR query if report types were specified
             let query = if let Some(report_types) = extract_report_types(&query_json)? {
                 base_query.with_edgar_query(report_types)
@@ -43,13 +43,17 @@ pub async fn eval(
 
             // Process earnings data if requested
             if let Some(earnings_query) = &query.earnings_query {
-                log::info!("Fetching earnings data for ticker: {}", earnings_query.ticker);
+                log::info!(
+                    "Fetching earnings data for ticker: {}",
+                    earnings_query.ticker
+                );
                 let transcripts = earnings::fetch_transcripts(
                     http_client,
                     &earnings_query.ticker,
                     earnings_query.start_date,
                     earnings_query.end_date,
-                ).await?;
+                )
+                .await?;
                 process_earnings_transcripts(transcripts)?;
             }
 
@@ -60,7 +64,6 @@ pub async fn eval(
             Err(anyhow!("Failed to create query: {}", e))
         }
     }
-
 }
 
 fn extract_report_types(query_json: &str) -> Result<Option<Vec<edgar::report::ReportType>>> {
@@ -110,10 +113,7 @@ fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()>
                     std::fs::create_dir_all(output_path.parent().unwrap())?;
                 }
                 let output_file = output_path.with_extension("json");
-                std::fs::write(
-                    &output_file,
-                    serde_json::to_string_pretty(&parsed)?,
-                )?;
+                std::fs::write(&output_file, serde_json::to_string_pretty(&parsed)?)?;
                 log::info!("Saved parsed results to: {:?}", output_file);
             }
             Err(e) => log::error!("Failed to parse filing: {}", e),
@@ -124,7 +124,11 @@ fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()>
 
 fn process_earnings_transcripts(transcripts: Vec<earnings::Transcript>) -> Result<()> {
     for transcript in transcripts {
-        log::info!("Processing transcript for {} on {}", transcript.ticker, transcript.date);
+        log::info!(
+            "Processing transcript for {} on {}",
+            transcript.ticker,
+            transcript.date
+        );
         // Add transcript processing logic here
     }
     Ok(())
@@ -149,14 +153,18 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
         - Strategic changes (8-K items 1.01, 1.02, 2.01)
         - Guidance & projections (8-K item 7.01)
         - Proxy statements (DEF 14A) for governance insights
+        - Other relevant information.
         Possible values are: {}
+
+    
     
     Use these defaults if values are missing:
     - Latest report: date range from 'today - 90 days' to 'today'
     - Latest quarterly report: include both 10-Q and relevant 8-K filings
     - Earnings analysis: automatically include earnings call transcripts
     
-    Current date is: {}
+    Current date is: {}.
+    Return only a json document, as it's meant to be parsed by the software.
     
     Parse this user input:
     {input}"#, *edgar::report::REPORT_TYPES, now.format("%Y-%m-%d")
