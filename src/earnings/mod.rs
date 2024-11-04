@@ -24,17 +24,15 @@ const API_BASE_URL: &str = "https://discountingcashflows.com/api/transcript";
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transcript {
     pub symbol: String,
-    #[serde(rename = "date")]
-    pub timestamp: String,
     pub quarter: i32,
     pub year: i32,
+    pub date: String,
     pub content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TranscriptResponse {
-    #[serde(rename = "Content")]
-    content: Vec<Transcript>
+    pub Content: Vec<Transcript>
 }
 
 pub async fn fetch_transcript(
@@ -113,7 +111,7 @@ pub async fn fetch_transcript(
        transcript.year != year || 
        transcript.quarter != quarter {
         return Err(anyhow!(
-            "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/Q{}",
+            "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/{}",
             ticker,
             year,
             quarter,
