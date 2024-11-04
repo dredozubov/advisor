@@ -37,6 +37,17 @@ use super::report;
 ///   ]
 /// }
 /// ```
+///
+/// Example JSON that can be deserialized:
+/// ```rust
+/// let json_str = r#"{
+///   "tickers": ["AAPL"],
+///   "start_date": "2024-01-01",
+///   "end_date": "2024-12-31",
+///   "report_types": ["10-K", "10-Q"]
+/// }"#;
+/// let query = Query::from_json(json_str).unwrap();
+/// ```
 /// 
 /// Fields:
 /// - `tickers`: Array of company stock ticker symbols (strings)

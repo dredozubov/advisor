@@ -21,6 +21,16 @@ use serde::{Deserialize, Serialize};
 ///   "end_date": "2024-01-31"     // Allow time for transcript publication
 /// }
 /// ```
+///
+/// Example JSON that can be deserialized:
+/// ```rust
+/// let json_str = r#"{
+///   "ticker": "AAPL",
+///   "start_date": "2024-01-01",
+///   "end_date": "2024-03-31"
+/// }"#;
+/// let query: Query = serde_json::from_str(json_str).unwrap();
+/// ```
 /// 
 /// Fields:
 /// - `ticker`: Company stock ticker symbol (string)
