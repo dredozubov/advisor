@@ -5,6 +5,32 @@ use serde::{Deserialize, Serialize};
 
 use super::report;
 
+/// Query parameters for fetching SEC EDGAR filings
+/// 
+/// # JSON Format
+/// ```json
+/// {
+///   "tickers": ["AAPL", "GOOGL"],
+///   "start_date": "2024-01-01", 
+///   "end_date": "2024-12-31",
+///   "report_types": ["10-K", "10-Q", "8-K"]
+/// }
+/// ```
+/// 
+/// Fields:
+/// - `tickers`: Array of company stock ticker symbols (strings)
+/// - `start_date`: Start date in YYYY-MM-DD format
+/// - `end_date`: End date in YYYY-MM-DD format  
+/// - `report_types`: Array of SEC filing types to fetch. Valid values:
+///   - "10-K": Annual reports
+///   - "10-Q": Quarterly reports
+///   - "8-K": Current reports
+///   - "4": Changes in ownership
+///   - "5": Annual changes in ownership
+///   - "S-1": Initial public offering
+///   - "S-3": Simplified registration
+///   - "S-4": Merger/acquisition
+///   - "DEF 14A": Proxy statements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
