@@ -27,19 +27,27 @@ pub async fn eval(
 
             // Process EDGAR filings if requested
             if let Some(filings) = base_query.parameters.get("filings") {
-                if let Ok(edgar_query) = base_query.to_edgar_query() {
+                if let Some(filings) = base_query.parameters.get("filings") {
+                    match base_query.to_edgar_query() {
+                        Ok(edgar_query) => {
                     for ticker in &edgar_query.tickers {
                         log::info!("Fetching EDGAR filings for ticker: {}", ticker);
                         let filings =
                             filing::fetch_matching_filings(http_client, &edgar_query).await?;
                         process_edgar_filings(filings)?;
                     }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to create EDGAR query: {}", e);
+                        }
+                    }
                 }
             }
 
             // Process earnings data if requested
             if let Some(earnings) = base_query.parameters.get("earnings") {
-                if let Ok(earnings_query) = base_query.to_earnings_query() {
+                match base_query.to_earnings_query() {
+                    Ok(earnings_query) => {
                     log::info!(
                         "Fetching earnings data for ticker: {}",
                         earnings_query.ticker
@@ -51,7 +59,11 @@ pub async fn eval(
                         earnings_query.end_date,
                     )
                     .await?;
-                    process_earnings_transcripts(transcripts)?;
+                        process_earnings_transcripts(transcripts)?;
+                    }
+                    Err(e) => {
+                        log::error!("Failed to create earnings query: {}", e);
+                    }
                 }
             }
 
