@@ -9,49 +9,29 @@ use serde::{self, Deserialize, Serialize};
 pub struct Query {
     /// List of stock tickers to query
     pub tickers: Vec<String>,
-    /// Start date for the query period
-    #[serde(with = "date_format")]
-    pub start_date: NaiveDate,
-    /// End date for the query period
-    #[serde(with = "date_format")]
-    pub end_date: NaiveDate,
-    /// Optional EDGAR query parameters
-    pub edgar_query: Option<edgar::query::Query>,
-    /// Optional earnings query parameters
-    pub earnings_query: Option<earnings::Query>,
+    /// Parameters for different data sources
+    pub parameters: serde_json::Value,
 }
 
 impl Query {
-    pub fn new(
-        tickers: Vec<String>,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
-    ) -> Self {
+    pub fn new(tickers: Vec<String>) -> Self {
         Query {
             tickers,
-            start_date,
-            end_date,
-            edgar_query: None,
-            earnings_query: None,
+            parameters: serde_json::Value::Object(serde_json::Map::new()),
         }
     }
 
-    pub fn with_edgar_query(mut self, report_types: Vec<edgar::report::ReportType>) -> Self {
-        self.edgar_query = Some(edgar::query::Query {
-            tickers: self.tickers.clone(),
-            start_date: self.start_date,
-            end_date: self.end_date,
-            report_types,
-        });
+    pub fn with_edgar_query(mut self, params: serde_json::Value) -> Self {
+        if let serde_json::Value::Object(ref mut map) = self.parameters {
+            map.insert("filings".to_string(), params);
+        }
         self
     }
 
-    pub fn with_earnings_query(mut self) -> Self {
-        self.earnings_query = Some(earnings::Query {
-            ticker: self.tickers[0].clone(), // Assuming first ticker for earnings
-            start_date: self.start_date,
-            end_date: self.end_date,
-        });
+    pub fn with_earnings_query(mut self, params: serde_json::Value) -> Self {
+        if let serde_json::Value::Object(ref mut map) = self.parameters {
+            map.insert("earnings".to_string(), params);
+        }
         self
     }
 

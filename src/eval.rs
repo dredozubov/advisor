@@ -145,16 +145,25 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     
     Format the parameters as a JSON object with these fields:
     - 'tickers': array of company ticker symbols
-    - 'start_date': ISO date (YYYY-MM-DD) 
-    - 'end_date': ISO date (YYYY-MM-DD)
-    - 'report_types': array of SEC filing types to analyze, including:
-        - Required reports (10-K, 10-Q)
-        - Management discussion (8-K items 2.02, 7.01, 8.01)
-        - Strategic changes (8-K items 1.01, 1.02, 2.01)
-        - Guidance & projections (8-K item 7.01)
-        - Proxy statements (DEF 14A) for governance insights
-        - Other relevant information.
-        Possible values are: {}
+    - 'parameters': object containing query parameters:
+        - 'filings': optional object for SEC filings:
+            - 'start_date': ISO date (YYYY-MM-DD)
+            - 'end_date': ISO date (YYYY-MM-DD) 
+            - 'report_types': array of SEC filing types:
+                - Required reports (10-K, 10-Q)
+                - Management discussion (8-K items 2.02, 7.01, 8.01)
+                - Strategic changes (8-K items 1.01, 1.02, 2.01)
+                - Guidance & projections (8-K item 7.01)
+                - Proxy statements (DEF 14A)
+                Possible values are: {}
+        - 'earnings': optional object for earnings calls:
+            - 'start_date': ISO date (YYYY-MM-DD)
+            - 'end_date': ISO date (YYYY-MM-DD)
+
+    Infer which data sources to query based on the user's question:
+    - Include 'filings' for questions about financial reports, SEC filings, corporate actions
+    - Include 'earnings' for questions about earnings calls, management commentary, guidance
+    - Include both when the question spans multiple areas
 
     
     
