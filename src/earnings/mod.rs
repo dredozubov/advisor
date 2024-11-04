@@ -57,6 +57,9 @@ pub async fn fetch_transcript(
         quarter,
         year
     );
+    
+    log::debug!("Earnings API Request URL: {}", url);
+    log::debug!("Earnings API Headers: User-Agent: {}", USER_AGENT);
 
     let filepath = PathBuf::from(EARNINGS_DIR)
         .join(ticker)

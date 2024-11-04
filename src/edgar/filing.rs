@@ -294,7 +294,9 @@ pub async fn get_company_filings(
     let padded_cik = format!("{:0>10}", cik);
     let initial_url = format!("{}/submissions/CIK{}.json", EDGAR_DATA_URL, padded_cik);
 
-    info!("Fetching company filings from {}", initial_url);
+    info!("Fetching company filings from EDGAR API");
+    log::debug!("EDGAR API Request URL: {}", initial_url);
+    log::debug!("EDGAR API Headers: User-Agent: {}", USER_AGENT);
 
     crate::utils::dirs::ensure_edgar_dirs()?;
 
@@ -516,6 +518,7 @@ pub async fn fetch_matching_filings(
             let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
 
             let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
+            log::debug!("EDGAR Document Request URL: {}", document_url);
 
             // Create the directory structure for the filing
             let filing_dir = format!("{}/{}/{}", EDGAR_FILINGS_DIR, cik, accession_number);
