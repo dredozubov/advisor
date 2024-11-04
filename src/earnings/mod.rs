@@ -23,21 +23,18 @@ const API_BASE_URL: &str = "https://discountingcashflows.com/api/transcript";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transcript {
-    pub ticker: String,
-    pub date: NaiveDate,
-    pub quarter: String,
+    pub symbol: String,
+    #[serde(rename = "date")]
+    pub timestamp: String,
+    pub quarter: i32,
     pub year: i32,
     pub content: String,
 }
 
-fn get_quarter_for_date(date: NaiveDate) -> &'static str {
-    match date.month() {
-        1..=3 => "Q1",
-        4..=6 => "Q2",
-        7..=9 => "Q3",
-        10..=12 => "Q4",
-        _ => unreachable!(),
-    }
+#[derive(Debug, Serialize, Deserialize)]
+struct TranscriptResponse {
+    #[serde(rename = "Content")]
+    content: Vec<Transcript>
 }
 
 pub async fn fetch_transcript(
@@ -85,8 +82,8 @@ pub async fn fetch_transcript(
     let content = fs::read_to_string(&filepath)?;
     log::debug!("Raw transcript response content: {}", content);
     
-    let transcript: Transcript = match serde_json::from_str(&content) {
-        Ok(t) => t,
+    let response: TranscriptResponse = match serde_json::from_str(&content) {
+        Ok(r) => r,
         Err(e) => {
             log::error!(
                 "Failed to parse transcript JSON for {} {} Q{}\nError: {}\nContent: {}",
@@ -106,16 +103,21 @@ pub async fn fetch_transcript(
         }
     };
 
+    // Get the first transcript from the array
+    let transcript = response.content.into_iter().next().ok_or_else(|| {
+        anyhow!("No transcript found in response for {} {} Q{}", ticker, year, quarter)
+    })?;
+
     // Validate the response
-    if transcript.ticker != ticker || 
+    if transcript.symbol != ticker || 
        transcript.year != year || 
        transcript.quarter != quarter {
         return Err(anyhow!(
-            "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/{}",
+            "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/Q{}",
             ticker,
             year,
             quarter,
-            transcript.ticker,
+            transcript.symbol,
             transcript.year,
             transcript.quarter
         ));
