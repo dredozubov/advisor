@@ -8,6 +8,7 @@ use super::report;
 /// Query parameters for fetching SEC EDGAR filings
 /// 
 /// # JSON Format
+/// The deserializer accepts JSON in this format:
 /// ```json
 /// {
 ///   "tickers": ["AAPL", "GOOGL"],
@@ -17,20 +18,31 @@ use super::report;
 /// }
 /// ```
 /// 
+/// Example with all supported report types:
+/// ```json
+/// {
+///   "tickers": ["TSLA"],
+///   "start_date": "2023-01-01",
+///   "end_date": "2023-12-31", 
+///   "report_types": [
+///     "10-K",    // Annual report
+///     "10-Q",    // Quarterly report  
+///     "8-K",     // Current report
+///     "4",       // Changes in ownership
+///     "5",       // Annual ownership changes
+///     "S-1",     // IPO registration
+///     "S-3",     // Simplified registration
+///     "S-4",     // Merger/acquisition
+///     "DEF 14A"  // Proxy statement
+///   ]
+/// }
+/// ```
+/// 
 /// Fields:
 /// - `tickers`: Array of company stock ticker symbols (strings)
 /// - `start_date`: Start date in YYYY-MM-DD format
 /// - `end_date`: End date in YYYY-MM-DD format  
-/// - `report_types`: Array of SEC filing types to fetch. Valid values:
-///   - "10-K": Annual reports
-///   - "10-Q": Quarterly reports
-///   - "8-K": Current reports
-///   - "4": Changes in ownership
-///   - "5": Annual changes in ownership
-///   - "S-1": Initial public offering
-///   - "S-3": Simplified registration
-///   - "S-4": Merger/acquisition
-///   - "DEF 14A": Proxy statements
+/// - `report_types`: Array of SEC filing types to fetch
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Query {
     pub tickers: Vec<String>,
