@@ -39,14 +39,16 @@ pub async fn fetch_transcript(
 ) -> Result<Transcript> {
     crate::utils::dirs::ensure_earnings_dirs()?;
 
-    let quarter = match date.month() {
-        1..=3 => 1,
-        4..=6 => 2,
-        7..=9 => 3,
-        10..=12 => 4,
+    // Calculate the most recently completed quarter
+    // Note: Earnings for Q4 are typically reported in Q1 of next year
+    let (quarter, year) = match date.month() {
+        1..=2 => (4, date.year() - 1),  // Jan-Feb: Q4 of previous year
+        3..=5 => (1, date.year()),      // Mar-May: Q1 of current year
+        6..=8 => (2, date.year()),      // Jun-Aug: Q2 of current year
+        9..=11 => (3, date.year()),     // Sep-Nov: Q3 of current year
+        12 => (3, date.year()),         // December: still Q3, Q4 not reported yet
         _ => unreachable!(),
     };
-    let year = date.year();
 
     let url = format!("{}/{}/{}/{}/", API_BASE_URL, ticker, quarter, year);
 
