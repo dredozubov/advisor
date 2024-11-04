@@ -30,11 +30,7 @@ pub struct Transcript {
     pub content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct TranscriptResponse {
-    #[serde(rename = "Content")]
-    pub content: Vec<Transcript>,
-}
+type TranscriptResponse = Vec<Transcript>;
 
 pub async fn fetch_transcript(
     client: &Client,
@@ -103,7 +99,7 @@ pub async fn fetch_transcript(
     };
 
     // Get the first transcript from the array
-    let transcript = response.content.into_iter().next().ok_or_else(|| {
+    let transcript = response.into_iter().next().ok_or_else(|| {
         anyhow!(
             "No transcript found in response for {} {} Q{}",
             ticker,
