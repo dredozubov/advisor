@@ -80,15 +80,28 @@ pub async fn fetch_transcript(
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;
-    let transcript: Transcript = serde_json::from_str(&content).map_err(|e| {
-        anyhow!(
-            "Failed to parse transcript for {} {} Q{}: {}",
-            ticker,
-            year,
-            quarter,
-            e
-        )
-    })?;
+    log::debug!("Raw transcript response content: {}", content);
+    
+    let transcript: Transcript = match serde_json::from_str(&content) {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!(
+                "Failed to parse transcript JSON for {} {} Q{}\nError: {}\nContent: {}",
+                ticker,
+                year,
+                quarter,
+                e,
+                content
+            );
+            return Err(anyhow!(
+                "Failed to parse transcript for {} {} Q{}: {}",
+                ticker,
+                year,
+                quarter,
+                e
+            ));
+        }
+    };
 
     // Validate the response
     if transcript.ticker != ticker || 
