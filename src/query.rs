@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use serde::{self, Deserialize, Serialize};
 use serde_json::Value;
+use crate::edgar::{self, query as edgar_query, report};
+use crate::earnings;
 
 /// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +57,7 @@ impl Query {
         self.parameters.get("earnings").is_some()
     }
 
-    pub fn to_edgar_query(&self) -> Result<edgar::query::Query> {
+    pub fn to_edgar_query(&self) -> Result<edgar_query::Query> {
         if let Some(filings) = self.parameters.get("filings") {
             let start_date = filings.get("start_date")
                 .and_then(|v| v.as_str())
@@ -70,13 +72,13 @@ impl Query {
             let start = chrono::NaiveDate::parse_from_str(start_date, "%Y-%m-%d")?;
             let end = chrono::NaiveDate::parse_from_str(end_date, "%Y-%m-%d")?;
             
-            let types: Result<Vec<edgar::report::ReportType>> = report_types
+            let types: Result<Vec<report::ReportType>> = report_types
                 .iter()
                 .filter_map(|v| v.as_str())
                 .map(|s| s.parse())
                 .collect();
 
-            Ok(edgar::query::Query::new(
+            Ok(edgar_query::Query::new(
                 self.tickers.clone(),
                 start,
                 end,
