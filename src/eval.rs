@@ -76,21 +76,6 @@ pub async fn eval(
     }
 }
 
-fn extract_report_types(query_json: &str) -> Result<Option<Vec<edgar::report::ReportType>>> {
-    let v: serde_json::Value = serde_json::from_str(query_json)?;
-    if let Some(types) = v.get("report_types") {
-        let report_types = types
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("report_types is not an array"))?
-            .iter()
-            .map(|t| t.as_str().unwrap().parse())
-            .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| anyhow!(e))?;
-        Ok(Some(report_types))
-    } else {
-        Ok(None)
-    }
-}
 
 fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()> {
     for (input_file, filing) in &filings {
