@@ -151,16 +151,27 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
                 - Guidance & projections (8-K item 7.01)
                 - Proxy statements (DEF 14A)
                 Possible values are: {}
-        - 'earnings': optional object for earnings calls:
-            - 'start_date': ISO date (YYYY-MM-DD)
-            - 'end_date': ISO date (YYYY-MM-DD)
+
+    Example:
+    {{
+        "tickers": ["AAPL"],
+        "parameters": {{
+            "filings": {{
+                "start_date": "2024-01-01",
+                "end_date": "2024-03-31",
+                "report_types": ["10-K", "10-Q", "8-K"]
+            }},
+            "earnings": {{
+                "start_date": "2024-01-01", 
+                "end_date": "2024-03-31"
+            }}
+        }}
+    }}
 
     Infer which data sources to query based on the user's question:
     - Include 'filings' for questions about financial reports, SEC filings, corporate actions
     - Include 'earnings' for questions about earnings calls, management commentary, guidance
     - Include both when the question spans multiple areas
-
-    
     
     Use these defaults if values are missing:
     - Latest report: date range from 'today - 90 days' to 'today'
