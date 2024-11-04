@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde::{self, Deserialize, Serialize};
 use serde_json::Value;
-use crate::edgar::{self, query as edgar_query, report};
+use crate::edgar::{query as edgar_query, report};
 use crate::earnings;
 
 /// A high-level query type that can handle multiple data sources
@@ -75,7 +75,8 @@ impl Query {
             let types: Result<Vec<report::ReportType>> = report_types
                 .iter()
                 .filter_map(|v| v.as_str())
-                .map(|s| s.parse())
+                .map(|s| s.parse::<report::ReportType>())
+                .map(|r| r.map_err(|e| anyhow!(e)))
                 .collect();
 
             Ok(edgar_query::Query::new(

@@ -26,8 +26,8 @@ pub async fn eval(
             let base_query: Query = serde_json::from_str(&query_json)?;
 
             // Process EDGAR filings if requested
-            if let Some(filings) = base_query.parameters.get("filings") {
-                if let Some(filings) = base_query.parameters.get("filings") {
+            if let Some(_filings) = base_query.parameters.get("filings") {
+                if let Some(_filings) = base_query.parameters.get("filings") {
                     match base_query.to_edgar_query() {
                         Ok(edgar_query) => {
                     for ticker in &edgar_query.tickers {
@@ -45,7 +45,7 @@ pub async fn eval(
             }
 
             // Process earnings data if requested
-            if let Some(earnings) = base_query.parameters.get("earnings") {
+            if let Some(_earnings) = base_query.parameters.get("earnings") {
                 match base_query.to_earnings_query() {
                     Ok(earnings_query) => {
                     log::info!(
