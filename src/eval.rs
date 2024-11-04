@@ -121,7 +121,7 @@ fn process_earnings_transcripts(transcripts: Vec<earnings::Transcript>) -> Resul
     for transcript in transcripts {
         log::info!(
             "Processing transcript for {} on {}",
-            transcript.ticker,
+            transcript.symbol,
             transcript.date
         );
         // Add transcript processing logic here

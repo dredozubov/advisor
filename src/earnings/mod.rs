@@ -42,7 +42,13 @@ pub async fn fetch_transcript(
 ) -> Result<Transcript> {
     crate::utils::dirs::ensure_earnings_dirs()?;
 
-    let quarter = get_quarter_for_date(date);
+    let quarter = match date.month() {
+        1..=3 => 1,
+        4..=6 => 2,
+        7..=9 => 3,
+        10..=12 => 4,
+        _ => unreachable!(),
+    };
     let year = date.year();
 
     let url = format!(
@@ -102,7 +108,7 @@ pub async fn fetch_transcript(
     };
 
     // Get the first transcript from the array
-    let transcript = response.content.into_iter().next().ok_or_else(|| {
+    let transcript = response.Content.into_iter().next().ok_or_else(|| {
         anyhow!("No transcript found in response for {} {} Q{}", ticker, year, quarter)
     })?;
 
