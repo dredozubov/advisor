@@ -30,7 +30,8 @@ pub async fn eval(
                 if let Ok(edgar_query) = base_query.to_edgar_query() {
                     for ticker in &edgar_query.tickers {
                         log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                        let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                        let filings =
+                            filing::fetch_matching_filings(http_client, &edgar_query).await?;
                         process_edgar_filings(filings)?;
                     }
                 }
