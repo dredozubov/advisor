@@ -137,19 +137,28 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     let _today_month = now.format("%M");
     let _today_day = now.format("%d");
     let task = format!(
-        r#"Extract the following parameters from the input text:
-    - Company tickers
-    - Date ranges
-    - Report types.
-    Format these parameters as a JSON object with fields:
-    - 'tickers': array of strings
-    - 'start_date': ISO date (YYYY-MM-DD)
+        r#"Extract query parameters from the input text to build a comprehensive financial analysis query.
+    
+    Format the parameters as a JSON object with these fields:
+    - 'tickers': array of company ticker symbols
+    - 'start_date': ISO date (YYYY-MM-DD) 
     - 'end_date': ISO date (YYYY-MM-DD)
-    - 'report_types': array of strings, possible values are {}
+    - 'report_types': array of SEC filing types to analyze, including:
+        - Required reports (10-K, 10-Q)
+        - Management discussion (8-K items 2.02, 7.01, 8.01)
+        - Strategic changes (8-K items 1.01, 1.02, 2.01)
+        - Guidance & projections (8-K item 7.01)
+        - Proxy statements (DEF 14A) for governance insights
+        Possible values are: {}
     
-    Use reasonable defaults for missing values if they are missing. Do not format the response as markdown, provide only JSON string. If user asks for the latest report or latest quarterly report assume a date range from 'today - 90 days' and 'today'. Current date is {}".
+    Use these defaults if values are missing:
+    - Latest report: date range from 'today - 90 days' to 'today'
+    - Latest quarterly report: include both 10-Q and relevant 8-K filings
+    - Earnings analysis: automatically include earnings call transcripts
     
-    Construct it from the user input:
+    Current date is: {}
+    
+    Parse this user input:
     {input}"#, *edgar::report::REPORT_TYPES, now.format("%Y-%m-%d")
     )
     .to_string();
