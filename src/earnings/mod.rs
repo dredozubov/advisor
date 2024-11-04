@@ -1,7 +1,7 @@
 mod query;
 pub use query::Query;
 
-use anyhow::{anyhow, Result}; 
+use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate};
 use once_cell::sync::OnceCell;
 use reqwest::Client;
@@ -32,7 +32,8 @@ pub struct Transcript {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TranscriptResponse {
-    pub Content: Vec<Transcript>
+    #[serde(rename = "Content")]
+    pub content: Vec<Transcript>,
 }
 
 pub async fn fetch_transcript(
@@ -51,14 +52,8 @@ pub async fn fetch_transcript(
     };
     let year = date.year();
 
-    let url = format!(
-        "{}/{}/{}/{}/",
-        API_BASE_URL,
-        ticker,
-        quarter,
-        year
-    );
-    
+    let url = format!("{}/{}/{}/{}/", API_BASE_URL, ticker, quarter, year);
+
     log::debug!("Earnings API Request URL: {}", url);
     log::debug!("Earnings API Headers: User-Agent: {}", USER_AGENT);
 
@@ -85,7 +80,7 @@ pub async fn fetch_transcript(
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;
     log::debug!("Raw transcript response content: {}", content);
-    
+
     let response: TranscriptResponse = match serde_json::from_str(&content) {
         Ok(r) => r,
         Err(e) => {
@@ -108,14 +103,17 @@ pub async fn fetch_transcript(
     };
 
     // Get the first transcript from the array
-    let transcript = response.Content.into_iter().next().ok_or_else(|| {
-        anyhow!("No transcript found in response for {} {} Q{}", ticker, year, quarter)
+    let transcript = response.content.into_iter().next().ok_or_else(|| {
+        anyhow!(
+            "No transcript found in response for {} {} Q{}",
+            ticker,
+            year,
+            quarter
+        )
     })?;
 
     // Validate the response
-    if transcript.symbol != ticker || 
-       transcript.year != year || 
-       transcript.quarter != quarter {
+    if transcript.symbol != ticker || transcript.year != year || transcript.quarter != quarter {
         return Err(anyhow!(
             "Mismatched transcript data: expected {}/{}/Q{}, got {}/{}/{}",
             ticker,
