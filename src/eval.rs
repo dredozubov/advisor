@@ -30,12 +30,13 @@ pub async fn eval(
                 if let Some(_filings) = base_query.parameters.get("filings") {
                     match base_query.to_edgar_query() {
                         Ok(edgar_query) => {
-                    for ticker in &edgar_query.tickers {
-                        log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                        let filings =
-                            filing::fetch_matching_filings(http_client, &edgar_query).await?;
-                        process_edgar_filings(filings)?;
-                    }
+                            for ticker in &edgar_query.tickers {
+                                log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                                let filings =
+                                    filing::fetch_matching_filings(http_client, &edgar_query)
+                                        .await?;
+                                process_edgar_filings(filings)?;
+                            }
                         }
                         Err(e) => {
                             log::error!("Failed to create EDGAR query: {}", e);
@@ -48,17 +49,17 @@ pub async fn eval(
             if let Some(_earnings) = base_query.parameters.get("earnings") {
                 match base_query.to_earnings_query() {
                     Ok(earnings_query) => {
-                    log::info!(
-                        "Fetching earnings data for ticker: {}",
-                        earnings_query.ticker
-                    );
-                    let transcripts = earnings::fetch_transcripts(
-                        http_client,
-                        &earnings_query.ticker,
-                        earnings_query.start_date,
-                        earnings_query.end_date,
-                    )
-                    .await?;
+                        log::info!(
+                            "Fetching earnings data for ticker: {}",
+                            earnings_query.ticker
+                        );
+                        let transcripts = earnings::fetch_transcripts(
+                            http_client,
+                            &earnings_query.ticker,
+                            earnings_query.start_date,
+                            earnings_query.end_date,
+                        )
+                        .await?;
                         process_earnings_transcripts(transcripts)?;
                     }
                     Err(e) => {
@@ -75,7 +76,6 @@ pub async fn eval(
         }
     }
 }
-
 
 fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()> {
     for (input_file, filing) in &filings {
@@ -153,20 +153,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
                 Possible values are: {}
 
     Example:
-    {{
-        "tickers": ["AAPL"],
-        "parameters": {{
-            "filings": {{
-                "start_date": "2024-01-01",
-                "end_date": "2024-03-31",
-                "report_types": ["10-K", "10-Q", "8-K"]
-            }},
-            "earnings": {{
-                "start_date": "2024-01-01", 
-                "end_date": "2024-03-31"
-            }}
-        }}
-    }}
+    {{"tickers": ["AAPL"], "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["10-K", "10-Q", "8-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
 
     Infer which data sources to query based on the user's question:
     - Include 'filings' for questions about financial reports, SEC filings, corporate actions
