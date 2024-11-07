@@ -2,9 +2,15 @@ use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedding::openai::{OpenAIConfig, OpenAiEmbedder},
+    embedding::{
+        openai::{OpenAIConfig, OpenAiEmbedder},
+        Embedder,
+    },
     schemas::Document,
-    vectorstore::{sqlite_vss::Store as SqliteVectorStore, VecStoreOptions, VectorStore},
+    vectorstore::{
+        sqlite_vss::{Store as SqliteVectorStore, StoreBuilder},
+        VecStoreOptions, VectorStore,
+    },
 };
 use std::sync::Arc;
 
@@ -13,18 +19,18 @@ pub struct SqliteConfig {
     pub path: String,
 }
 
-pub struct SqliteStorage {
+pub struct SqliteStorage<E> {
     store: SqliteVectorStore,
-    embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
+    embedder: Arc<E>,
 }
 
 #[async_trait]
-impl VectorStorage for SqliteStorage {
+impl<E> VectorStorage for SqliteStorage<E> {
     type Config = SqliteConfig;
 
-    async fn new(config: Self::Config, embedder: Arc<OpenAiEmbedder<OpenAIConfig>>) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder.clone())
+            .embedder(&embedder.clone())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)

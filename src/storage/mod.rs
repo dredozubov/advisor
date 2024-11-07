@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use crate::edgar::report;
 use anyhow::Result;
 use async_trait::async_trait;
+use langchain_rust::embedding::Embedder;
 use langchain_rust::schemas::Document;
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +34,7 @@ pub trait VectorStorage {
     type Config;
 
     /// Initialize the storage backend with implementation-specific configuration
-    async fn new(config: Self::Config, embedder: Arc<OpenAiEmbedder<OpenAIConfig>>) -> Result<Self>
+    async fn new(config: Self::Config, embedder: Arc<impl Embedder>) -> Result<Self>
     where
         Self: Sized;
 
@@ -52,5 +55,5 @@ pub mod qdrant;
 pub mod sqlite;
 
 // Re-export storage implementations
-pub use self::qdrant::{QdrantStoreConfig, QdrantStorage}; 
+pub use self::qdrant::{QdrantStorage, QdrantStoreConfig};
 pub use self::sqlite::{SqliteConfig, SqliteStorage};

@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use langchain_rust::{embedding::openai::OpenAiEmbedder, llm::OpenAIConfig, schemas::Document};
-use qdrant_client::{Qdrant, qdrant::QdrantConfig};
-use std::sync::Arc;
-use langchain_rust::embedding::openai::OpenAiEmbedder;
-use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::{
+    embedding::{openai::OpenAiEmbedder, Embedder},
+    llm::OpenAIConfig,
+    schemas::Document,
+};
+use qdrant_client::{config::QdrantConfig, Qdrant};
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -16,19 +17,16 @@ pub struct QdrantStoreConfig {
     pub collection_name: String,
 }
 
-pub struct QdrantStorage {
+pub struct QdrantStorage<E> {
     client: Qdrant,
-    embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
+    embedder: E,
 }
 
 #[async_trait]
-impl VectorStorage for QdrantStorage {
+impl<E> VectorStorage for QdrantStorage<E> {
     type Config = QdrantStoreConfig;
 
-    async fn new(
-        config: Self::Config,
-        embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
-    ) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
         let qdrant_config = QdrantConfig::from_url(&config.uri);
         let client = Qdrant::new(qdrant_config)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
