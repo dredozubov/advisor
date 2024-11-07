@@ -3,9 +3,9 @@ use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedding::openai::OpenAiEmbedder,
+    embedding::openai::{OpenAiEmbedder, OpenAIConfig},
     schemas::Document,
-    vectorstore::{sqlite_vss::Store as SqliteVectorStore, VecStoreOptions},
+    vectorstore::{sqlite_vss::Store as SqliteVectorStore, VectorStore, VecStoreOptions},
 };
 
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct SqliteConfig {
 
 pub struct SqliteStorage {
     store: SqliteVectorStore,
-    embedder: Arc<OpenAiEmbedder>,
+    embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
 }
 
 #[async_trait]
@@ -24,7 +24,7 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let store = SqliteVectorStore::new(&config.path, embedder.clone()).await?;
+        let store = SqliteVectorStore::create(&config.path).await?;
 
         Ok(Self {
             store,
@@ -39,7 +39,8 @@ impl VectorStorage for SqliteStorage {
     }
 
     async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
-        self.store.similarity_search_with_score(query, limit, &VecStoreOptions::default()).await
+        let results = self.store.similarity_search(query, limit, &VecStoreOptions::default()).await?;
+        Ok(results.into_iter().map(|doc| (doc, 1.0)).collect())
     }
 
     async fn delete_documents(&self, _filter: MetadataFilter) -> Result<u64> {
@@ -49,6 +50,9 @@ impl VectorStorage for SqliteStorage {
     }
 
     async fn count(&self) -> Result<u64> {
-        Ok(self.store.count().await? as u64)
+        let count = sqlx::query!("SELECT COUNT(*) as count FROM documents")
+            .fetch_one(&self.store.pool)
+            .await?;
+        Ok(count.count as u64)
     }
 }
