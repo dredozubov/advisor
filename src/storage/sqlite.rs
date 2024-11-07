@@ -22,15 +22,14 @@ pub struct SqliteStorage {
 impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
-    async fn new(config: Self::Config) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: Arc<OpenAiEmbedder<OpenAIConfig>>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder)
-            .connection_url(database_url)
+            .embedder(embedder.clone())
+            .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
             .build()
-            .await
-            .unwrap();
+            .await?;
 
         Ok(Self { store, embedder })
     }

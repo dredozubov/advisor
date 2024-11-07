@@ -31,7 +31,7 @@ pub trait VectorStorage {
     type Config;
 
     /// Initialize the storage backend with implementation-specific configuration
-    async fn new(config: Self::Config) -> Result<Self>
+    async fn new(config: Self::Config, embedder: Arc<OpenAiEmbedder<OpenAIConfig>>) -> Result<Self>
     where
         Self: Sized;
 

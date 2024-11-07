@@ -14,17 +14,18 @@ pub struct QdrantStoreConfig {
 
 pub struct QdrantStorage {
     client: Qdrant,
+    embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
 }
 
 #[async_trait]
 impl VectorStorage for QdrantStorage {
     type Config = QdrantStoreConfig;
 
-    async fn new(config: Self::Config) -> Result<Self> {
-        let client = Qdrant::new(QdrantConfig::from_url(&config.uri))
+    async fn new(config: Self::Config, embedder: Arc<OpenAiEmbedder<OpenAIConfig>>) -> Result<Self> {
+        let client = Qdrant::new(&config.uri)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
 
-        Ok(Self { client })
+        Ok(Self { client, embedder })
     }
 
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
