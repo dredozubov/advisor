@@ -1,11 +1,12 @@
+use std::sync::Arc;
 use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
     embedding::openai::OpenAiEmbedder,
     schemas::Document,
-    vectorstore::{sqlite::SqliteStore, Store, StoreOptions},
 };
+use sqlx::sqlite::SqlitePool;
 
 #[derive(Debug, Clone)]
 pub struct SqliteConfig {
@@ -13,7 +14,7 @@ pub struct SqliteConfig {
 }
 
 pub struct SqliteStorage {
-    client: Arc<qdrant_client::Qdrant>,
+    pool: Arc<SqlitePool>,
     embedder: Arc<OpenAiEmbedder>,
 }
 
@@ -23,10 +24,10 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let client = qdrant_client::Qdrant::from_url(&config.url).build()?;
+        let pool = SqlitePool::connect(&config.path).await?;
 
         Ok(Self {
-            client: Arc::new(client),
+            pool: Arc::new(pool),
             embedder: Arc::new(embedder)
         })
     }
@@ -35,76 +36,90 @@ impl VectorStorage for SqliteStorage {
         let (docs, metadata): (Vec<Document>, Vec<DocumentMetadata>) = documents.into_iter().unzip();
         let embeddings = self.embedder.embed_documents(&docs).await?;
         
-        // Convert documents and embeddings to points
-        let points: Vec<_> = docs.iter().zip(embeddings.iter()).map(|(doc, embedding)| {
-            qdrant_client::qdrant::PointStruct {
-                id: None, // Let Qdrant generate IDs
-                payload: doc.metadata.clone(),
-                vectors: Some(embedding.clone()),
-            }
-        }).collect();
-
-        self.client
-            .upsert_points("documents", points, None)
+        for ((doc, meta), embedding) in docs.into_iter().zip(metadata).zip(embeddings) {
+            sqlx::query!(
+                "INSERT INTO documents (content, metadata, embedding) VALUES (?, ?, ?)",
+                doc.page_content,
+                serde_json::to_string(&meta)?,
+                embedding.to_vec()
+            )
+            .execute(&*self.pool)
             .await?;
+        }
         Ok(())
     }
 
     async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
         let query_embedding = self.embedder.embed_query(query).await?;
         
-        let search_result = self.client
-            .search_points(&qdrant_client::qdrant::SearchPoints {
-                collection_name: "documents".to_string(),
-                vector: query_embedding,
-                limit: limit as u64,
-                ..Default::default()
-            })
-            .await?;
+        let rows = sqlx::query!(
+            r#"
+            SELECT content, metadata, 
+                   (embedding <=> $1) as distance
+            FROM documents 
+            ORDER BY distance ASC
+            LIMIT $2
+            "#,
+            query_embedding.to_vec(),
+            limit as i64
+        )
+        .fetch_all(&*self.pool)
+        .await?;
 
-        let results = search_result.result
-            .into_iter()
-            .map(|point| {
+        let results = rows.into_iter()
+            .map(|row| {
+                let metadata: DocumentMetadata = serde_json::from_str(&row.metadata)?;
                 let doc = Document {
-                    page_content: point.payload.get("text").unwrap().to_string(),
-                    metadata: point.payload,
+                    page_content: row.content,
+                    metadata: serde_json::to_value(metadata)?,
+                    score: Some(row.distance as f32),
                 };
-                (doc, point.score)
+                Ok((doc, row.distance as f32))
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(results)
     }
 
     async fn delete_documents(&self, filter: MetadataFilter) -> Result<u64> {
         let mut conditions = Vec::new();
+        let mut params = Vec::new();
         
         if let Some(source) = filter.source {
-            conditions.push(format!("metadata->>'source' = '{}'", source));
+            conditions.push("json_extract(metadata, '$.source') = ?");
+            params.push(source);
         }
         if let Some(report_type) = filter.report_type {
-            conditions.push(format!("metadata->>'report_type' = '{}'", report_type));
+            conditions.push("json_extract(metadata, '$.report_type') = ?");
+            params.push(report_type.to_string());
         }
         if let Some(ticker) = filter.ticker {
-            conditions.push(format!("metadata->>'ticker' = '{}'", ticker));
+            conditions.push("json_extract(metadata, '$.ticker') = ?");
+            params.push(ticker);
         }
         if let Some((start, end)) = filter.date_range {
-            conditions.push(format!(
-                "metadata->>'filing_date' BETWEEN '{}' AND '{}'",
-                start, end
-            ));
+            conditions.push("json_extract(metadata, '$.filing_date') BETWEEN ? AND ?");
+            params.push(start.to_string());
+            params.push(end.to_string());
         }
 
         let where_clause = if conditions.is_empty() {
-            "TRUE".to_string()
+            "1=1".to_string()
         } else {
             conditions.join(" AND ")
         };
 
-        self.store.delete_documents(&where_clause).await
+        let result = sqlx::query(&format!("DELETE FROM documents WHERE {}", where_clause))
+            .execute(&*self.pool)
+            .await?;
+
+        Ok(result.rows_affected())
     }
 
     async fn count(&self) -> Result<u64> {
-        self.store.count().await
+        let result = sqlx::query!("SELECT COUNT(*) as count FROM documents")
+            .fetch_one(&*self.pool)
+            .await?;
+        Ok(result.count as u64)
     }
 }
