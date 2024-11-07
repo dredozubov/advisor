@@ -17,10 +17,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
+    // Initialize OpenAI embedder
+    let embedder = Arc::new(langchain_rust::embedding::openai::OpenAIEmbedder::default()
+        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())));
+
     // Initialize SQLite vector storage
-    let storage = SqliteStorage::new(SqliteConfig {
-        path: "sqlite://data/vectors.db".to_string(),
-    }).await?;
+    let storage = SqliteStorage::new(
+        SqliteConfig {
+            path: "sqlite://data/vectors.db".to_string(),
+        },
+        embedder,
+    ).await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
