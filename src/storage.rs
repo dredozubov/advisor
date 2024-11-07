@@ -1,4 +1,4 @@
-use qdrant_client::prelude::*;
+use qdrant_client::config::QdrantConfig;
 use qdrant_client::qdrant::{
     Condition, CreateCollectionBuilder, Distance, Filter, PointStruct, ScalarQuantizationBuilder,
     SearchParamsBuilder, SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
@@ -6,10 +6,8 @@ use qdrant_client::qdrant::{
 use qdrant_client::{Payload, Qdrant, QdrantError};
 
 pub async fn ping() -> Result<(), QdrantError> {
-    let config =
-        QdrantClientConfig::from_url("http://localhost:6333").with_transport(QdrantTransport::Grpc);
-    let client = Qdrant::new(Some(config))?;
-    let client = Qdrant::from_url("https://localhost:6333").build()?;
+    let mut config = QdrantConfig::from_url("http://localhost:6334");
+    let client = Qdrant::new(config)?;
 
     let collections_list = client.list_collections().await?;
     dbg!(collections_list);
