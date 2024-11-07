@@ -1,84 +1,44 @@
-use qdrant_client::config::QdrantConfig;
-use qdrant_client::qdrant::{
-    Condition, CreateCollectionBuilder, Distance, Filter, PointStruct, ScalarQuantizationBuilder,
-    SearchParamsBuilder, SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
+use anyhow::Result;
+use langchain_rust::{
+    embedding::openai::OpenAiEmbedder,
+    schemas::Document,
+    vectorstore::qdrant::{Qdrant, StoreBuilder},
+    vectorstore::{VecStoreOptions, VectorStore},
 };
-use qdrant_client::{Payload, Qdrant, QdrantError};
 
-pub async fn ping() -> Result<(), QdrantError> {
-    let mut config = QdrantConfig::from_url("http://localhost:6334");
-    let client = Qdrant::new(config)?;
+pub struct Storage {
+    store: Box<dyn VectorStore>,
+}
 
-    let collections_list = client.list_collections().await?;
-    dbg!(collections_list);
-    // collections_list = {
-    //   "collections": [
-    //     {
-    //       "name": "test"
-    //     }
-    //   ]
-    // }
+impl Storage {
+    pub async fn new(collection_name: &str) -> Result<Self> {
+        let embedder = OpenAiEmbedder::default();
+        let client = Qdrant::from_url("http://localhost:6334").build()?;
 
-    let collection_name = "test";
-    client.delete_collection(collection_name).await?;
+        let store = StoreBuilder::new()
+            .embedder(embedder)
+            .client(client)
+            .collection_name(collection_name)
+            .build()
+            .await?;
 
-    client
-        .create_collection(
-            CreateCollectionBuilder::new(collection_name)
-                .vectors_config(VectorParamsBuilder::new(10, Distance::Cosine))
-                .quantization_config(ScalarQuantizationBuilder::default()),
-        )
-        .await?;
+        Ok(Self {
+            store: Box::new(store),
+        })
+    }
 
-    let collection_info = client.collection_info(collection_name).await?;
-    dbg!(collection_info);
+    pub async fn add_documents(&self, documents: Vec<Document>) -> Result<()> {
+        self.store
+            .add_documents(&documents, &VecStoreOptions::default())
+            .await?;
+        Ok(())
+    }
 
-    let payload: Payload = serde_json::json!(
-        {
-            "foo": "Bar",
-            "bar": 12,
-            "baz": {
-                "qux": "quux"
-            }
-        }
-    )
-    .try_into()
-    .unwrap();
-
-    let points = vec![PointStruct::new(0, vec![12.; 10], payload)];
-    client
-        .upsert_points(UpsertPointsBuilder::new(collection_name, points))
-        .await?;
-
-    let search_result = client
-        .search_points(
-            SearchPointsBuilder::new(collection_name, [11.; 10], 10)
-                .filter(Filter::all([Condition::matches("bar", 12)]))
-                .with_payload(true)
-                .params(SearchParamsBuilder::default().exact(true)),
-        )
-        .await?;
-    dbg!(&search_result);
-    // search_result = [
-    //   {
-    //     "id": 0,
-    //     "version": 0,
-    //     "score": 1.0000001,
-    //     "payload": {
-    //       "bar": 12,
-    //       "baz": {
-    //         "qux": "quux"
-    //       },
-    //       "foo": "Bar"
-    //     }
-    //   }
-    // ]
-
-    let found_point = search_result.result.into_iter().next().unwrap();
-    let mut payload = found_point.payload;
-    let baz_payload = payload.remove("baz").unwrap().into_json();
-    println!("baz: {}", baz_payload);
-    // baz: {"qux":"quux"}
-
-    Ok(())
+    pub async fn similarity_search(&self, query: &str, limit: u32) -> Result<Vec<Document>> {
+        let results = self
+            .store
+            .similarity_search(query, limit as usize, &VecStoreOptions::default())
+            .await?;
+        Ok(results)
+    }
 }
