@@ -28,12 +28,13 @@ impl<E: Embedder + Send + Sync + 'static> VectorStorage for SqliteStorage<E> {
 
     async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder((*embedder).clone())
+            .embedder(embedder.clone())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
             .build()
-            .await.map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
         Ok(Self { store, embedder })
     }
