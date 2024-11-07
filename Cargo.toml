@@ -41,7 +41,7 @@ rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.21.0"
 tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
-langchain-rust = { version = "4.6.0", features = ["qdrant"] }
+langchain-rust = { version = "4.6.0", features = ["qdrant", "openai", "sqlite"] }
 strum = { version = "0.26.3", features = ["derive"] }
 quick-xml = "0.37.0"
 unicode-normalization = "0.1.24"
