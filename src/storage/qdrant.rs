@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
 use qdrant_client::Qdrant;
-use qdrant_client::config::Config as QdrantConfig;
+use qdrant_client::qdrant::Config as QdrantConfig;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -13,7 +13,7 @@ pub struct QdrantStoreConfig {
 }
 
 pub struct QdrantStorage {
-    client: Qdrant<QdrantConfig>,
+    client: Qdrant,
 }
 
 #[async_trait]
