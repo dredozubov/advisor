@@ -1,3 +1,4 @@
+use qdrant_client::prelude::*;
 use qdrant_client::qdrant::{
     Condition, CreateCollectionBuilder, Distance, Filter, PointStruct, ScalarQuantizationBuilder,
     SearchParamsBuilder, SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
