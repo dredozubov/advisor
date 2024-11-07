@@ -3,8 +3,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{embedding::openai::OpenAiEmbedder, llm::OpenAIConfig, schemas::Document};
-use qdrant_client::config::QdrantConfig;
-use qdrant_client::Qdrant;
+use qdrant_client::{Qdrant, qdrant::QdrantConfig};
+use std::sync::Arc;
+use langchain_rust::embedding::openai::OpenAiEmbedder;
+use langchain_rust::llm::OpenAIConfig;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -27,7 +29,8 @@ impl VectorStorage for QdrantStorage {
         config: Self::Config,
         embedder: Arc<OpenAiEmbedder<OpenAIConfig>>,
     ) -> Result<Self> {
-        let client = Qdrant::new(&config.uri)
+        let qdrant_config = QdrantConfig::from_url(&config.uri);
+        let client = Qdrant::new(qdrant_config)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
 
         Ok(Self { client, embedder })
