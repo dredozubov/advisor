@@ -13,12 +13,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    // Initialize vector storage
-    // Ensure Qdrant is running at localhost, with gRPC port at 6334
-    // docker run -p 6334:6334 qdrant/qdrant
-    let storage = QdrantStorage::new(QdrantConfig {
-        url: "http://localhost:6334".to_string(),
-        collection_name: "advisor".to_string(),
+    // Initialize SQLite vector storage
+    let storage = SqliteStorage::new(SqliteConfig {
+        path: "sqlite://data/vectors.db".to_string(),
     }).await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);

@@ -1,44 +1,56 @@
 use anyhow::Result;
-use langchain_rust::{
-    embedding::openai::OpenAiEmbedder,
-    schemas::Document,
-    vectorstore::qdrant::{Qdrant, StoreBuilder},
-    vectorstore::{VecStoreOptions, VectorStore},
-};
+use async_trait::async_trait;
+use langchain_rust::schemas::Document;
+use serde::{Deserialize, Serialize};
+use crate::edgar::report;
 
-pub struct Storage {
-    store: Box<dyn VectorStore>,
+/// Metadata associated with stored documents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentMetadata {
+    pub source: String,  // "edgar", "earnings", etc.
+    pub report_type: Option<report::ReportType>,  // For SEC filings
+    pub filing_date: Option<chrono::NaiveDate>,
+    pub company_name: Option<String>,
+    pub ticker: Option<String>,
 }
 
-impl Storage {
-    pub async fn new(collection_name: &str) -> Result<Self> {
-        let embedder = OpenAiEmbedder::default();
-        let client = Qdrant::from_url("http://localhost:6334").build()?;
-
-        let store = StoreBuilder::new()
-            .embedder(embedder)
-            .client(client)
-            .collection_name(collection_name)
-            .build()
-            .await?;
-
-        Ok(Self {
-            store: Box::new(store),
-        })
-    }
-
-    pub async fn add_documents(&self, documents: Vec<Document>) -> Result<()> {
-        self.store
-            .add_documents(&documents, &VecStoreOptions::default())
-            .await?;
-        Ok(())
-    }
-
-    pub async fn similarity_search(&self, query: &str, limit: u32) -> Result<Vec<Document>> {
-        let results = self
-            .store
-            .similarity_search(query, limit as usize, &VecStoreOptions::default())
-            .await?;
-        Ok(results)
-    }
+/// Filter for querying documents by metadata
+#[derive(Debug, Clone)]
+pub struct MetadataFilter {
+    pub source: Option<String>,
+    pub report_type: Option<report::ReportType>,
+    pub ticker: Option<String>,
+    pub date_range: Option<(chrono::NaiveDate, chrono::NaiveDate)>,
+    pub custom: Option<serde_json::Value>,
 }
+
+/// Core trait that must be implemented by all storage backends
+#[async_trait]
+pub trait VectorStorage {
+    /// Configuration type specific to this storage implementation
+    type Config;
+
+    /// Initialize the storage backend with implementation-specific configuration
+    async fn new(config: Self::Config) -> Result<Self> where Self: Sized;
+    
+    /// Add documents with optional metadata
+    async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()>;
+    
+    /// Perform similarity search
+    async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>>;
+    
+    /// Delete documents by metadata filter
+    async fn delete_documents(&self, filter: MetadataFilter) -> Result<u64>;
+    
+    /// Get document count
+    async fn count(&self) -> Result<u64>;
+}
+
+/// SQLite storage configuration
+#[derive(Debug, Clone)]
+pub struct SqliteConfig {
+    pub path: String,
+}
+
+mod sqlite;
+pub use sqlite::SqliteStorage;
