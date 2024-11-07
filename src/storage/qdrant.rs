@@ -14,7 +14,7 @@ pub struct QdrantStoreConfig {
 
 pub struct QdrantStorage<E> {
     client: Qdrant,
-    embedder: E,
+    embedder: Arc<E>,
 }
 
 #[async_trait]
