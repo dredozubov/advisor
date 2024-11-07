@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedding::{openai::OpenAiEmbedder, Embedder},
-    llm::OpenAIConfig,
+    embedding::Embedder,
     schemas::Document,
 };
-use qdrant_client::{config::QdrantConfig, Qdrant};
+use qdrant_client::{qdrant::QdrantConfig, Qdrant};
+use std::sync::Arc;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -23,7 +21,7 @@ pub struct QdrantStorage<E> {
 }
 
 #[async_trait]
-impl<E> VectorStorage for QdrantStorage<E> {
+impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
     type Config = QdrantStoreConfig;
 
     async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {

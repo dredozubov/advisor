@@ -25,12 +25,12 @@ pub struct SqliteStorage<E> {
 }
 
 #[async_trait]
-impl<E> VectorStorage for SqliteStorage<E> {
+impl<E: Embedder + Send + Sync + 'static> VectorStorage for SqliteStorage<E> {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(&embedder.clone())
+            .embedder(embedder.as_ref())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
