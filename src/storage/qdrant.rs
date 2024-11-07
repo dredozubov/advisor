@@ -2,8 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
 use qdrant_client::{
-    client::QdrantClient,
-    prelude::QdrantClientConfig,
+    client::Qdrant,
+    config::QdrantConfig,
 };
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
@@ -15,7 +15,7 @@ pub struct QdrantStoreConfig {
 }
 
 pub struct QdrantStorage {
-    client: Qdrant,
+    client: Qdrant<QdrantConfig>,
 }
 
 #[async_trait]
@@ -23,13 +23,10 @@ impl VectorStorage for QdrantStorage {
     type Config = QdrantStoreConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let client_config = QdrantClientConfig::from_url(&config.uri);
-        let client = QdrantClient::new(Some(client_config))
+        let client = Qdrant::new(Some(QdrantConfig::from_url(&config.uri)))
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
             
-        Ok(Self {
-            client: client.into()
-        })
+        Ok(Self { client })
     }
 
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
