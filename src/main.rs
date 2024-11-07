@@ -1,10 +1,8 @@
-use advisor::storage;
 use advisor::{edgar::filing, eval, repl, utils::dirs};
-use langchain_rust::embedding::openai::OpenAiEmbedder;
+use advisor::storage::qdrant::{QdrantStorage, QdrantConfig};
+use advisor::storage::VectorStorage;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
-use langchain_rust::vectorstore::qdrant::{Qdrant, StoreBuilder};
-use qdrant_client::Qdrant;
 use rustyline::error::ReadlineError;
 use std::error::Error;
 use std::{env, fs};
@@ -15,24 +13,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    // Initialize Embedder
-    use langchain_rust::vectorstore::VecStoreOptions;
-
-    // Requires OpenAI API key to be set in the environment variable OPENAI_API_KEY
-    let embedder = OpenAiEmbedder::default();
-
-    // Initialize the qdrant_client::Qdrant
+    // Initialize vector storage
     // Ensure Qdrant is running at localhost, with gRPC port at 6334
     // docker run -p 6334:6334 qdrant/qdrant
-    let vector_store_client = Qdrant::from_url("http://localhost:6334").build().unwrap();
-
-    let store = StoreBuilder::new()
-        .embedder(embedder)
-        .client(vector_store_client)
-        .collection_name("advisor")
-        .build()
-        .await
-        .unwrap();
+    let storage = QdrantStorage::new(QdrantConfig {
+        url: "http://localhost:6334".to_string(),
+        collection_name: "advisor".to_string(),
+    }).await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
