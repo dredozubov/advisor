@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedding::openai::{OpenAiEmbedder, OpenAIConfig},
+    embedding::openai::{OpenAIConfig, OpenAiEmbedder},
     schemas::Document,
-    vectorstore::{sqlite_vss::Store as SqliteVectorStore, VectorStore, VecStoreOptions},
+    vectorstore::{sqlite_vss::Store as SqliteVectorStore, VecStoreOptions, VectorStore},
 };
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct SqliteConfig {
@@ -23,14 +23,16 @@ impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let store = SqliteVectorStore::from(&config.path)
-            .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
-        let embedder = Arc::new(OpenAiEmbedder::default());
-        
-        Ok(Self {
-            store,
-            embedder,
-        })
+        let store = StoreBuilder::new()
+            .embedder(embedder)
+            .connection_url(database_url)
+            .table("documents")
+            .vector_dimensions(1536)
+            .build()
+            .await
+            .unwrap();
+
+        Ok(Self { store, embedder })
     }
 
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
@@ -53,7 +55,9 @@ impl VectorStorage for SqliteStorage {
 
     async fn count(&self) -> Result<u64> {
         // Use similarity search with empty query to get all documents
-        let all_docs = self.store.similarity_search("", 1000000, &VecStoreOptions::default())
+        let all_docs = self
+            .store
+            .similarity_search("", 1000000, &VecStoreOptions::default())
             .await
             .map_err(|e| anyhow::anyhow!("Failed to count documents: {}", e))?;
         Ok(all_docs.len() as u64)

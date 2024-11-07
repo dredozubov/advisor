@@ -1,8 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
+use qdrant_client::config::QdrantConfig;
 use qdrant_client::Qdrant;
-use qdrant_client::qdrant::Config as QdrantConfig;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -21,9 +21,9 @@ impl VectorStorage for QdrantStorage {
     type Config = QdrantStoreConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let client = Qdrant::new(Some(QdrantConfig::from_url(&config.uri)))
+        let client = Qdrant::new(QdrantConfig::from_url(&config.uri))
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
-            
+
         Ok(Self { client })
     }
 
