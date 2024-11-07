@@ -1,6 +1,10 @@
-use advisor::{edgar::filing, eval, repl, utils::dirs};
-use advisor::storage::qdrant::{QdrantStorage, QdrantConfig};
-use advisor::storage::VectorStorage;
+use advisor::{
+    edgar::filing,
+    eval,
+    repl,
+    storage::{SqliteStorage, SqliteConfig, VectorStorage},
+    utils::dirs
+};
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;

@@ -50,4 +50,7 @@ pub trait VectorStorage {
 
 pub mod qdrant;
 pub mod sqlite;
-pub use sqlite::{SqliteConfig, SqliteStorage};
+
+// Re-export storage implementations
+pub use self::qdrant::{QdrantConfig, QdrantStorage};
+pub use self::sqlite::{SqliteConfig, SqliteStorage};
