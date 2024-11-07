@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use crate::edgar::report;
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
-use langchain_rust::embedding::{Embedder, openai::OpenAiEmbedder};
-use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::embedding::Embedder;
 use langchain_rust::schemas::Document;
 use serde::{Deserialize, Serialize};
 
