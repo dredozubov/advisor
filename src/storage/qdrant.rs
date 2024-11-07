@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
-use qdrant_client::client::QdrantClient;
+use qdrant_client::{qdrant::Qdrant, prelude::QdrantClientConfig};
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
@@ -12,7 +12,7 @@ pub struct QdrantConfig {
 }
 
 pub struct QdrantStorage {
-    client: QdrantClient,
+    client: Qdrant,
 }
 
 #[async_trait]
@@ -20,8 +20,8 @@ impl VectorStorage for QdrantStorage {
     type Config = QdrantConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let client = QdrantClient::new(&config.url)
-            .await
+        let config = QdrantClientConfig::from_url(&config.url);
+        let client = Qdrant::new(Some(config))
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
             
         Ok(Self {
@@ -29,13 +29,13 @@ impl VectorStorage for QdrantStorage {
         })
     }
 
-    async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
+    async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
         // TODO: Implement document addition for Qdrant
         log::warn!("Document addition not yet implemented for Qdrant storage");
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
+    async fn similarity_search(&self, _query: &str, _limit: usize) -> Result<Vec<(Document, f32)>> {
         // TODO: Implement similarity search for Qdrant
         log::warn!("Similarity search not yet implemented for Qdrant storage");
         Ok(Vec::new())

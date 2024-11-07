@@ -23,23 +23,25 @@ impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let client = QdrantClient::new(config.endpoint).await?;
+        let store = SqliteVectorStore::new(&config.path)?;
+        let embedder = Arc::new(OpenAiEmbedder::default());
+        
         Ok(Self {
-            client,
+            store,
+            embedder,
         })
     }
 
-    async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
-        // TODO: Implement document addition for Qdrant
-        log::warn!("Document addition not yet implemented for Qdrant storage");
+    async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
+        // TODO: Implement document addition for SQLite
+        log::warn!("Document addition not yet implemented for SQLite storage");
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
-        // TODO: Implement similarity search for Qdrant
-        log::warn!("Similarity search not yet implemented for Qdrant storage");
-        let results = Vec::new();
-        Ok(results.into_iter().map(|doc| (doc, 1.0)).collect())
+    async fn similarity_search(&self, _query: &str, _limit: usize) -> Result<Vec<(Document, f32)>> {
+        // TODO: Implement similarity search for SQLite
+        log::warn!("Similarity search not yet implemented for SQLite storage");
+        Ok(Vec::new())
     }
 
     async fn delete_documents(&self, _filter: MetadataFilter) -> Result<u64> {
