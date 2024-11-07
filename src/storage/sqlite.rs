@@ -6,7 +6,6 @@ use langchain_rust::{
     schemas::Document,
     vectorstore::{sqlite::SqliteStore, Store, StoreOptions},
 };
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct SqliteConfig {
@@ -24,38 +23,57 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let store = SqliteStore::new()
-            .with_embedder(embedder)
-            .with_path(&config.path)
-            .with_dimensions(1536)
-            .build()
-            .await?;
+        let client = qdrant_client::Qdrant::from_url(&config.url).build()?;
 
         Ok(Self {
-            store: Arc::new(store)
+            client: Arc::new(client),
+            embedder: Arc::new(embedder)
         })
     }
 
     async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
         let (docs, metadata): (Vec<Document>, Vec<DocumentMetadata>) = documents.into_iter().unzip();
+        let embeddings = self.embedder.embed_documents(&docs).await?;
         
-        for (doc, meta) in docs.iter().zip(metadata.iter()) {
-            let options = StoreOptions::default()
-                .with_metadata(serde_json::json!({
-                    "source": meta.source,
-                    "report_type": meta.report_type,
-                    "filing_date": meta.filing_date,
-                    "company_name": meta.company_name,
-                    "ticker": meta.ticker,
-                }));
-            self.store.add_document(doc, &options).await?;
-        }
-        
+        // Convert documents and embeddings to points
+        let points: Vec<_> = docs.iter().zip(embeddings.iter()).map(|(doc, embedding)| {
+            qdrant_client::qdrant::PointStruct {
+                id: None, // Let Qdrant generate IDs
+                payload: doc.metadata.clone(),
+                vectors: Some(embedding.clone()),
+            }
+        }).collect();
+
+        self.client
+            .upsert_points("documents", points, None)
+            .await?;
         Ok(())
     }
 
     async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
-        self.store.similarity_search(query, limit).await
+        let query_embedding = self.embedder.embed_query(query).await?;
+        
+        let search_result = self.client
+            .search_points(&qdrant_client::qdrant::SearchPoints {
+                collection_name: "documents".to_string(),
+                vector: query_embedding,
+                limit: limit as u64,
+                ..Default::default()
+            })
+            .await?;
+
+        let results = search_result.result
+            .into_iter()
+            .map(|point| {
+                let doc = Document {
+                    page_content: point.payload.get("text").unwrap().to_string(),
+                    metadata: point.payload,
+                };
+                (doc, point.score)
+            })
+            .collect();
+
+        Ok(results)
     }
 
     async fn delete_documents(&self, filter: MetadataFilter) -> Result<u64> {
