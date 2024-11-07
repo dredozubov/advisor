@@ -2,7 +2,6 @@ use crate::edgar::report;
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
-use serde::{Deserialize, Serialize};
 
 /// Metadata associated with stored documents
 #[derive(Debug, Clone, Serialize, Deserialize)]

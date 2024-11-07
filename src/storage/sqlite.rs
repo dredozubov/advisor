@@ -7,7 +7,6 @@ use langchain_rust::{
     schemas::Document,
     vectorstore::{sqlite_vss::Store as SqliteVectorStore, VectorStore, VecStoreOptions},
 };
-use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct SqliteConfig {
@@ -25,7 +24,7 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let store = SqliteVectorStore::new(&config.path, embedder.clone())
+        let store = SqliteVectorStore::create(&config.path, embedder)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
