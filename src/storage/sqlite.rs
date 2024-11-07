@@ -23,29 +23,22 @@ impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let embedder = OpenAiEmbedder::default();
-        let store = SqliteVectorStore::create(&config.path, embedder)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
-
+        let client = QdrantClient::new(config.endpoint).await?;
         Ok(Self {
-            store,
-            embedder: Arc::new(embedder)
+            client,
         })
     }
 
     async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
-        let (docs, _metadata): (Vec<Document>, Vec<DocumentMetadata>) = documents.into_iter().unzip();
-        self.store.add_documents(&docs, &VecStoreOptions::default())
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to add documents: {}", e))?;
+        // TODO: Implement document addition for Qdrant
+        log::warn!("Document addition not yet implemented for Qdrant storage");
         Ok(())
     }
 
     async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
-        let results = self.store.similarity_search(query, limit, &VecStoreOptions::default())
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to perform similarity search: {}", e))?;
+        // TODO: Implement similarity search for Qdrant
+        log::warn!("Similarity search not yet implemented for Qdrant storage");
+        let results = Vec::new();
         Ok(results.into_iter().map(|doc| (doc, 1.0)).collect())
     }
 
