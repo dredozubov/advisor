@@ -23,7 +23,8 @@ impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config) -> Result<Self> {
-        let store = SqliteVectorStore::new(&config.path)?;
+        let store = SqliteVectorStore::from_url(&config.path)
+            .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
         let embedder = Arc::new(OpenAiEmbedder::default());
         
         Ok(Self {

@@ -1,10 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::schemas::Document;
-use qdrant_client::{
-    client::Qdrant,
-    config::QdrantConfig,
-};
+use qdrant_client::Qdrant;
+use qdrant_client::config::Config as QdrantConfig;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
 
