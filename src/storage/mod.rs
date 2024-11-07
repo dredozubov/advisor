@@ -47,3 +47,5 @@ pub trait VectorStorage {
 }
 
 pub mod qdrant;
+pub mod sqlite;
+pub use sqlite::{SqliteStorage, SqliteConfig};
