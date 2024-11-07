@@ -7,6 +7,7 @@ use langchain_rust::{
     schemas::Document,
     vectorstore::{sqlite_vss::Store as SqliteVectorStore, VectorStore, VecStoreOptions},
 };
+use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct SqliteConfig {
@@ -24,7 +25,9 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let store = SqliteVectorStore::create(&config.path).await?;
+        let store = SqliteVectorStore::new(&config.path, embedder.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
         Ok(Self {
             store,
@@ -34,12 +37,16 @@ impl VectorStorage for SqliteStorage {
 
     async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
         let (docs, _metadata): (Vec<Document>, Vec<DocumentMetadata>) = documents.into_iter().unzip();
-        self.store.add_documents(&docs, &VecStoreOptions::default()).await?;
+        self.store.add_documents(&docs, &VecStoreOptions::default())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to add documents: {}", e))?;
         Ok(())
     }
 
     async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
-        let results = self.store.similarity_search(query, limit, &VecStoreOptions::default()).await?;
+        let results = self.store.similarity_search(query, limit, &VecStoreOptions::default())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to perform similarity search: {}", e))?;
         Ok(results.into_iter().map(|doc| (doc, 1.0)).collect())
     }
 
@@ -50,9 +57,10 @@ impl VectorStorage for SqliteStorage {
     }
 
     async fn count(&self) -> Result<u64> {
-        let count = sqlx::query!("SELECT COUNT(*) as count FROM documents")
-            .fetch_one(&self.store.pool)
-            .await?;
-        Ok(count.count as u64)
+        // Use similarity search with empty query to get all documents
+        let all_docs = self.store.similarity_search("", 1000000, &VecStoreOptions::default())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to count documents: {}", e))?;
+        Ok(all_docs.len() as u64)
     }
 }
