@@ -1,9 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use langchain_rust::{
-    embedding::Embedder,
-    schemas::Document,
-};
+use langchain_rust::{embedding::Embedder, schemas::Document};
 use qdrant_client::{qdrant::QdrantConfig, Qdrant};
 use std::sync::Arc;
 
