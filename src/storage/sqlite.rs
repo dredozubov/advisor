@@ -2,10 +2,7 @@ use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedding::{
-        openai::{OpenAIConfig, OpenAiEmbedder},
-        Embedder,
-    },
+    embedding::Embedder,
     schemas::Document,
     vectorstore::{
         sqlite_vss::{Store as SqliteVectorStore, StoreBuilder},
@@ -30,12 +27,12 @@ impl<E: Embedder + Send + Sync + 'static> VectorStorage for SqliteStorage<E> {
 
     async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder.as_ref())
+            .embedder((*embedder).clone())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
             .build()
-            .await?;
+            .await.map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
         Ok(Self { store, embedder })
     }

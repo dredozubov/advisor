@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document};
-use qdrant_client::{qdrant::QdrantConfig, Qdrant};
+use qdrant_client::{config::QdrantConfig, Qdrant};
 use std::sync::Arc;
 
 use super::{DocumentMetadata, MetadataFilter, VectorStorage};
@@ -26,7 +26,10 @@ impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
         let client = Qdrant::new(qdrant_config)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
 
-        Ok(Self { client, embedder })
+        Ok(Self { 
+            client, 
+            embedder: embedder.as_ref().clone() 
+        })
     }
 
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
