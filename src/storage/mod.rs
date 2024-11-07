@@ -52,5 +52,5 @@ pub mod qdrant;
 pub mod sqlite;
 
 // Re-export storage implementations
-pub use self::qdrant::{QdrantConfig, QdrantStorage};
+pub use self::qdrant::{QdrantStoreConfig, QdrantStorage}; 
 pub use self::sqlite::{SqliteConfig, SqliteStorage};
