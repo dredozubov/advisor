@@ -1,10 +1,10 @@
 use crate::edgar::report;
 use anyhow::Result;
 use async_trait::async_trait;
-use std::sync::Arc;
 use langchain_rust::embedding::Embedder;
 use langchain_rust::schemas::Document;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Metadata associated with stored documents
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ pub trait VectorStorage {
     type Config;
 
     /// Initialize the storage backend with implementation-specific configuration
-    async fn new(config: Self::Config, embedder: Arc<impl Embedder>) -> Result<Self>
+    async fn new<E: Embedder>(config: Self::Config, embedder: Arc<E>) -> Result<Self>
     where
         Self: Sized;
 

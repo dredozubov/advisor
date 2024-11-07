@@ -18,17 +18,17 @@ pub struct QdrantStorage<E> {
 }
 
 #[async_trait]
-impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
+impl VectorStorage for QdrantStorage<E> {
     type Config = QdrantStoreConfig;
 
-    async fn new(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
+    async fn new<E: Embedder>(config: Self::Config, embedder: Arc<E>) -> Result<Self> {
         let qdrant_config = QdrantConfig::from_url(&config.uri);
         let client = Qdrant::new(qdrant_config)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
 
-        Ok(Self { 
-            client, 
-            embedder: embedder.as_ref().clone() 
+        Ok(Self {
+            client,
+            embedder: embedder.clone(),
         })
     }
 
