@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use langchain_rust::{
     embedding::openai::OpenAiEmbedder,
     schemas::Document,
-    store::{Store, StoreOptions},
+    vectorstore::{sqlite::SqliteStore, Store, StoreOptions},
 };
 use std::sync::Arc;
 
@@ -14,7 +14,8 @@ pub struct SqliteConfig {
 }
 
 pub struct SqliteStorage {
-    store: Arc<Store>,
+    client: Arc<qdrant_client::Qdrant>,
+    embedder: Arc<OpenAiEmbedder>,
 }
 
 #[async_trait]
@@ -23,9 +24,9 @@ impl VectorStorage for SqliteStorage {
 
     async fn new(config: Self::Config) -> Result<Self> {
         let embedder = OpenAiEmbedder::default();
-        let store = Store::new()
+        let store = SqliteStore::new()
             .with_embedder(embedder)
-            .with_sqlite(&config.path)
+            .with_path(&config.path)
             .with_dimensions(1536)
             .build()
             .await?;
