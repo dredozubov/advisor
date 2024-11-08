@@ -54,16 +54,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             )
             .await?,
         ),
-        "qdrant" => Box::new(
-            QdrantStorage::new(
-                QdrantStoreConfig {
-                    uri: opt.qdrant_uri,
-                    collection_name: opt.qdrant_collection,
-                },
-                embedder.clone(),
+        "qdrant" => {
+            if opt.qdrant_uri.is_empty() {
+                return Err("Qdrant URI must be provided when using qdrant storage".into());
+            }
+            if opt.qdrant_collection.is_empty() {
+                return Err("Qdrant collection name must be provided when using qdrant storage".into());
+            }
+            Box::new(
+                QdrantStorage::new(
+                    QdrantStoreConfig {
+                        uri: opt.qdrant_uri,
+                        collection_name: opt.qdrant_collection,
+                    },
+                    embedder.clone(),
+                )
+                .await?,
             )
-            .await?,
-        ),
+        }
         _ => return Err("Unsupported storage backend. Use 'sqlite' or 'qdrant'".into()),
     };
 
