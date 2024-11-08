@@ -18,7 +18,7 @@ pub struct QdrantStorage<E> {
 }
 
 #[async_trait]
-impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
+impl<E: Embedder + Send + Sync + Clone + 'static> VectorStorage for QdrantStorage<E> {
     type Config = QdrantStoreConfig;
     type Embedder = E;
 
