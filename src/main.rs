@@ -44,9 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ;
 
     // Initialize vector storage based on command line option
-    let storage: Box<
-        dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>,
-    > = match opt.storage.as_str() {
+    let storage: Box<dyn VectorStorage<Embedder = Arc<OpenAiEmbedder<OpenAIConfig>>>> = match opt.storage.as_str() {
         "sqlite" => Box::new(
             SqliteStorage::new(
                 SqliteConfig {

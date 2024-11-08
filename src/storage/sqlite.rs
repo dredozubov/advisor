@@ -24,7 +24,7 @@ pub struct SqliteStorage<E> {
 #[async_trait]
 impl<E: Embedder + Send + Clone + Sync + 'static> VectorStorage for SqliteStorage<E> {
     type Config = SqliteConfig;
-    type Embedder = E;
+    type Embedder = Arc<E>;
 
     async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
         let e = (*embedder).clone();
