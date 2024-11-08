@@ -1,14 +1,32 @@
 use advisor::{
     edgar::filing,
     eval, repl,
-    storage::{SqliteConfig, SqliteStorage, VectorStorage},
+    storage::{QdrantStoreConfig, QdrantStorage, SqliteConfig, SqliteStorage, VectorStorage},
     utils::dirs,
 };
+use std::str::FromStr;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, sync::Arc};
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "advisor", about = "AI-powered financial document analysis")]
+struct Opt {
+    /// Vector storage backend to use (sqlite or qdrant)
+    #[structopt(short, long, default_value = "sqlite")]
+    storage: String,
+
+    /// Qdrant server URI (only used if storage=qdrant)
+    #[structopt(long, default_value = "http://localhost:6334")]
+    qdrant_uri: String,
+
+    /// Qdrant collection name (only used if storage=qdrant) 
+    #[structopt(long, default_value = "advisor")]
+    qdrant_collection: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -16,6 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
+    let opt = Opt::from_args();
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
 
     // Initialize OpenAI embedder
@@ -24,14 +43,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())),
     );
 
-    // Initialize SQLite vector storage
-    let storage = SqliteStorage::new(
-        SqliteConfig {
-            path: "sqlite://data/vectors.db".to_string(),
-        },
-        embedder,
-    )
-    .await?;
+    // Initialize vector storage based on command line option
+    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder>> = match opt.storage.as_str() {
+        "sqlite" => Box::new(
+            SqliteStorage::new(
+                SqliteConfig {
+                    path: "sqlite://data/vectors.db".to_string(),
+                },
+                embedder.clone(),
+            )
+            .await?,
+        ),
+        "qdrant" => Box::new(
+            QdrantStorage::new(
+                QdrantStoreConfig {
+                    uri: opt.qdrant_uri,
+                    collection_name: opt.qdrant_collection,
+                },
+                embedder.clone(),
+            )
+            .await?,
+        ),
+        _ => return Err("Unsupported storage backend. Use 'sqlite' or 'qdrant'".into()),
+    };
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
