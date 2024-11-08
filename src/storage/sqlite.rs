@@ -19,7 +19,7 @@ pub struct SqliteConfig {
 
 pub struct SqliteStorage {
     store: SqliteVectorStore,
-    embedder: Box<dyn Embedder>,
+    embedder: Arc<dyn Embedder>,
 }
 
 #[async_trait]
