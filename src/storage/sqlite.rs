@@ -28,7 +28,7 @@ impl<E: Embedder + Send + Clone + Sync + 'static> VectorStorage for SqliteStorag
 
     async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(Arc::clone(&embedder))
+            .embedder(embedder.as_ref().clone())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
