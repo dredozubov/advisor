@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,26 +11,27 @@ use langchain_rust::{
         VecStoreOptions, VectorStore,
     },
 };
-use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SqliteConfig {
     pub path: String,
 }
 
-pub struct SqliteStorage<E> {
+pub struct SqliteStorage {
     store: SqliteVectorStore,
-    embedder: Arc<E>,
+    embedder: Box<dyn Embedder>,
 }
 
 #[async_trait]
-impl<E: Embedder + Send + Clone + Sync + 'static> VectorStorage for SqliteStorage<E> {
+impl VectorStorage for SqliteStorage
+where
+    dyn Embedder: Clone,
+{
     type Config = SqliteConfig;
-    type Embedder = E;
 
-    async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: Arc<dyn Embedder>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder.as_ref().clone())
+            .embedder(embedder.as_ref())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
