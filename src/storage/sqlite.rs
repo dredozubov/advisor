@@ -23,10 +23,7 @@ pub struct SqliteStorage {
 }
 
 #[async_trait]
-impl VectorStorage for SqliteStorage
-where
-    dyn Embedder: Clone,
-{
+impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config, embedder: Arc<dyn Embedder>) -> Result<Self> {
