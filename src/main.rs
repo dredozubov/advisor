@@ -1,15 +1,14 @@
 use advisor::{
     edgar::filing,
-    eval,
-    repl,
-    storage::{SqliteStorage, SqliteConfig, VectorStorage},
-    utils::dirs
+    eval, repl,
+    storage::{SqliteConfig, SqliteStorage, VectorStorage},
+    utils::dirs,
 };
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
-use std::error::Error;
 use std::{env, fs};
+use std::{error::Error, sync::Arc};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -17,9 +16,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
+    let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+
     // Initialize OpenAI embedder
-    let embedder = Arc::new(langchain_rust::embedding::openai::OpenAIEmbedder::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())));
+    let embedder = Arc::new(
+        langchain_rust::embedding::openai::OpenAiEmbedder::default()
+            .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())),
+    );
 
     // Initialize SQLite vector storage
     let storage = SqliteStorage::new(
@@ -27,7 +30,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             path: "sqlite://data/vectors.db".to_string(),
         },
         embedder,
-    ).await?;
+    )
+    .await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
@@ -35,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize ChatGPT executor with API key from environment
     log::debug!("Initializing OpenAI client");
-    let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+
     let open_ai = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
