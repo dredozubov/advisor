@@ -38,44 +38,43 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
 
     // Initialize OpenAI embedder
-    let embedder = 
-        langchain_rust::embedding::openai::OpenAiEmbedder::default()
-            .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())),
-    ;
+    let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
+        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize vector storage based on command line option
-    let storage: Box<dyn VectorStorage<Embedder = Arc<OpenAiEmbedder<OpenAIConfig>>>> = match opt.storage.as_str() {
-        "sqlite" => Box::new(
-            SqliteStorage::new(
-                SqliteConfig {
-                    path: "sqlite://data/vectors.db".to_string(),
-                },
-                Arc::new(embedder),
-            )
-            .await?,
-        ),
-        "qdrant" => {
-            if opt.qdrant_uri.is_empty() {
-                return Err("Qdrant URI must be provided when using qdrant storage".into());
-            }
-            if opt.qdrant_collection.is_empty() {
-                return Err(
-                    "Qdrant collection name must be provided when using qdrant storage".into(),
-                );
-            }
-            Box::new(
-                QdrantStorage::new(
-                    QdrantStoreConfig {
-                        uri: opt.qdrant_uri,
-                        collection_name: opt.qdrant_collection,
+    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>>> =
+        match opt.storage.as_str() {
+            "sqlite" => Box::new(
+                SqliteStorage::new(
+                    SqliteConfig {
+                        path: "sqlite://data/vectors.db".to_string(),
                     },
                     Arc::new(embedder),
                 )
                 .await?,
-            )
-        }
-        _ => return Err("Unsupported storage backend. Use 'sqlite' or 'qdrant'".into()),
-    };
+            ),
+            "qdrant" => {
+                if opt.qdrant_uri.is_empty() {
+                    return Err("Qdrant URI must be provided when using qdrant storage".into());
+                }
+                if opt.qdrant_collection.is_empty() {
+                    return Err(
+                        "Qdrant collection name must be provided when using qdrant storage".into(),
+                    );
+                }
+                Box::new(
+                    QdrantStorage::new(
+                        QdrantStoreConfig {
+                            uri: opt.qdrant_uri,
+                            collection_name: opt.qdrant_collection,
+                        },
+                        Arc::new(embedder),
+                    )
+                    .await?,
+                )
+            }
+            _ => return Err("Unsupported storage backend. Use 'sqlite' or 'qdrant'".into()),
+        };
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
