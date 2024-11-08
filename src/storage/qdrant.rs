@@ -29,7 +29,7 @@ impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
 
         Ok(Self {
             client,
-            embedder: embedder.clone(),
+            embedder: Arc::clone(&embedder),
         })
     }
 

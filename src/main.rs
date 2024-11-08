@@ -1,7 +1,7 @@
 use advisor::{
     edgar::filing,
     eval, repl,
-    storage::{QdrantStoreConfig, QdrantStorage, SqliteConfig, SqliteStorage, VectorStorage},
+    storage::{QdrantStorage, QdrantStoreConfig, SqliteConfig, SqliteStorage, VectorStorage},
     utils::dirs,
 };
 use langchain_rust::embedding::openai::OpenAiEmbedder;
@@ -23,7 +23,7 @@ struct Opt {
     #[structopt(long, default_value = "http://localhost:6334")]
     qdrant_uri: String,
 
-    /// Qdrant collection name (only used if storage=qdrant) 
+    /// Qdrant collection name (only used if storage=qdrant)
     #[structopt(long, default_value = "advisor")]
     qdrant_collection: String,
 }
@@ -38,19 +38,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
 
     // Initialize OpenAI embedder
-    let embedder = Arc::new(
+    let embedder = 
         langchain_rust::embedding::openai::OpenAiEmbedder::default()
             .with_config(OpenAIConfig::default().with_api_key(openai_key.clone())),
-    );
+    ;
 
     // Initialize vector storage based on command line option
-    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>> = match opt.storage.as_str() {
+    let storage: Box<
+        dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>,
+    > = match opt.storage.as_str() {
         "sqlite" => Box::new(
             SqliteStorage::new(
                 SqliteConfig {
                     path: "sqlite://data/vectors.db".to_string(),
                 },
-                embedder.clone(),
+                Arc::new(embedder),
             )
             .await?,
         ),
@@ -59,7 +61,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 return Err("Qdrant URI must be provided when using qdrant storage".into());
             }
             if opt.qdrant_collection.is_empty() {
-                return Err("Qdrant collection name must be provided when using qdrant storage".into());
+                return Err(
+                    "Qdrant collection name must be provided when using qdrant storage".into(),
+                );
             }
             Box::new(
                 QdrantStorage::new(
@@ -67,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         uri: opt.qdrant_uri,
                         collection_name: opt.qdrant_collection,
                     },
-                    embedder.clone(),
+                    Arc::new(embedder),
                 )
                 .await?,
             )
