@@ -31,7 +31,7 @@ where
 
     async fn new(config: Self::Config, embedder: Arc<dyn Embedder>) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder.as_ref())
+            .embedder(embedder)
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)
