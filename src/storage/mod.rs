@@ -33,7 +33,7 @@ pub trait VectorStorage {
     type Config;
 
     /// The embedder type required by this storage implementation
-    type Embedder: Embedder;
+    type Embedder: Embedder + Clone;
 
     /// Initialize the storage backend with implementation-specific configuration
     async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self>

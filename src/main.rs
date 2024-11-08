@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize vector storage based on command line option
-    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>>> =
+    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>> =
         match opt.storage.as_str() {
             "sqlite" => Box::new(
                 SqliteStorage::new(
