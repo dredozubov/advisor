@@ -4,7 +4,7 @@ use advisor::{
     storage::{QdrantStoreConfig, QdrantStorage, SqliteConfig, SqliteStorage, VectorStorage},
     utils::dirs,
 };
-use std::str::FromStr;
+use langchain_rust::embedding::openai::OpenAiEmbedder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Initialize vector storage based on command line option
-    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder>> = match opt.storage.as_str() {
+    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>> = match opt.storage.as_str() {
         "sqlite" => Box::new(
             SqliteStorage::new(
                 SqliteConfig {

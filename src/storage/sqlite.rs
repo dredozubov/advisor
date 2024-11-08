@@ -22,7 +22,7 @@ pub struct SqliteStorage<E> {
 }
 
 #[async_trait]
-impl<E: Embedder + Send + Clone + Copy + Sync + 'static> VectorStorage for SqliteStorage<E> {
+impl<E: Embedder + Send + Clone + Sync + 'static> VectorStorage for SqliteStorage<E> {
     type Config = SqliteConfig;
     type Embedder = E;
 
