@@ -20,7 +20,7 @@ pub struct QdrantStorage<E> {
 #[async_trait]
 impl<E: Embedder + Send + Sync + 'static> VectorStorage for QdrantStorage<E> {
     type Config = QdrantStoreConfig;
-    type Embedder = Arc<E>;
+    type Embedder = E;
 
     async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
         let qdrant_config = QdrantConfig::from_url(&config.uri);
