@@ -1,10 +1,11 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document};
 use qdrant_client::{config::QdrantConfig, Qdrant};
-use std::sync::Arc;
 
-use super::{DocumentMetadata, MetadataFilter, VectorStorage};
+use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage};
 
 #[derive(Debug, Clone)]
 pub struct QdrantStoreConfig {
@@ -12,25 +13,21 @@ pub struct QdrantStoreConfig {
     pub collection_name: String,
 }
 
-pub struct QdrantStorage<E> {
+pub struct QdrantStorage {
     client: Qdrant,
-    embedder: Arc<E>,
+    embedder: EmbedderWrapper,
 }
 
 #[async_trait]
-impl<E: Embedder + Send + Sync + Clone + 'static> VectorStorage for QdrantStorage<E> {
+impl VectorStorage for QdrantStorage {
     type Config = QdrantStoreConfig;
-    type Embedder = E;
 
-    async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self> {
         let qdrant_config = QdrantConfig::from_url(&config.uri);
         let client = Qdrant::new(qdrant_config)
             .map_err(|e| anyhow::anyhow!("Failed to create Qdrant client: {}", e))?;
 
-        Ok(Self {
-            client,
-            embedder: Arc::clone(&embedder),
-        })
+        Ok(Self { client, embedder })
     }
 
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {

@@ -12,6 +12,8 @@ use langchain_rust::{
     },
 };
 
+use super::EmbedderWrapper;
+
 #[derive(Debug)]
 pub struct SqliteConfig {
     pub path: String,
@@ -19,16 +21,16 @@ pub struct SqliteConfig {
 
 pub struct SqliteStorage {
     store: SqliteVectorStore,
-    embedder: Arc<dyn Embedder>,
+    embedder: EmbedderWrapper,
 }
 
 #[async_trait]
 impl VectorStorage for SqliteStorage {
     type Config = SqliteConfig;
 
-    async fn new(config: Self::Config, embedder: Arc<dyn Embedder>) -> Result<Self> {
+    async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self> {
         let store = StoreBuilder::new()
-            .embedder(embedder)
+            .embedder(embedder.clone())
             .connection_url(&config.path)
             .table("documents")
             .vector_dimensions(1536)

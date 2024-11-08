@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use crate::edgar::report;
 use anyhow::Result;
 use async_trait::async_trait;
-use langchain_rust::embedding::Embedder;
+use langchain_rust::embedding::openai::OpenAiEmbedder;
+use langchain_rust::embedding::{Embedder, EmbedderError};
+use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::schemas::Document;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 /// Metadata associated with stored documents
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,11 +35,8 @@ pub trait VectorStorage {
     /// Configuration type specific to this storage implementation
     type Config;
 
-    /// The embedder type required by this storage implementation
-    type Embedder: Embedder + Clone;
-
     /// Initialize the storage backend with implementation-specific configuration
-    async fn new(config: Self::Config, embedder: Arc<Self::Embedder>) -> Result<Self>
+    async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self>
     where
         Self: Sized;
 
@@ -51,6 +51,61 @@ pub trait VectorStorage {
 
     /// Get document count
     async fn count(&self) -> Result<u64>;
+}
+
+#[derive(Debug, Clone)]
+pub enum EmbedderWrapper {
+    OpenAiEmbedderWrapper(OpenAiEmbedder<OpenAIConfig>),
+}
+
+impl Embedder for EmbedderWrapper {
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    fn embed_documents<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        documents: &'life1 [String],
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<Output = Result<Vec<Vec<f64>>, EmbedderError>>
+                + ::core::marker::Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        match self {
+            EmbedderWrapper::OpenAiEmbedderWrapper(open_ai_embedder) => {
+                open_ai_embedder.embed_documents(documents)
+            }
+        }
+    }
+
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    fn embed_query<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        text: &'life1 str,
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<Output = Result<Vec<f64>, EmbedderError>>
+                + ::core::marker::Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        match self {
+            EmbedderWrapper::OpenAiEmbedderWrapper(open_ai_embedder) => {
+                open_ai_embedder.embed_query(text)
+            }
+        }
+    }
 }
 
 pub mod qdrant;
