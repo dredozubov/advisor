@@ -1,7 +1,6 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use anyhow;
 use futures::StreamExt;
-use std::sync::Arc;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
@@ -31,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    let opt = Opt::from_args();
+    let _opt = Opt::from_args();
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
 
     // Initialize OpenAI embedder
