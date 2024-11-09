@@ -9,6 +9,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
+use std::collections::HashMap;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -625,7 +626,7 @@ pub async fn extract_complete_submission_filing(
     });
 
     // Convert the metadata to the required HashMap format
-    let metadata_map = metadata.as_object()
+    let metadata_map: HashMap<String, serde_json::Value> = metadata.as_object()
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
