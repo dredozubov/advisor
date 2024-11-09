@@ -599,9 +599,9 @@ pub async fn extract_complete_submission_filing(
     // Extract date and form type from the filepath
     let accession_number = parent_dir
         .parent()
-        .unwrap_or_default()
+        .unwrap_or_else(|| std::path::Path::new(""))
         .file_name()
-        .unwrap_or_default()
+        .unwrap_or_else(|| std::ffi::OsStr::new(""))
         .to_string_lossy();
     
     let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
