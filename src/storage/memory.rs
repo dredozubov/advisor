@@ -12,7 +12,11 @@ pub struct InMemoryStore {
 }
 
 
-impl InMemoryStore {
+impl VectorStore for InMemoryStore {
+    fn is_in_memory(&self) -> bool {
+        true
+    }
+}
     fn new(embedder: Arc<dyn Embedder>) -> Self {
         Self {
             docs: RwLock::new(Vec::new()),

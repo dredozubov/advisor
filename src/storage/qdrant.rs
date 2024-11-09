@@ -7,6 +7,12 @@ use qdrant_client::{config::QdrantConfig, Qdrant};
 
 use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage, VectorStore};
 
+#[async_trait]
+pub trait VectorStore {
+    fn is_in_memory(&self) -> bool;
+    // Other methods...
+}
+
 #[derive(Debug, Clone)]
 pub struct QdrantStoreConfig {
     pub uri: String,

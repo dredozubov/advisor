@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
 use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage, VectorStore};
+
+#[async_trait]
+pub trait VectorStore {
+    fn is_in_memory(&self) -> bool;
+    // Other methods...
+}
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
