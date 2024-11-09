@@ -121,14 +121,18 @@ impl Query {
         Ok(())
     }
 
-    /// Parse a JSON string into a Query object
+    /// Parse a JSON string into a Query object, including both filings and earnings parameters.
     ///
     /// The JSON format should be as follows:
     /// {
     ///   "tickers": ["AAPL", "GOOGL"],
     ///   "start_date": "2024-01-01",
     ///   "end_date": "2024-12-31",
-    ///   "report_types": ["10-K", "10-Q"]
+    ///   "report_types": ["10-K", "10-Q"],
+    ///   "earnings": {
+    ///     "start_date": "2024-01-01",
+    ///     "end_date": "2024-03-31"
+    ///   }
     /// }
     ///
     /// - tickers: An array of stock ticker symbols (strings)

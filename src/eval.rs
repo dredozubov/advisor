@@ -52,7 +52,14 @@ pub async fn eval(
             }
 
             // Process earnings data if requested
-            if let Some(_earnings) = base_query.parameters.get("earnings") {
+            if let Some(earnings) = base_query.parameters.get("earnings") {
+                let start_date = earnings.get("start_date")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
+                let end_date = earnings.get("end_date")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
+
                 match base_query.to_earnings_query() {
                     Ok(earnings_query) => {
                         log::info!(
