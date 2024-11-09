@@ -1,10 +1,10 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
     embedding::Embedder,
     schemas::Document,
     vectorstore::{VecStoreOptions, VectorStore},
 };
+use std::error::Error;
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -66,7 +66,7 @@ impl InMemoryStore {
             if doc.last_accessed.elapsed().unwrap().as_secs() > self.config.cache_ttl_secs {
                 if let Some(evicted) = docs.pop_front() {
                     // Move to disk store
-                    self.disk_store.add_documents(&[evicted.document], &VecStoreOptions::default()).await?;
+                    self.disk_store.add_documents(&[evicted.document], &VecStoreOptions::default()).await.map_err(Box::new)?;
                 }
             } else {
                 break;
@@ -93,10 +93,10 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
-    async fn add_documents(&self, documents: &[Document], options: &VecStoreOptions) -> Result<()> {
+    async fn add_documents(&self, documents: &[Document], options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn Error + Send + Sync + 'static>> {
         // Get embeddings for documents
-        let texts: Vec<String> = documents.iter().map(|d| d.page_content.clone()).collect();
-        let embeddings = self.embedder.embed_texts(&texts).await?;
+        let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
+        let embeddings = self.embedder.as_ref().embed_texts(&texts).await.map_err(Box::new)?;
         
         // Create documents with embeddings
         let mut docs = self.memory_docs.write().unwrap();
@@ -116,9 +116,9 @@ impl VectorStore for InMemoryStore {
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>> {
+    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn Error + Send + Sync + 'static>> {
         // Get query embedding
-        let query_embedding = self.embedder.embed_text(query).await?;
+        let query_embedding = self.embedder.as_ref().embed_text(query).await.map_err(Box::new)?;
         
         // Search both memory and disk
         let memory_results = {
@@ -154,7 +154,7 @@ impl VectorStore for InMemoryStore {
         Ok(all_results.into_iter()
             .take(limit)
             .map(|(score, mut doc)| {
-                doc.score = score;
+                doc.score = score as f64;
                 doc
             })
             .collect())
