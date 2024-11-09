@@ -13,13 +13,13 @@ pub struct QdrantStoreConfig {
     pub collection_name: String,
 }
 
-pub struct QdrantStorage {
+pub struct QdrantStorage: VectorStore {
     client: Qdrant,
     embedder: Arc<dyn Embedder>,
 }
 
 #[async_trait]
-impl VectorStorage for QdrantStorage {
+impl VectorStore for QdrantStorage {
     fn is_ephemeral(&self) -> bool {
         false
     }
