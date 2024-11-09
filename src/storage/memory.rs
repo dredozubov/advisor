@@ -38,6 +38,8 @@ impl VectorStore for InMemoryStore {
         for (doc, embedding) in documents.iter().zip(embeddings.iter()) {
             let mut new_doc = doc.clone();
             new_doc.metadata.insert("embedding".to_string(), serde_json::json!(embedding));
+            log::debug!("Generated embedding for document: {:?}", doc.page_content);
+            log::debug!("Embedding: {:?}", embedding);
             docs.push(new_doc);
         }
         
@@ -47,6 +49,7 @@ impl VectorStore for InMemoryStore {
     async fn similarity_search(&self, query: &str, limit: usize, _options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError>> {
         let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
         let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
+        log::debug!("Query embedding: {:?}", query_embedding);
         
         // Collect all documents and embeddings before processing
         let docs_with_embeddings = {
@@ -65,6 +68,7 @@ impl VectorStore for InMemoryStore {
             let doc_embedding: Vec<f32> = serde_json::from_value(embedding)
                 .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
             let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
+            log::debug!("Similarity score for document '{}': {}", doc.page_content, similarity);
             scored_docs.push((similarity, doc));
         }
         

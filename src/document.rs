@@ -94,5 +94,6 @@ pub async fn store_chunked_document_with_cache(
     fs::create_dir_all(cache_dir)?;
     fs::write(&cache_path, json_content)?;
 
+    log::info!("Stored {} document chunks in vector storage", documents.len());
     Ok(())
 }
