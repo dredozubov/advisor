@@ -87,7 +87,7 @@ pub async fn eval(
                         );
 
                         // Return streaming response
-                        Ok(llm.stream_chat(vec![
+                        return Ok(llm.stream(vec![
                             langchain_rust::schemas::Message::new_system_message(
                                 "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
                             ),
