@@ -645,22 +645,19 @@ pub async fn extract_complete_submission_filing(
     let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
 
     if let Ok(entries) = fs::read_dir(&json_cache_dir) {
-        let has_cached_files = entries
+        let cached_json_files: Vec<_> = entries
             .filter_map(Result::ok)
-            .any(|e| e.path().extension().map_or(false, |ext| ext == "json"));
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+            .collect();
 
-        if has_cached_files {
+        if !cached_json_files.is_empty() {
             log::info!(
                 "Skipping XBRL parsing - cached JSON exists in: {}",
                 json_cache_dir
             );
-            let cached_files: Vec<_> = fs::read_dir(&json_cache_dir)?
-                .filter_map(Result::ok)
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
-                .collect();
 
             let mut filing_documents = HashMap::new();
-            for file in cached_files {
+            for file in cached_json_files {
                 let content = fs::read_to_string(file.path())?;
                 let json_value: serde_json::Value = serde_json::from_str(&content)?;
                 filing_documents.insert(
