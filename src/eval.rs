@@ -19,7 +19,7 @@ pub async fn eval(
     http_client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
-    store: &langchain_rust::vectorstore::sqlite_vss::Store,
+    store: &(dyn VectorStore + Send + Sync),
 ) -> Result<futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>> {
     match extract_query_params(llm, input).await {
         Ok(query_json) => {

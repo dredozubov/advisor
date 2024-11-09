@@ -1,7 +1,7 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use anyhow;
 use futures::StreamExt;
-use langchain_rust::embedding::openai::OpenAiEmbedder;
+use std::sync::Arc;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db_path = std::env::current_dir()?.join("data").join("vectors.db");
     let connection_url = format!("sqlite://{}", db_path.display());
     let disk_store = langchain_rust::vectorstore::sqlite_vss::StoreBuilder::new()
-        .embedder(Arc::new(embedder.clone()))
+        .embedder(Arc::new(embedder))
         .connection_url(&connection_url)
         .table("documents")
         .vector_dimensions(1536)
@@ -50,12 +50,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
-    // Initialize hybrid in-memory/disk vector storage
-    let store = advisor::storage::InMemoryStore::new(
-        Arc::new(embedder),
-        Arc::new(disk_store),
-        None // Use default config
-    );
+    // Initialize in-memory vector storage
+    let store = disk_store;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
