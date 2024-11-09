@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use langchain_rust::vectorstore::{VectorStore, qdrant::Qdrant};
+use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path};

@@ -1,5 +1,5 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
-use langchain_rust::vectorstore::qdrant::{Qdrant, QdrantStoreConfig};
+use langchain_rust::vectorstore::qdrant::{Qdrant, QdrantConfig};
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    let _opt = Opt::from_args();
+    let opt = Opt::from_args();
     let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
 
     // Initialize OpenAI embedder
@@ -38,14 +38,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = Qdrant::new(
-        QdrantStoreConfig {
-            uri: opt.qdrant_uri.clone(),
-            collection_name: opt.qdrant_collection.clone(),
-        },
-        embedder,
-    )
-    .await?;
+    let store = Qdrant::new(QdrantConfig {
+        uri: opt.qdrant_uri.clone(),
+    })?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
