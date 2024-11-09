@@ -14,7 +14,7 @@ pub async fn store_chunked_document_with_cache(
     metadata: HashMap<String, Value>,
     cache_dir: &str,
     cache_filename: &str,
-    store: &dyn VectorStore,
+    store: &dyn VectorStorage,
 ) -> anyhow::Result<()> {
     // Construct the cache path
     let cache_path = format!("{}/{}.json", cache_dir, cache_filename);
