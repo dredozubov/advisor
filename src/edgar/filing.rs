@@ -9,7 +9,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::collections::HashMap;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -626,7 +625,8 @@ pub async fn extract_complete_submission_filing(
     });
 
     // Convert the metadata to the required HashMap format
-    let metadata_map: HashMap<String, serde_json::Value> = metadata.as_object()
+    let metadata_map: HashMap<String, serde_json::Value> = metadata
+        .as_object()
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
@@ -644,14 +644,18 @@ pub async fn extract_complete_submission_filing(
     for (i, chunk) in chunks.iter().enumerate() {
         let mut chunk_metadata = metadata_map.clone();
         chunk_metadata.insert("chunk_index".to_string(), serde_json::json!(i));
-        
+
         let doc = langchain_rust::schemas::Document {
             page_content: chunk.clone(),
             metadata: chunk_metadata,
             score: 0.0,
         };
 
-        store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
+        store
+            .add_documents(
+                &[doc],
+                &langchain_rust::vectorstore::VecStoreOptions::default(),
+            )
             .await
             .map_err(|e| anyhow!("Failed to store filing chunk in vector storage: {}", e))?;
     }
