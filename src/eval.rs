@@ -53,10 +53,12 @@ pub async fn eval(
 
             // Process earnings data if requested
             if let Some(earnings) = base_query.parameters.get("earnings") {
-                let start_date = earnings.get("start_date")
+                let start_date = earnings
+                    .get("start_date")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
-                let end_date = earnings.get("end_date")
+                let end_date = earnings
+                    .get("end_date")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
 
@@ -222,7 +224,6 @@ async fn process_earnings_transcripts(
             transcript.symbol,
             transcript.quarter
         );
-        result
 
         log::info!("Stored transcript in vector storage");
     }
