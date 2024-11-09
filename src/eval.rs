@@ -1,9 +1,9 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
-use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
+use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -210,7 +210,7 @@ async fn process_earnings_transcripts(
         let cache_filename = format!("{}_Q{}", transcript.year, transcript.quarter);
 
         // Store the transcript using the chunking utility with caching
-        let _result = crate::document::store_chunked_document_with_cache(
+        crate::document::store_chunked_document_with_cache(
             transcript.content,
             metadata,
             &cache_dir,
