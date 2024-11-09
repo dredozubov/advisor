@@ -60,11 +60,11 @@ pub async fn eval(
                     serde_json::to_string_pretty(&filings)?,
                     HashMap::new(), // Add any relevant metadata here
                     "data/edgar/parsed",
-                    &format!("{}_{}", filings.report_type, filings.filing_date),
+                    &format!("{}_{}", filings["report_type"], filings["filing_date"]),
                     store,
                 )
                 .await?;
-                log::info!("Filing added to vector store: {}_{}", filings.report_type, filings.filing_date);
+                log::info!("Filing added to vector store: {}_{}", filings["report_type"], filings["filing_date"]);
             }
 
             // Process earnings data if requested
