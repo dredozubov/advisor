@@ -94,11 +94,11 @@ mod fake {
 
     #[async_trait]
     impl Embedder for FakeEmbedder {
-        async fn embed_documents(&self, texts: &[String]) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
+        async fn embed_documents(&self, texts: &[String]) -> Result<Vec<Vec<f64>>, langchain_rust::embedding::EmbedderError> {
             Ok(texts.iter().map(|_| vec![0.5, 0.5]).collect())
         }
 
-        async fn embed_query(&self, text: &str) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+        async fn embed_query(&self, _text: &str) -> Result<Vec<f64>, langchain_rust::embedding::EmbedderError> {
             Ok(vec![0.5, 0.5])
         }
     }
