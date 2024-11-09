@@ -31,8 +31,10 @@ pub struct SqliteStorage {
 }
 
 #[async_trait]
-impl VectorStore for SqliteStorage {
-    fn is_in_memory(&self) -> bool {
+impl VectorStorage for SqliteStorage {
+    fn is_ephemeral(&self) -> bool {
+        false
+    }
         false
     }
     type Config = SqliteConfig;

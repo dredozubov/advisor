@@ -19,8 +19,10 @@ async fn compute_similarity(v1: &[f32], v2: &[f32]) -> f32 {
 }
 
 #[async_trait]
-impl VectorStore for InMemoryStore {
-    async fn is_in_memory(&self) -> bool {
+impl VectorStorage for InMemoryStore {
+    fn is_ephemeral(&self) -> bool {
+        true
+    }
         true
     }
 

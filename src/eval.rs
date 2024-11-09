@@ -19,7 +19,7 @@ pub async fn eval(
     http_client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
-    store: &dyn VectorStore,
+    store: &dyn VectorStorage,
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {

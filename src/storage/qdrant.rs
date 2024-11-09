@@ -8,9 +8,10 @@ use qdrant_client::{config::QdrantConfig, Qdrant};
 use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage, VectorStore};
 
 #[async_trait]
-pub trait VectorStore {
-    fn is_in_memory(&self) -> bool;
-    // Other methods...
+#[async_trait]
+pub trait VectorStorage {
+    fn is_ephemeral(&self) -> bool;
+    // Other methods from VectorStore...
 }
 
 #[derive(Debug, Clone)]
@@ -25,8 +26,10 @@ pub struct QdrantStorage {
 }
 
 #[async_trait]
-impl VectorStore for QdrantStorage {
-    fn is_in_memory(&self) -> bool {
+impl VectorStorage for QdrantStorage {
+    fn is_ephemeral(&self) -> bool {
+        false
+    }
         false
     }
     type Config = QdrantStoreConfig;
