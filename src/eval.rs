@@ -53,11 +53,11 @@ pub async fn eval(
 
             // Process earnings data if requested
             if let Some(earnings) = base_query.parameters.get("earnings") {
-                let start_date = earnings
+                let _start_date = earnings
                     .get("start_date")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
-                let end_date = earnings
+                let _end_date = earnings
                     .get("end_date")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
@@ -210,7 +210,7 @@ async fn process_earnings_transcripts(
         let cache_filename = format!("{}_Q{}", transcript.year, transcript.quarter);
 
         // Store the transcript using the chunking utility with caching
-        let result = crate::document::store_chunked_document_with_cache(
+        let _result = crate::document::store_chunked_document_with_cache(
             transcript.content,
             metadata,
             &cache_dir,

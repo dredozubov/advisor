@@ -686,7 +686,7 @@ pub async fn extract_complete_submission_filing(
         .unwrap_or_default();
 
     // Store the JSON facts using the chunking utility with caching
-    let result = crate::document::store_chunked_document_with_cache(
+    let _result = crate::document::store_chunked_document_with_cache(
         json_facts.to_string(),
         metadata_map,
         &json_cache_dir,
