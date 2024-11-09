@@ -23,8 +23,6 @@ impl VectorStorage for InMemoryStore {
     fn is_ephemeral(&self) -> bool {
         true
     }
-        true
-    }
 
     async fn add_documents(
         &self,
