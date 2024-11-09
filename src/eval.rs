@@ -1,16 +1,16 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
-use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
+use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
+    language_models::llm::LLM,
     llm::{OpenAI, OpenAIConfig},
     message_formatter, prompt_args,
     schemas::Message,
-    language_models::llm::LLM,
 };
 use std::collections::HashMap;
 
@@ -20,11 +20,13 @@ pub async fn eval(
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
     store: &dyn VectorStore,
-) -> Result<futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>> {
+) -> Result<
+    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
+> {
     match extract_query_params(llm, input).await {
         Ok(query_json) => {
             // Step 1: Extract date ranges and report types using Anthropic LLM
-            println!("{:?}", query_json);
+            log::info!("Extracted query: {}", query_json);
 
             // Parse into our new high-level Query type
             let base_query: Query = serde_json::from_str(&query_json)?;
@@ -65,19 +67,29 @@ pub async fn eval(
                         )
                         .await?;
                         process_earnings_transcripts(transcripts, store).await?;
-                        
+
                         // Perform similarity search
-                        let similar_docs = store.similarity_search(
-                            input,
-                            5,  // Get top 5 most similar documents
-                            &langchain_rust::vectorstore::VecStoreOptions::default()
-                        ).await.map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+                        let similar_docs = store
+                            .similarity_search(
+                                input,
+                                5, // Get top 5 most similar documents
+                                &langchain_rust::vectorstore::VecStoreOptions::default(),
+                            )
+                            .await
+                            .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+                        log::debug!("Similar search returned: {:?}", similar_docs);
 
                         // Format documents for LLM context
-                        let context = similar_docs.iter()
-                            .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
+                        let context = similar_docs
+                            .iter()
+                            .map(|doc| {
+                                format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n\n");
+
+                        log::debug!("LLM context: {:?}", context);
 
                         // Create prompt with context
                         let prompt = format!(
@@ -93,9 +105,13 @@ pub async fn eval(
                             ),
                             langchain_rust::schemas::Message::new_human_message(&prompt)
                         ];
-                        
+
                         let stream = llm.stream(&messages).await?;
-                        return Ok(Box::pin(stream.map(|r| r.map(|s| s.content).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))));
+                        return Ok(Box::pin(stream.map(|r| {
+                            r.map(|s| s.content).map_err(|e| {
+                                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                            })
+                        })));
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
@@ -165,7 +181,7 @@ async fn process_earnings_transcripts(
             transcript.symbol,
             transcript.date
         );
-        
+
         // Create document for vector storage
         let metadata_json = serde_json::json!({
             "symbol": transcript.symbol,
@@ -174,8 +190,9 @@ async fn process_earnings_transcripts(
             "date": transcript.date,
             "type": "earnings_transcript"
         });
-        
-        let metadata = metadata_json.as_object()
+
+        let metadata = metadata_json
+            .as_object()
             .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
@@ -190,7 +207,8 @@ async fn process_earnings_transcripts(
             &cache_dir,
             &cache_filename,
             store,
-        ).await?;
+        )
+        .await?;
 
         log::info!("Stored transcript in vector storage");
     }
