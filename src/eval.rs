@@ -1,9 +1,9 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
+use crate::storage::VectorStorage;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
-use crate::storage::VectorStorage;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -130,7 +130,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &(dyn VectorStore + Send + Sync),
+    store: &(dyn VectorStorage + Send + Sync),
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
@@ -173,7 +173,7 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<earnings::Transcript>,
-    store: &(dyn VectorStore + Send + Sync),
+    store: &(dyn VectorStorage + Send + Sync),
 ) -> Result<()> {
     for transcript in transcripts {
         log::info!(

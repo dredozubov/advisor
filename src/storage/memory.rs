@@ -1,18 +1,25 @@
-use crate::storage::VectorStorage;
-
-#[async_trait::async_trait]
-impl VectorStorage for InMemoryStore {
-    fn is_ephemeral(&self) -> bool {
-        true
-    }
-}
 use async_trait::async_trait;
-use langchain_rust::{embedding::Embedder, schemas::Document, vectorstore::VecStoreOptions};
+use langchain_rust::{
+    embedding::Embedder,
+    schemas::Document,
+    vectorstore::{VecStoreOptions, VectorStore},
+};
 use std::error::Error as StdError;
 use std::sync::{Arc, RwLock};
+
+use super::VectorStorage;
 pub struct InMemoryStore {
     docs: RwLock<Vec<Document>>,
     embedder: Arc<dyn Embedder>,
+}
+
+impl InMemoryStore {
+    pub fn new(embedder: Arc<dyn Embedder>) -> Self {
+        InMemoryStore {
+            docs: RwLock::new(Vec::new()),
+            embedder,
+        }
+    }
 }
 
 async fn compute_similarity(v1: &[f32], v2: &[f32]) -> f32 {
@@ -23,11 +30,7 @@ async fn compute_similarity(v1: &[f32], v2: &[f32]) -> f32 {
 }
 
 #[async_trait]
-impl VectorStorage for InMemoryStore {
-    fn is_ephemeral(&self) -> bool {
-        true
-    }
-
+impl VectorStore for InMemoryStore {
     async fn add_documents(
         &self,
         documents: &[Document],
@@ -77,7 +80,7 @@ impl VectorStorage for InMemoryStore {
         for (doc, embedding) in docs_with_embeddings {
             let doc_embedding: Vec<f32> =
                 serde_json::from_value(embedding).map_err(|e| Box::new(e) as Box<dyn StdError>)?;
-            let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
+            let similarity = compute_similarity(&query_embedding, &doc_embedding).await;
             log::debug!(
                 "Similarity score for document '{}': {}",
                 doc.page_content,
@@ -95,6 +98,12 @@ impl VectorStorage for InMemoryStore {
                 doc
             })
             .collect())
+    }
+}
+
+impl VectorStorage for InMemoryStore {
+    fn is_ephemeral(&self) -> bool {
+        true
     }
 }
 

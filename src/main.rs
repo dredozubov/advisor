@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = Arc::new(advisor::storage::memory::InMemoryStore::new(Arc::new(embedder)));
+    let store = Arc::new(advisor::storage::memory::InMemoryStore::new(Arc::new(
+        embedder,
+    )));
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
@@ -82,7 +84,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &open_ai, &mut thread_id, store.as_ref()).await {
+                match eval::eval(
+                    input,
+                    &http_client,
+                    &open_ai,
+                    &mut thread_id,
+                    store.as_ref(),
+                )
+                .await
+                {
                     Ok(mut stream) => {
                         while let Some(chunk) = stream.next().await {
                             match chunk {

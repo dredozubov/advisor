@@ -3,6 +3,7 @@ use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use langchain_rust::vectorstore::qdrant::Store;
 use log::{error, info, warn};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
@@ -13,6 +14,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
+use crate::storage::VectorStorage;
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
@@ -587,15 +589,18 @@ pub async fn fetch_matching_filings(
 
 pub async fn extract_complete_submission_filing(
     filepath: &str,
-    store: &dyn langchain_rust::vectorstore::VectorStore,
+    store: &dyn VectorStorage,
 ) -> Result<HashMap<String, serde_json::Value>> {
-    log::info!("Starting extract_complete_submission_filing for file: {}", filepath);
+    log::info!(
+        "Starting extract_complete_submission_filing for file: {}",
+        filepath
+    );
 
     // Construct the path for the cached JSON file
     let path = std::path::Path::new(filepath);
     let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let parent_dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
-    
+
     // Extract date and form type from the filepath
     let accession_number = parent_dir
         .parent()
@@ -603,26 +608,26 @@ pub async fn extract_complete_submission_filing(
         .file_name()
         .unwrap_or_else(|| std::ffi::OsStr::new(""))
         .to_string_lossy();
-    
+
     let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
     fs::create_dir_all(&json_cache_dir)?;
-    
+
     // Use the original filename but with .json extension
     let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
-    
+
     // Check if we already have parsed JSON
     if let Ok(metadata) = fs::metadata(&json_cache_path) {
         if metadata.is_file() {
             log::info!("Found cached JSON file: {}", json_cache_path);
             let cached_content = fs::read_to_string(&json_cache_path)?;
-            let cached_facts: HashMap<String, serde_json::Value> = 
+            let cached_facts: HashMap<String, serde_json::Value> =
                 serde_json::from_str(&cached_content)?;
             return Ok(cached_facts);
         }
     }
 
     log::info!("No cached JSON found, parsing XBRL file");
-    
+
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
     let raw_text = fs::read(filepath)?;
@@ -638,12 +643,12 @@ pub async fn extract_complete_submission_filing(
 
     // Check for existing parsed JSON
     let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
-    
+
     if let Ok(entries) = fs::read_dir(&json_cache_dir) {
-        let has_cached_files = entries.filter_map(Result::ok).any(|e| {
-            e.path().extension().map_or(false, |ext| ext == "json")
-        });
-        
+        let has_cached_files = entries
+            .filter_map(Result::ok)
+            .any(|e| e.path().extension().map_or(false, |ext| ext == "json"));
+
         if has_cached_files {
             log::info!(
                 "Skipping XBRL parsing - cached JSON exists in: {}",
@@ -653,14 +658,18 @@ pub async fn extract_complete_submission_filing(
                 .filter_map(Result::ok)
                 .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
                 .collect();
-            
+
             let mut filing_documents = HashMap::new();
             for file in cached_files {
                 let content = fs::read_to_string(file.path())?;
                 let json_value: serde_json::Value = serde_json::from_str(&content)?;
                 filing_documents.insert(
-                    file.path().file_stem().unwrap().to_string_lossy().to_string(),
-                    json_value
+                    file.path()
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string(),
+                    json_value,
                 );
             }
             return Ok(filing_documents);
@@ -702,7 +711,8 @@ pub async fn extract_complete_submission_filing(
         &json_cache_dir,
         &file_stem,
         store,
-    ).await?;
+    )
+    .await?;
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)

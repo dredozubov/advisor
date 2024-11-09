@@ -1,9 +1,6 @@
-use anyhow::anyhow;
-use langchain_rust::{
-    schemas::Document,
-    vectorstore::{VecStoreOptions},
-};
 use crate::storage::VectorStorage;
+use anyhow::anyhow;
+use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path};
 
@@ -68,7 +65,7 @@ pub async fn store_chunked_document_with_cache(
     );
 
     // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
-    if !store.is_in_memory() {
+    if !(*store).is_ephemeral() {
         log::info!("Checking if document already exists in persistent vector store");
 
         // Perform a similarity search to check if the document is already stored
