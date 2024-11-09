@@ -712,7 +712,6 @@ pub async fn extract_complete_submission_filing(
     .await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
-    result
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
