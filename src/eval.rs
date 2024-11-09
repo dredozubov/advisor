@@ -179,16 +179,12 @@ async fn process_earnings_transcripts(
             .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
-        let doc = langchain_rust::schemas::Document {
-            page_content: transcript.content,
-            metadata: metadata,
-            score: 0.0, // Default score since it's required
-        };
-
-        // Store the document in vector storage
-        store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
-            .await
-            .map_err(|e| anyhow!("Failed to store transcript in vector storage: {}", e))?;
+        // Store the transcript using the chunking utility
+        crate::document::store_chunked_document(
+            transcript.content,
+            metadata,
+            store,
+        ).await?;
 
         log::info!("Stored transcript in vector storage");
     }
