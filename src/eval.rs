@@ -29,10 +29,14 @@ pub async fn eval(
             log::info!("Extracted query: {}", query_json);
 
             // Parse into our new high-level Query type
+            log::debug!("Parsing query JSON: {}", query_json);
             let base_query: Query = serde_json::from_str(&query_json)?;
+            log::debug!("Parsed base query: {:?}", base_query);
 
             // Process EDGAR filings if requested
+            log::debug!("Checking if filings data is requested");
             if let Some(_filings) = base_query.parameters.get("filings") {
+                log::debug!("Filings data is requested");
                 if let Some(_filings) = base_query.parameters.get("filings") {
                     match base_query.to_edgar_query() {
                         Ok(edgar_query) => {
@@ -52,7 +56,9 @@ pub async fn eval(
             }
 
             // Process earnings data if requested
+            log::debug!("Checking if earnings data is requested");
             if let Some(earnings) = base_query.parameters.get("earnings") {
+                log::debug!("Earnings data is requested");
                 let _start_date = earnings
                     .get("start_date")
                     .and_then(|v| v.as_str())
@@ -78,6 +84,7 @@ pub async fn eval(
                         process_earnings_transcripts(transcripts, store).await?;
 
                         // Perform similarity search
+                        log::debug!("Performing similarity search for input: {}", input);
                         let similar_docs = store
                             .similarity_search(
                                 input,
@@ -86,6 +93,11 @@ pub async fn eval(
                             )
                             .await
                             .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+                        log::debug!("Similarity search returned {} documents", similar_docs.len());
+                        if similar_docs.is_empty() {
+                            log::warn!("No similar documents found in vector store for input: {}", input);
+                        }
 
                         log::debug!("Similar search returned: {:?}", similar_docs);
 
@@ -115,7 +127,9 @@ pub async fn eval(
                             langchain_rust::schemas::Message::new_human_message(&prompt)
                         ];
 
+                        log::debug!("Sending prompt to LLM: {:?}", messages);
                         let stream = llm.stream(&messages).await?;
+                        log::debug!("LLM stream started successfully");
                         return Ok(Box::pin(stream.map(|r| {
                             r.map(|s| s.content).map_err(|e| {
                                 Box::new(e) as Box<dyn std::error::Error + Send + Sync>
