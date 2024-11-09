@@ -66,7 +66,8 @@ pub async fn store_chunked_document_with_cache(
         identifier
     );
 
-    // Create documents for each chunk
+    // Collect all document chunks
+    let mut documents = Vec::new();
     for (i, chunk) in chunks.iter().enumerate() {
         let mut chunk_metadata = metadata.clone();
         chunk_metadata.insert("chunk_index".to_string(), serde_json::json!(i));
@@ -78,11 +79,14 @@ pub async fn store_chunked_document_with_cache(
             score: 0.0,
         };
 
-        store
-            .add_documents(&[doc], &VecStoreOptions::default())
-            .await
-            .map_err(|e| anyhow!("Failed to store document chunk in vector storage: {}", e))?;
+        documents.push(doc);
     }
+
+    // Send all chunks in a single request
+    store
+        .add_documents(&documents, &VecStoreOptions::default())
+        .await
+        .map_err(|e| anyhow!("Failed to store document chunks in vector storage: {}", e))?;
 
     // Cache the chunked document
     log::info!("Caching chunked document to: {}", cache_path);
