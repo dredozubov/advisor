@@ -5,7 +5,6 @@ use langchain_rust::{
     vectorstore::{VecStoreOptions, VectorStore},
 };
 use std::error::Error as StdError;
-use anyhow::Result;
 use std::sync::{Arc, RwLock};
 
 pub struct InMemoryStore {
@@ -22,23 +21,19 @@ impl InMemoryStore {
     }
 
     async fn compute_similarity(v1: &[f32], v2: &[f32]) -> f32 {
-        // Cosine similarity
         let dot_product: f32 = v1.iter().zip(v2.iter()).map(|(a, b)| a * b).sum();
         let norm1: f32 = v1.iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm2: f32 = v2.iter().map(|x| x * x).sum::<f32>().sqrt();
         dot_product / (norm1 * norm2)
     }
-
 }
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
     async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn StdError>> {
-        // Get embeddings for documents
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
         let embeddings = self.embedder.embed_documents(&texts).await?;
         
-        // Create documents with embeddings
         let mut docs = self.docs.write().unwrap();
         for (doc, embedding) in documents.iter().zip(embeddings.iter()) {
             let mut new_doc = doc.clone();
@@ -46,30 +41,27 @@ impl VectorStore for InMemoryStore {
             docs.push(new_doc);
         }
         
-        Ok(())
+        Ok(texts)
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError>> {
-        // Get query embedding
+    async fn similarity_search(&self, query: &str, limit: usize, _options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError>> {
         let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
         let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
         
-        // Search both memory and disk
-        let memory_results = {
-            let docs = self.docs.read().unwrap();
-            let mut scored_docs: Vec<(f32, Document)> = Vec::new();
-            
-            for doc in docs.iter() {
-                if let Some(embedding) = doc.metadata.get("embedding") {
-                    let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
-                        .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
-                    let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
-                    scored_docs.push((similarity, doc.clone()));
-                }
+        let docs = self.docs.read().unwrap();
+        let mut scored_docs: Vec<(f32, Document)> = Vec::new();
+        
+        for doc in docs.iter() {
+            if let Some(embedding) = doc.metadata.get("embedding") {
+                let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
+                    .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
+                let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
+                scored_docs.push((similarity, doc.clone()));
             }
-            
-            scored_docs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
-            Ok(scored_docs.into_iter()
+        }
+        
+        scored_docs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        Ok(scored_docs.into_iter()
             .take(limit)
             .map(|(score, mut doc)| {
                 doc.score = score as f64;
@@ -77,7 +69,6 @@ impl VectorStore for InMemoryStore {
             })
             .collect())
     }
-
 }
 
 #[cfg(test)]
