@@ -73,7 +73,6 @@ pub async fn fetch_transcript(
         mime::APPLICATION_JSON,
         rate_limiter(),
     )
-    .await?;
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;

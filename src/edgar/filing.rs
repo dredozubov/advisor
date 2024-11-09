@@ -3,6 +3,7 @@ use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use langchain_rust::vectorstore::VectorStore;
 use log::{error, info, warn};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
@@ -645,10 +646,14 @@ pub async fn extract_complete_submission_filing(
     let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
 
     if Path::new(&json_cache_path).exists() {
-        log::info!("Skipping XBRL parsing - cached JSON exists: {}", json_cache_path);
+        log::info!(
+            "Skipping XBRL parsing - cached JSON exists: {}",
+            json_cache_path
+        );
 
         let cached_content = fs::read_to_string(&json_cache_path)?;
-        let cached_facts: HashMap<String, serde_json::Value> = serde_json::from_str(&cached_content)?;
+        let cached_facts: HashMap<String, serde_json::Value> =
+            serde_json::from_str(&cached_content)?;
         return Ok(cached_facts);
     }
 
