@@ -702,7 +702,7 @@ pub async fn extract_complete_submission_filing(
         .unwrap_or_default();
 
     // Store the JSON facts using the chunking utility with caching
-    crate::document::store_chunked_document_with_cache(
+    let result = crate::document::store_chunked_document_with_cache(
         json_facts.to_string(),
         metadata_map,
         &json_cache_dir,
@@ -710,6 +710,9 @@ pub async fn extract_complete_submission_filing(
         store,
     )
     .await?;
+
+    log::info!("Added filing document to vector store: {}", filepath);
+    result
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)

@@ -208,7 +208,7 @@ async fn process_earnings_transcripts(
         let cache_filename = format!("{}_Q{}", transcript.year, transcript.quarter);
 
         // Store the transcript using the chunking utility with caching
-        crate::document::store_chunked_document_with_cache(
+        let result = crate::document::store_chunked_document_with_cache(
             transcript.content,
             metadata,
             &cache_dir,
@@ -216,6 +216,13 @@ async fn process_earnings_transcripts(
             store,
         )
         .await?;
+
+        log::info!(
+            "Added earnings transcript to vector store: {} Q{}",
+            transcript.symbol,
+            transcript.quarter
+        );
+        result
 
         log::info!("Stored transcript in vector storage");
     }
