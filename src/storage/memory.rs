@@ -57,7 +57,7 @@ impl InMemoryStore {
         dot_product / (norm1 * norm2)
     }
 
-    async fn evict_old_documents(&self) -> Result<()> {
+    async fn evict_old_documents(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut docs = self.memory_docs.write().unwrap();
         let now = SystemTime::now();
         
@@ -80,7 +80,7 @@ impl InMemoryStore {
             }
         }
 
-        Ok(())
+        Ok(documents.iter().map(|d| d.page_content.clone()).collect())
     }
 
     async fn update_access_time(&self, doc: &Document) {
@@ -93,10 +93,10 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
-    async fn add_documents(&self, documents: &[Document], options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn Error + Send + Sync + 'static>> {
+    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
         // Get embeddings for documents
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
-        let embeddings = self.embedder.as_ref().embed_texts(&texts).await.map_err(Box::new)?;
+        let embeddings = self.embedder.embed_documents(&texts).await.map_err(Box::new)?;
         
         // Create documents with embeddings
         let mut docs = self.memory_docs.write().unwrap();
@@ -118,7 +118,7 @@ impl VectorStore for InMemoryStore {
 
     async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn Error + Send + Sync + 'static>> {
         // Get query embedding
-        let query_embedding = self.embedder.as_ref().embed_text(query).await.map_err(Box::new)?;
+        let query_embedding = self.embedder.embed_query(query).await.map_err(Box::new)?;
         
         // Search both memory and disk
         let memory_results = {
@@ -142,7 +142,7 @@ impl VectorStore for InMemoryStore {
 
         // Merge and sort results
         let mut all_results: Vec<(f32, Document)> = memory_results;
-        all_results.extend(disk_results.into_iter().map(|doc| (doc.score, doc)));
+        all_results.extend(disk_results.into_iter().map(|doc| (doc.score as f32, doc)));
         all_results.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
 
         // Update access times for returned memory documents
