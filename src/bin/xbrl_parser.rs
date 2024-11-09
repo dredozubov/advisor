@@ -33,14 +33,10 @@ async fn main() -> Result<()> {
         .build()
         .await?;
 
-    match filing::extract_complete_submission_filing(opt.input.to_str().unwrap(), &store).await {
-        Ok(result) => {
-            println!("{}", serde_json::to_string_pretty(&result)?);
-            Ok(())
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            Err(e)
-        }
-    }
+    let result = filing::extract_complete_submission_filing(opt.input.to_str().unwrap(), &store)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to extract filing: {}", e))?;
+    
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
 }
