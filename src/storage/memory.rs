@@ -66,7 +66,7 @@ impl InMemoryStore {
             if doc.last_accessed.elapsed().unwrap().as_secs() > self.config.cache_ttl_secs {
                 if let Some(evicted) = docs.pop_front() {
                     // Move to disk store
-                    self.disk_store.add_documents(&[evicted.document], &VecStoreOptions::default()).await.map_err(Box::new)?;
+                    self.disk_store.add_documents(&[evicted.document], &VecStoreOptions::default()).await?;
                 }
             } else {
                 break;
@@ -80,7 +80,7 @@ impl InMemoryStore {
             }
         }
 
-        Ok(documents.iter().map(|d| d.page_content.clone()).collect())
+        Ok(())
     }
 
     async fn update_access_time(&self, doc: &Document) {
@@ -118,7 +118,7 @@ impl VectorStore for InMemoryStore {
 
     async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn Error + Send + Sync + 'static>> {
         // Get query embedding
-        let query_embedding = self.embedder.embed_query(query).await.map_err(Box::new)?;
+        let query_embedding: Vec<f32> = self.embedder.embed_query(query).await.map_err(Box::new)?;
         
         // Search both memory and disk
         let memory_results = {
@@ -127,7 +127,8 @@ impl VectorStore for InMemoryStore {
             
             for cached_doc in docs.iter() {
                 if let Some(embedding) = cached_doc.document.metadata.get("embedding") {
-                    let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())?;
+                    let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
+                        .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)?;
                     let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
                     scored_docs.push((similarity, cached_doc.document.clone()));
                 }
