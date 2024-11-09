@@ -1,11 +1,12 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use anyhow;
+use futures::StreamExt;
 use langchain_rust::embedding::openai::OpenAiEmbedder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
 use std::{env, fs};
-use std::{error::Error, sync::Arc};
+use std::{error::Error, io::Write};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
