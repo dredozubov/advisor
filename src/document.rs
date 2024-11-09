@@ -1,4 +1,7 @@
 use anyhow::{Result, anyhow};
+use std::collections::HashMap;
+use std::path::Path;
+use std::fs;
 
 
 pub async fn store_chunked_document(
@@ -83,7 +86,7 @@ pub async fn store_chunked_document_with_cache(
     let cache_path = format!("{}/{}.json", cache_dir, cache_filename);
     
     // Check if cached JSON exists
-    if let Ok(cached_content) = fs::read_to_string(&cache_path) {
+    if let Ok(cached_content) = fs::read_to_string(cache_path.as_str()) {
         log::info!("Using cached JSON from: {}", cache_path);
         let cached_facts: HashMap<String, Value> = serde_json::from_str(&cached_content)?;
         return Ok(());
