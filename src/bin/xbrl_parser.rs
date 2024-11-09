@@ -24,10 +24,16 @@ async fn main() -> Result<()> {
     let embedder = OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
-    // Initialize SQLite vector storage
+    // Ensure data directory exists
+    std::fs::create_dir_all("data")?;
+    
+    // Initialize SQLite vector storage with absolute path
+    let db_path = std::env::current_dir()?.join("data").join("vectors.db");
+    let connection_url = format!("sqlite://{}", db_path.display());
+    
     let store = langchain_rust::vectorstore::sqlite_vss::StoreBuilder::new()
         .embedder(embedder)
-        .connection_url("sqlite://data/vectors.db")
+        .connection_url(&connection_url)
         .table("documents")
         .vector_dimensions(1536)
         .build()
