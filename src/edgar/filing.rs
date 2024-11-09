@@ -587,7 +587,7 @@ pub async fn fetch_matching_filings(
 
 pub async fn extract_complete_submission_filing(
     filepath: &str,
-    store: &(dyn langchain_rust::vectorstore::VectorStore + Send + Sync),
+    store: &dyn langchain_rust::vectorstore::VectorStore,
 ) -> Result<HashMap<String, serde_json::Value>> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
