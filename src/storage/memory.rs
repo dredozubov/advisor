@@ -4,8 +4,8 @@ use langchain_rust::{
     schemas::Document,
     vectorstore::{VecStoreOptions, VectorStore},
 };
-use std::error::Error as StdError;
-use anyhow::{Result, Error};
+use std::error::Error;
+use anyhow::{Result, anyhow};
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -94,10 +94,10 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
-    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>> {
+    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
         // Get embeddings for documents
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
-        let embeddings = self.embedder.embed_documents(&texts).await.map_err(Box::new)?;
+        let embeddings = self.embedder.embed_documents(&texts).await?;
         
         // Create documents with embeddings
         let mut docs = self.memory_docs.write().unwrap();
@@ -117,7 +117,7 @@ impl VectorStore for InMemoryStore {
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>> {
+    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn Error + Send + Sync>> {
         // Get query embedding
         let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
         let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
