@@ -146,11 +146,11 @@ async fn process_earnings_transcripts(
         let doc = langchain_rust::schemas::Document {
             page_content: transcript.content,
             metadata: metadata,
-            score: None,
+            score: 0.0, // Default score since it's required
         };
 
         // Store the document in vector storage
-        store.add_documents(vec![doc], None)
+        store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
             .await
             .map_err(|e| anyhow!("Failed to store transcript in vector storage: {}", e))?;
 
