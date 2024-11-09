@@ -6,10 +6,25 @@ use langchain_rust::{
 };
 use std::error::Error as StdError;
 use std::sync::{Arc, RwLock};
+use std::ops::Deref;
 
 pub struct InMemoryStore {
     docs: RwLock<Vec<Document>>,
     embedder: Arc<dyn Embedder>,
+}
+
+#[async_trait]
+impl<T> VectorStore for Arc<T>
+where
+    T: VectorStore + Send + Sync,
+{
+    async fn add_documents(&self, documents: &[Document], options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn StdError>> {
+        self.deref().add_documents(documents, options).await
+    }
+
+    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError>> {
+        self.deref().similarity_search(query, limit, options).await
+    }
 }
 
 impl InMemoryStore {
