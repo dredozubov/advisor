@@ -3,6 +3,8 @@ use crate::edgar::{self, filing};
 use crate::query::Query;
 use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
+use futures::StreamExt;
+use std::io::Write;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -63,6 +65,44 @@ pub async fn eval(
                         )
                         .await?;
                         process_earnings_transcripts(transcripts, store).await?;
+                        
+                        // Perform similarity search
+                        let similar_docs = store.similarity_search(
+                            input,
+                            5,  // Get top 5 most similar documents
+                            &langchain_rust::vectorstore::VecStoreOptions::default()
+                        ).await.map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+                        // Format documents for LLM context
+                        let context = similar_docs.iter()
+                            .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
+                            .collect::<Vec<_>>()
+                            .join("\n\n");
+
+                        // Create prompt with context
+                        let prompt = format!(
+                            "Based on the following earnings call transcripts and financial documents, answer this question: {}\n\nContext:\n{}",
+                            input,
+                            context
+                        );
+
+                        // Stream LLM response
+                        let mut stream = llm.stream_chat(vec![
+                            langchain_rust::schemas::Message::new_system_message(
+                                "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
+                            ),
+                            langchain_rust::schemas::Message::new_human_message(&prompt)
+                        ]).await?;
+
+                        // Print streaming response
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(c) => print!("{}", c),
+                                Err(e) => return Err(anyhow!("Stream error: {}", e)),
+                            }
+                            std::io::stdout().flush()?;
+                        }
+                        println!();  // Add newline after stream ends
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
@@ -70,7 +110,7 @@ pub async fn eval(
                 }
             }
 
-            Ok("OK".to_string())
+            Ok("".to_string())  // Return empty string since we've already printed the response
         }
         Err(e) => {
             log::error!("Failure to create an EDGAR query: {e}");
