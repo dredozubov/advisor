@@ -1,6 +1,6 @@
 use langchain_rust::{schemas::Document, vectorstore::{VectorStore, VecStoreOptions}};
 use anyhow::{Result, anyhow};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 use serde_json::Value;
 
 const CHUNK_SIZE: usize = 4000;  // Characters per chunk, keeping well under token limits
@@ -20,7 +20,27 @@ pub async fn store_chunked_document(
         .map(|c| c.iter().collect::<String>())
         .collect();
     
-    log::info!("Created {} chunks", chunks.len());
+    // Extract document type and identifier from metadata
+    let doc_type = metadata.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+    let identifier = match doc_type {
+        "edgar_filing" => metadata.get("filepath")
+            .and_then(|v| v.as_str())
+            .map(|p| Path::new(p).file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown"))
+            .unwrap_or("unknown"),
+        "earnings_transcript" => metadata.get("symbol")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown"),
+        _ => "unknown"
+    };
+    
+    log::info!(
+        "Created {} chunks for document type '{}' ({})", 
+        chunks.len(),
+        doc_type,
+        identifier
+    );
 
     // Create documents for each chunk
     for (i, chunk) in chunks.iter().enumerate() {
