@@ -7,7 +7,8 @@ use langchain_rust::{
 use std::error::Error as StdError;
 use std::sync::{Arc, RwLock};
 
-use super::VectorStorage;
+use super::vector_storage::VectorStorage;
+
 pub struct InMemoryStore {
     docs: RwLock<Vec<Document>>,
     embedder: Arc<dyn Embedder>,
