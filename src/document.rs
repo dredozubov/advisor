@@ -1,9 +1,5 @@
-use langchain_rust::{schemas::Document, vectorstore::{VectorStore, VecStoreOptions}};
 use anyhow::{Result, anyhow};
-use std::{collections::HashMap, path::Path};
-use serde_json::Value;
 
-const CHUNK_SIZE: usize = 4000;  // Characters per chunk, keeping well under token limits
 
 pub async fn store_chunked_document(
     content: String,
@@ -69,7 +65,6 @@ pub async fn store_chunked_document(
 
     Ok(())
 }
-use std::{collections::HashMap, fs, path::Path};
 use anyhow::{Result, anyhow};
 use langchain_rust::{schemas::Document, vectorstore::{VectorStore, VecStoreOptions}};
 use serde_json::Value;
