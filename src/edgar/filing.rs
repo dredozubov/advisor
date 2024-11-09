@@ -585,8 +585,9 @@ pub async fn fetch_matching_filings(
     Ok(filing_map)
 }
 
-pub fn extract_complete_submission_filing(
+pub async fn extract_complete_submission_filing(
     filepath: &str,
+    store: &langchain_rust::vectorstore::sqlite_vss::Store,
 ) -> Result<HashMap<String, serde_json::Value>> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
@@ -614,7 +615,31 @@ pub fn extract_complete_submission_filing(
 
     // Create filing documents map
     let mut filing_documents = HashMap::new();
-    filing_documents.insert("facts".to_string(), json_facts);
+    filing_documents.insert("facts".to_string(), json_facts.clone());
+
+    // Create metadata for the document
+    let metadata = serde_json::json!({
+        "type": "edgar_filing",
+        "filepath": filepath,
+        "source": "xbrl"
+    });
+
+    // Convert the metadata to the required HashMap format
+    let metadata_map = metadata.as_object()
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+
+    // Create a document with the JSON facts as content
+    let doc = langchain_rust::schemas::Document {
+        page_content: json_facts.to_string(),
+        metadata: metadata_map,
+        score: 0.0,
+    };
+
+    // Store the document in vector storage
+    store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
+        .await
+        .map_err(|e| anyhow!("Failed to store filing in vector storage: {}", e))?;
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)

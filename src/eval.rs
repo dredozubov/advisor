@@ -104,7 +104,7 @@ fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()>
             output_path.parent().unwrap()
         );
 
-        match filing::extract_complete_submission_filing(input_file) {
+        match filing::extract_complete_submission_filing(input_file, store).await {
             Ok(parsed) => {
                 if !output_path.exists() {
                     std::fs::create_dir_all(output_path.parent().unwrap())?;
