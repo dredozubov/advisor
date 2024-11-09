@@ -66,6 +66,22 @@ pub async fn store_chunked_document_with_cache(
         identifier
     );
 
+    // Check if the vector store is persistent (e.g., Qdrant) and if documents already exist
+    if !store.is_in_memory() {
+        log::info!("Checking if document already exists in persistent vector store");
+
+        // Perform a similarity search to check if the document is already stored
+        let existing_docs = store
+            .similarity_search(&identifier, 1, &VecStoreOptions::default())
+            .await
+            .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
+
+        if !existing_docs.is_empty() {
+            log::info!("Document already exists in vector store, skipping embedding");
+            return Ok(());
+        }
+    }
+
     // Collect all document chunks
     let mut documents = Vec::new();
     for (i, chunk) in chunks.iter().enumerate() {

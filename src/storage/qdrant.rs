@@ -30,6 +30,10 @@ impl VectorStorage for QdrantStorage {
         Ok(Self { client, embedder })
     }
 
+    fn is_in_memory(&self) -> bool {
+        false
+    }
+
     async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
         // TODO: Implement document addition for Qdrant
         log::warn!("Document addition not yet implemented for Qdrant storage");
