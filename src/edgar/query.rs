@@ -40,6 +40,7 @@ use super::report;
 ///
 /// Example JSON that can be deserialized:
 /// ```rust
+/// use advisor::edgar::query::Query;
 /// let json_str = r#"{
 ///   "tickers": ["AAPL"],
 ///   "start_date": "2024-01-01",

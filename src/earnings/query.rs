@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Example JSON that can be deserialized:
 /// ```rust
+/// use advisor::earnings::Query;
 /// let json_str = r#"{
 ///   "ticker": "AAPL",
 ///   "start_date": "2024-01-01",
