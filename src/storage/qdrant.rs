@@ -5,14 +5,7 @@ use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document};
 use qdrant_client::{config::QdrantConfig, Qdrant};
 
-use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage, VectorStore};
-
-#[async_trait]
-#[async_trait]
-pub trait VectorStorage {
-    fn is_ephemeral(&self) -> bool;
-    // Other methods from VectorStore...
-}
+use super::{VectorStorage, VectorStore};
 
 #[derive(Debug, Clone)]
 pub struct QdrantStoreConfig {
@@ -22,7 +15,7 @@ pub struct QdrantStoreConfig {
 
 pub struct QdrantStorage {
     client: Qdrant,
-    embedder: EmbedderWrapper,
+    embedder: &dyn Embedder,
 }
 
 #[async_trait]
@@ -30,8 +23,7 @@ impl VectorStorage for QdrantStorage {
     fn is_ephemeral(&self) -> bool {
         false
     }
-        false
-    }
+
     type Config = QdrantStoreConfig;
 
     async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self> {
