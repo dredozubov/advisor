@@ -4,6 +4,7 @@ pub mod eval;
 pub mod query;
 pub mod repl;
 pub mod utils;
+pub mod document;
 
-// Re-export storage module
+// Re-export storage module 
 pub mod storage;
