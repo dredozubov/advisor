@@ -13,6 +13,7 @@ use langchain_rust::{
     schemas::Message,
 };
 use std::collections::HashMap;
+use serde_json::Value;
 
 pub async fn eval(
     input: &str,
@@ -35,7 +36,7 @@ pub async fn eval(
 
             // Process EDGAR filings if requested
             log::debug!("Checking if filings data is requested");
-            if let Some(_filings) = base_query.parameters.get("filings") {
+            if let Some(filings) = base_query.parameters.get("filings") {
                 log::debug!("Filings data is requested");
                 if let Some(_filings) = base_query.parameters.get("filings") {
                     match base_query.to_edgar_query() {
