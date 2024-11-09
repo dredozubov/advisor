@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{
-    embedder::Embedder,
+    embedding::Embedder,
     schemas::Document,
     vectorstore::{VecStoreOptions, VectorStore},
 };
@@ -160,13 +160,6 @@ impl VectorStore for InMemoryStore {
             .collect())
     }
 
-    async fn delete_documents(&self, filter: &str) -> Result<()> {
-        // Delete from both memory and disk
-        let mut docs = self.memory_docs.write().unwrap();
-        docs.retain(|doc| !doc.document.metadata.contains_key(filter));
-        self.disk_store.delete_documents(filter).await?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]
