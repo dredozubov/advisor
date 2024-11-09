@@ -644,33 +644,14 @@ pub async fn extract_complete_submission_filing(
     // Check for existing parsed JSON
     let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
 
-    if let Ok(entries) = fs::read_dir(&json_cache_dir) {
-        let cached_json_files: Vec<_> = entries
-            .filter_map(Result::ok)
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
-            .collect();
+    let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
 
-        if !cached_json_files.is_empty() {
-            log::info!(
-                "Skipping XBRL parsing - cached JSON exists in: {}",
-                json_cache_dir
-            );
+    if Path::new(&json_cache_path).exists() {
+        log::info!("Skipping XBRL parsing - cached JSON exists: {}", json_cache_path);
 
-            let mut filing_documents = HashMap::new();
-            for file in cached_json_files {
-                let content = fs::read_to_string(file.path())?;
-                let json_value: serde_json::Value = serde_json::from_str(&content)?;
-                filing_documents.insert(
-                    file.path()
-                        .file_stem()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string(),
-                    json_value,
-                );
-            }
-            return Ok(filing_documents);
-        }
+        let cached_content = fs::read_to_string(&json_cache_path)?;
+        let cached_facts: HashMap<String, serde_json::Value> = serde_json::from_str(&cached_content)?;
+        return Ok(cached_facts);
     }
 
     // Parse XBRL using the xml module if no cache exists
