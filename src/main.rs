@@ -91,7 +91,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 // Process the input using the eval function
                 match eval::eval(input, &http_client, &open_ai, &mut thread_id, &store).await {
-                    Ok(result) => println!("{}", result),
+                    Ok(mut stream) => {
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(c) => {
+                                    print!("{}", c);
+                                    std::io::stdout().flush()?;
+                                }
+                                Err(e) => {
+                                    eprintln!("\nStream error: {}", e);
+                                    break;
+                                }
+                            }
+                        }
+                        println!(); // Add newline after stream ends
+                    }
                     Err(e) => eprintln!("Error: {}", e),
                 }
             }

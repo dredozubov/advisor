@@ -20,7 +20,7 @@ pub async fn eval(
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
     store: &langchain_rust::vectorstore::sqlite_vss::Store,
-) -> Result<String> {
+) -> Result<futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>> {
     match extract_query_params(llm, input).await {
         Ok(query_json) => {
             // Step 1: Extract date ranges and report types using Anthropic LLM
@@ -86,23 +86,13 @@ pub async fn eval(
                             context
                         );
 
-                        // Stream LLM response
-                        let mut stream = llm.stream_chat(vec![
+                        // Return streaming response
+                        Ok(llm.stream_chat(vec![
                             langchain_rust::schemas::Message::new_system_message(
                                 "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
                             ),
                             langchain_rust::schemas::Message::new_human_message(&prompt)
-                        ]).await?;
-
-                        // Print streaming response
-                        while let Some(chunk) = stream.next().await {
-                            match chunk {
-                                Ok(c) => print!("{}", c),
-                                Err(e) => return Err(anyhow!("Stream error: {}", e)),
-                            }
-                            std::io::stdout().flush()?;
-                        }
-                        println!();  // Add newline after stream ends
+                        ]).await?)
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
@@ -110,7 +100,7 @@ pub async fn eval(
                 }
             }
 
-            Ok("".to_string())  // Return empty string since we've already printed the response
+            Err(anyhow!("No response generated"))
         }
         Err(e) => {
             log::error!("Failure to create an EDGAR query: {e}");
