@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage};
+use crate::storage::{DocumentMetadata, MetadataFilter, VectorStorage, VectorStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{

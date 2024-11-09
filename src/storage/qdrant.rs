@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document};
 use qdrant_client::{config::QdrantConfig, Qdrant};
 
-use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage};
+use super::{DocumentMetadata, EmbedderWrapper, MetadataFilter, VectorStorage, VectorStore};
 
 #[derive(Debug, Clone)]
 pub struct QdrantStoreConfig {

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use langchain_rust::{
     embedding::Embedder,
     schemas::Document,
-    vectorstore::{VecStoreOptions, VectorStore},
+    vectorstore::{VecStoreOptions, VectorStore, VectorStoreTrait},
 };
 use std::error::Error as StdError;
 use std::sync::{Arc, RwLock};
@@ -12,7 +12,7 @@ pub struct InMemoryStore {
 }
 
 
-impl InMemoryStore {
+impl VectorStoreTrait for InMemoryStore {
     pub fn new(embedder: Arc<dyn Embedder>) -> Self {
         Self {
             docs: RwLock::new(Vec::new()),
