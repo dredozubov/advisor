@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db_path = std::env::current_dir()?.join("data").join("vectors.db");
     let connection_url = format!("sqlite://{}", db_path.display());
     let disk_store = langchain_rust::vectorstore::sqlite_vss::StoreBuilder::new()
-        .embedder(Arc::new(embedder))
+        .embedder(embedder)
         .connection_url(&connection_url)
         .table("documents")
         .vector_dimensions(1536)
