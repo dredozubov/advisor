@@ -86,12 +86,15 @@ pub async fn eval(
                         );
 
                         // Return streaming response
-                        return Ok(llm.stream(vec![
+                        let messages = vec![
                             langchain_rust::schemas::Message::new_system_message(
                                 "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
                             ),
                             langchain_rust::schemas::Message::new_human_message(&prompt)
-                        ]).await?)
+                        ];
+                        
+                        let stream = llm.stream(&messages).await?;
+                        return Ok(Box::pin(stream.map(|r| r.map(|s| s.to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))))
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
