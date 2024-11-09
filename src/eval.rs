@@ -37,7 +37,7 @@ pub async fn eval(
                                 let filings =
                                     filing::fetch_matching_filings(http_client, &edgar_query)
                                         .await?;
-                                process_edgar_filings(filings)?;
+                                process_edgar_filings(filings, store).await?;
                             }
                         }
                         Err(e) => {
@@ -79,7 +79,10 @@ pub async fn eval(
     }
 }
 
-fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()> {
+async fn process_edgar_filings(
+    filings: HashMap<String, filing::Filing>,
+    store: &langchain_rust::vectorstore::sqlite_vss::Store,
+) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
         let company_name = &filing.accession_number;

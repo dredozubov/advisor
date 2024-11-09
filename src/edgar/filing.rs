@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use langchain_rust::vectorstore::VectorStore;
 use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
