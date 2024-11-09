@@ -37,9 +37,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = Arc::new(advisor::storage::memory::InMemoryStore::new(Arc::new(
-        embedder,
-    )));
+    let db_path = std::env::current_dir()?.join("data").join("vectors.db");
+    let store = Arc::new(advisor::storage::sqlite::SqliteStorage::new(
+        advisor::storage::sqlite::SqliteConfig {
+            path: db_path.to_string_lossy().to_string(),
+        },
+        embedder.clone(),
+    ).await?);
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
