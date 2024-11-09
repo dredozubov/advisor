@@ -3,7 +3,6 @@ use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use langchain_rust::vectorstore::qdrant::Store;
 use log::{error, info, warn};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
@@ -14,7 +13,6 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use url::Url;
 
-use crate::storage::VectorStorage;
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;

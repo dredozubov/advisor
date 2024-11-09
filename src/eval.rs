@@ -19,7 +19,7 @@ pub async fn eval(
     http_client: &reqwest::Client,
     llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
-    store: &dyn VectorStorage,
+    store: &dyn VectorStore,
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
@@ -139,7 +139,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &(dyn VectorStorage + Send + Sync),
+    store: &(dyn VectorStore + Send + Sync),
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);

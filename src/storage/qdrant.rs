@@ -4,9 +4,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document, vectorstore::VectorStore};
-use qdrant_client::{config::QdrantConfig, Qdrant};
+use qdrant_client::config::QdrantConfig;
 
-use super::vector_storage::VectorStorage;
 
 #[derive(Debug, Clone)]
 pub struct QdrantStoreConfig {
@@ -14,7 +13,7 @@ pub struct QdrantStoreConfig {
     pub collection_name: String,
 }
 
-use langchain_rust::vectorstore::{qdrant::Qdrant, VecStoreOptions, VectorStore};
+use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
 
 pub struct QdrantStorage {
     store: Qdrant,
@@ -31,10 +30,13 @@ impl VectorStore for QdrantStorage {
     ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let points = documents
             .iter()
-            .map(|doc| qdrant_client::qdrant::PointStruct {
-                id: None,
-                vector: self.embedder.embed_document(&doc.page_content).await?,
-                payload: HashMap::new(), // Add metadata if needed
+            .map(|doc| {
+                let vector = futures::executor::block_on(self.embedder.embed_document(&doc.page_content)).unwrap();
+                qdrant_client::qdrant::PointStruct {
+                    id: None,
+                    vector,
+                    payload: HashMap::new(), // Add metadata if needed
+                }
             })
             .collect::<Vec<_>>();
 
@@ -70,18 +72,4 @@ impl VectorStore for QdrantStorage {
         Ok(documents)
     }
 
-    async fn delete_documents(&self, _filter: &str) -> Result<u64, Box<dyn std::error::Error>> {
-        // Implement deletion logic if needed
-        Ok(0)
-    }
-
-    async fn count(&self) -> Result<u64, Box<dyn std::error::Error>> {
-        let count = self
-            .client
-            .count_points(&self.collection_name)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to count documents in Qdrant: {}", e))?;
-
-        Ok(count as u64)
-    }
 }
