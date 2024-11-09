@@ -1,8 +1,4 @@
-use advisor::{
-    edgar::filing,
-    eval, repl,
-    utils::dirs,
-};
+use advisor::{edgar::filing, eval, repl, utils::dirs};
 use anyhow;
 use langchain_rust::embedding::openai::OpenAiEmbedder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
