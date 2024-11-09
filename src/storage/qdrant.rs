@@ -36,10 +36,7 @@ impl VectorStore for QdrantStorage {
             })
             .collect::<Vec<_>>();
 
-        self.client
-            .upsert_points(&self.collection_name, points)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to add documents to Qdrant: {}", e))?;
+        self.store.add_documents(documents, &_options).await?;
 
         Ok(())
     }
@@ -52,10 +49,9 @@ impl VectorStore for QdrantStorage {
     ) -> Result<Vec<Document>, Box<dyn std::error::Error>> {
         let query_vector = self.embedder.embed_query(query).await?;
         let search_result = self
-            .client
-            .search_points(&self.collection_name, query_vector, limit)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to perform similarity search: {}", e))?;
+            .store
+            .similarity_search(query, limit, &_options)
+            .await?;
 
         let documents = search_result
             .into_iter()

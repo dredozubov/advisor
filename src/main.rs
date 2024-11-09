@@ -37,16 +37,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = Arc::new(
-        advisor::storage::qdrant::QdrantStorage::new(
-            advisor::storage::qdrant::QdrantStoreConfig {
-                uri: opt.qdrant_uri.clone(),
-                collection_name: opt.qdrant_collection.clone(),
-            },
-            embedder.clone(),
-        )
-        .await?,
-    );
+    let store = QdrantStorage::new(
+        QdrantStoreConfig {
+            uri: opt.qdrant_uri.clone(),
+            collection_name: opt.qdrant_collection.clone(),
+        },
+        embedder,
+    )
+    .await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;

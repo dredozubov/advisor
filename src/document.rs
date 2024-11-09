@@ -1,4 +1,4 @@
-use crate::storage::VectorStorage;
+use langchain_rust::vectorstore::VectorStore;
 use anyhow::anyhow;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
