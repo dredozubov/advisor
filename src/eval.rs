@@ -53,6 +53,17 @@ pub async fn eval(
                         }
                     }
                 }
+                // Ensure the parsed filing is added to the vector store
+                log::info!("Storing parsed filing in vector store");
+                crate::document::store_chunked_document_with_cache(
+                    serde_json::to_string_pretty(&parsed)?,
+                    HashMap::new(), // Add any relevant metadata here
+                    "data/edgar/parsed",
+                    &filing_type_with_date,
+                    store,
+                )
+                .await?;
+                log::info!("Filing added to vector store: {}", filing_type_with_date);
             }
 
             // Process earnings data if requested
@@ -239,7 +250,21 @@ async fn process_earnings_transcripts(
             transcript.quarter
         );
 
-        log::info!("Stored transcript in vector storage");
+        // Store the transcript using the chunking utility with caching
+        log::info!("Storing earnings transcript in vector store");
+        crate::document::store_chunked_document_with_cache(
+            transcript.content,
+            metadata,
+            &cache_dir,
+            &cache_filename,
+            store,
+        )
+        .await?;
+        log::info!(
+            "Added earnings transcript to vector store: {} Q{}",
+            transcript.symbol,
+            transcript.quarter
+        );
     }
     Ok(())
 }
