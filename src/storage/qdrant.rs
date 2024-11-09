@@ -14,8 +14,10 @@ pub struct QdrantStoreConfig {
     pub collection_name: String,
 }
 
+use langchain_rust::vectorstore::{qdrant::Qdrant, VecStoreOptions, VectorStore};
+
 pub struct QdrantStorage {
-    client: Qdrant,
+    store: Qdrant,
     embedder: Arc<dyn Embedder>,
 }
 
