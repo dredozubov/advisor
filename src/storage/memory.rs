@@ -101,7 +101,7 @@ impl VectorStore for InMemoryStore {
     }
 }
 
-impl VectorStorage for InMemoryStore {
+impl VectorStore for InMemoryStore {
     fn is_ephemeral(&self) -> bool {
         true
     }

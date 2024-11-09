@@ -65,7 +65,6 @@ pub async fn store_chunked_document_with_cache(
     );
 
     // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
-    if !(*store).is_ephemeral() {
         log::info!("Checking if document already exists in persistent vector store");
 
         // Perform a similarity search to check if the document is already stored

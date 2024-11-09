@@ -182,7 +182,7 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<earnings::Transcript>,
-    store: &(dyn VectorStorage + Send + Sync),
+    store: &(dyn VectorStore + Send + Sync),
 ) -> Result<()> {
     for transcript in transcripts {
         log::info!(
