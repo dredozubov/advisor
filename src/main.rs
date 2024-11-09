@@ -1,5 +1,4 @@
-use advisor::{edgar::filing, eval, repl, utils::dirs, storage::memory::InMemoryStore};
-use anyhow;
+use advisor::{edgar::filing, eval, repl, utils::dirs};
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
@@ -38,7 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = Arc::new(crate::storage::memory::InMemoryStore::new(Arc::new(embedder)));
+    let store = Arc::new(advisor::storage::memory::InMemoryStore::new(Arc::new(embedder)));
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
