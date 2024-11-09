@@ -4,7 +4,8 @@ use langchain_rust::{
     schemas::Document,
     vectorstore::{VecStoreOptions, VectorStore},
 };
-use std::error::Error;
+use std::error::Error as StdError;
+use anyhow::{Result, Error};
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -57,7 +58,7 @@ impl InMemoryStore {
         dot_product / (norm1 * norm2)
     }
 
-    async fn evict_old_documents(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn evict_old_documents(&self) -> Result<()> {
         let mut docs = self.memory_docs.write().unwrap();
         let now = SystemTime::now();
         
@@ -80,7 +81,7 @@ impl InMemoryStore {
             }
         }
 
-        Ok(())
+        Ok(documents.iter().map(|d| d.page_content.clone()).collect())
     }
 
     async fn update_access_time(&self, doc: &Document) {
@@ -93,7 +94,7 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
-    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
+    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>> {
         // Get embeddings for documents
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
         let embeddings = self.embedder.embed_documents(&texts).await.map_err(Box::new)?;
@@ -116,9 +117,10 @@ impl VectorStore for InMemoryStore {
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn Error + Send + Sync + 'static>> {
+    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>> {
         // Get query embedding
-        let query_embedding: Vec<f32> = self.embedder.embed_query(query).await.map_err(Box::new)?;
+        let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
+        let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
         
         // Search both memory and disk
         let memory_results = {
