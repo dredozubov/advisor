@@ -14,8 +14,9 @@ use std::collections::HashMap;
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
-    llm: &OpenAI<OpenAIConfig>, // Use llm as it is needed in the function
+    llm: &OpenAI<OpenAIConfig>,
     _thread_id: &mut Option<String>,
+    store: &langchain_rust::vectorstore::sqlite_vss::Store,
 ) -> Result<String> {
     match extract_query_params(llm, input).await {
         Ok(query_json) => {
@@ -60,7 +61,7 @@ pub async fn eval(
                             earnings_query.end_date,
                         )
                         .await?;
-                        process_earnings_transcripts(transcripts)?;
+                        process_earnings_transcripts(transcripts, &store).await?;
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
