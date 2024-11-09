@@ -20,23 +20,59 @@ pub struct QdrantStorage {
 
 #[async_trait]
 impl VectorStore for QdrantStorage {
-    async fn add_documents(&self, _documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
+    async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
+        let points = documents
+            .into_iter()
+            .map(|(doc, _meta)| qdrant_client::qdrant::PointStruct {
+                id: None,
+                vector: self.embedder.embed_document(&doc.page_content).await?,
+                payload: None, // Add metadata if needed
+            })
+            .collect::<Vec<_>>();
+
+        self.client
+            .upsert_points(&self.collection_name, points)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to add documents to Qdrant: {}", e))?;
+
         Ok(())
     }
 
-    async fn similarity_search(&self, _query: &str, _limit: usize) -> Result<Vec<(Document, f32)>> {
-        // TODO: Implement similarity search for Qdrant
-        log::warn!("Similarity search not yet implemented for Qdrant storage");
-        Ok(Vec::new())
+    async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
+        let query_vector = self.embedder.embed_query(query).await?;
+        let search_result = self
+            .client
+            .search_points(&self.collection_name, query_vector, limit)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to perform similarity search: {}", e))?;
+
+        let documents = search_result
+            .into_iter()
+            .map(|point| {
+                let doc = Document {
+                    page_content: String::new(), // Retrieve actual content if needed
+                    metadata: HashMap::new(),    // Add metadata if needed
+                    score: point.score,
+                };
+                (doc, point.score)
+            })
+            .collect();
+
+        Ok(documents)
     }
 
     async fn delete_documents(&self, _filter: MetadataFilter) -> Result<u64> {
-        // TODO: Implement deletion with filters
+        // Implement deletion logic if needed
         Ok(0)
     }
 
     async fn count(&self) -> Result<u64> {
-        // TODO: Implement document counting
-        Ok(0)
+        let count = self
+            .client
+            .count_points(&self.collection_name)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to count documents in Qdrant: {}", e))?;
+
+        Ok(count as u64)
     }
 }
