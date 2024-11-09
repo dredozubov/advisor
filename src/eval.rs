@@ -114,7 +114,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &langchain_rust::vectorstore::sqlite_vss::Store,
+    store: &(dyn VectorStore + Send + Sync),
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
@@ -157,7 +157,7 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<earnings::Transcript>,
-    store: &langchain_rust::vectorstore::sqlite_vss::Store,
+    store: &(dyn VectorStore + Send + Sync),
 ) -> Result<()> {
     for transcript in transcripts {
         log::info!(
