@@ -5,7 +5,7 @@ use langchain_rust::{
     vectorstore::{VecStoreOptions, VectorStore},
 };
 use std::error::Error as StdError;
-use anyhow::{Result, Error};
+use anyhow::Result;
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -94,7 +94,7 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
-    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn StdError + Send + Sync>> {
+    async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn StdError>> {
         // Get embeddings for documents
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
         let embeddings = self.embedder.embed_documents(&texts).await?;
@@ -117,7 +117,7 @@ impl VectorStore for InMemoryStore {
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError + Send + Sync>> {
+    async fn similarity_search(&self, query: &str, limit: usize, options: &VecStoreOptions) -> Result<Vec<Document>, Box<dyn StdError>> {
         // Get query embedding
         let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
         let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
@@ -130,7 +130,7 @@ impl VectorStore for InMemoryStore {
             for cached_doc in docs.iter() {
                 if let Some(embedding) = cached_doc.document.metadata.get("embedding") {
                     let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
-                        .map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)?;
+                        .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
                     let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
                     scored_docs.push((similarity, cached_doc.document.clone()));
                 }
