@@ -31,7 +31,8 @@ async fn main() -> Result<()> {
         .table("documents")
         .vector_dimensions(1536)
         .build()
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
     match filing::extract_complete_submission_filing(opt.input.to_str().unwrap(), &store).await {
         Ok(result) => {
