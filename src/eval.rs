@@ -56,14 +56,14 @@ pub async fn eval(
                 // Ensure the parsed filing is added to the vector store
                 log::info!("Storing parsed filing in vector store");
                 crate::document::store_chunked_document_with_cache(
-                    serde_json::to_string_pretty(&parsed)?,
+                    serde_json::to_string_pretty(&filing)?,
                     HashMap::new(), // Add any relevant metadata here
                     "data/edgar/parsed",
-                    &filing_type_with_date,
+                    &format!("{}_{}", filing.report_type, filing.filing_date),
                     store,
                 )
                 .await?;
-                log::info!("Filing added to vector store: {}", filing_type_with_date);
+                log::info!("Filing added to vector store: {}_{}", filing.report_type, filing.filing_date);
             }
 
             // Process earnings data if requested
@@ -236,8 +236,8 @@ async fn process_earnings_transcripts(
 
         // Store the transcript using the chunking utility with caching
         crate::document::store_chunked_document_with_cache(
-            transcript.content,
-            metadata,
+            transcript.content.clone(),
+            metadata.clone(),
             &cache_dir,
             &cache_filename,
             store,
