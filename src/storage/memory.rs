@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use langchain_rust::{
     embedding::Embedder,
     schemas::Document,
-    vectorstore::{VecStoreOptions, VectorStore},
+    vectorstore::{VecStoreOptions},
 };
+use crate::storage::VectorStorage;
 use std::error::Error as StdError;
 use std::sync::{Arc, RwLock};
 pub struct InMemoryStore {

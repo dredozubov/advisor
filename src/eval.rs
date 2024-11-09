@@ -3,7 +3,7 @@ use crate::edgar::{self, filing};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
-use langchain_rust::vectorstore::VectorStore;
+use crate::storage::VectorStorage;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,

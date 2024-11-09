@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 use langchain_rust::{
     schemas::Document,
-    vectorstore::{VecStoreOptions, VectorStore},
+    vectorstore::{VecStoreOptions},
 };
+use crate::storage::VectorStorage;
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path};
 
