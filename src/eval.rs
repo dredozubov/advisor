@@ -179,10 +179,16 @@ async fn process_earnings_transcripts(
             .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
-        // Store the transcript using the chunking utility
-        crate::document::store_chunked_document(
+        // Define cache directory and filename
+        let cache_dir = format!("data/earnings/parsed/{}", transcript.symbol);
+        let cache_filename = format!("{}_Q{}", transcript.year, transcript.quarter);
+
+        // Store the transcript using the chunking utility with caching
+        crate::document::store_chunked_document_with_cache(
             transcript.content,
             metadata,
+            &cache_dir,
+            &cache_filename,
             store,
         ).await?;
 

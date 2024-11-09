@@ -695,10 +695,12 @@ pub async fn extract_complete_submission_filing(
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
-    // Store the JSON facts using the chunking utility
-    crate::document::store_chunked_document(
+    // Store the JSON facts using the chunking utility with caching
+    crate::document::store_chunked_document_with_cache(
         json_facts.to_string(),
         metadata_map,
+        &json_cache_dir,
+        &file_stem,
         store,
     ).await?;
 
