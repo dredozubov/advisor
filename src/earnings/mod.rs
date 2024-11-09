@@ -66,6 +66,7 @@ pub async fn fetch_transcript(
 
     // Fetch and save transcript
     crate::utils::http::fetch_and_save(
+    ).await;
         client,
         &url::Url::parse(&url)?,
         &filepath,

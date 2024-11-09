@@ -1,10 +1,11 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
-use langchain_rust::vectorstore::qdrant::{Qdrant, QdrantConfig};
+use qdrant_client::config::QdrantConfig;
+use langchain_rust::vectorstore::qdrant::Qdrant;
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use rustyline::error::ReadlineError;
-use std::{env, fs, sync::Arc};
+use std::{env, fs};
 use std::{error::Error, io::Write};
 use structopt::StructOpt;
 
@@ -90,7 +91,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     &http_client,
                     &open_ai,
                     &mut thread_id,
-                    store.as_ref(),
+                    store,
                 )
                 .await
                 {
