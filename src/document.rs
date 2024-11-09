@@ -1,5 +1,5 @@
-use langchain_rust::vectorstore::VectorStore;
 use anyhow::anyhow;
+use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path};
@@ -65,18 +65,17 @@ pub async fn store_chunked_document_with_cache(
     );
 
     // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
-        log::info!("Checking if document already exists in persistent vector store");
+    log::info!("Checking if document already exists in persistent vector store");
 
-        // Perform a similarity search to check if the document is already stored
-        let existing_docs = store
-            .similarity_search(&identifier, 1, &VecStoreOptions::default())
-            .await
-            .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
+    // Perform a similarity search to check if the document is already stored
+    let existing_docs = store
+        .similarity_search(&identifier, 1, &VecStoreOptions::default())
+        .await
+        .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
 
-        if !existing_docs.is_empty() {
-            log::info!("Document already exists in vector store, skipping embedding");
-            return Ok(());
-        }
+    if !existing_docs.is_empty() {
+        log::info!("Document already exists in vector store, skipping embedding");
+        return Ok(());
     }
 
     // Collect all document chunks
