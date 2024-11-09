@@ -589,11 +589,40 @@ pub async fn extract_complete_submission_filing(
     filepath: &str,
     store: &dyn langchain_rust::vectorstore::VectorStore,
 ) -> Result<HashMap<String, serde_json::Value>> {
-    log::info!(
-        "Starting extract_complete_submission_filing for file: {}",
-        filepath
-    );
+    log::info!("Starting extract_complete_submission_filing for file: {}", filepath);
 
+    // Construct the path for the cached JSON file
+    let path = std::path::Path::new(filepath);
+    let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
+    let parent_dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
+    
+    // Extract date and form type from the filepath
+    let accession_number = parent_dir
+        .parent()
+        .unwrap_or_default()
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
+    
+    let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
+    fs::create_dir_all(&json_cache_dir)?;
+    
+    // Use the original filename but with .json extension
+    let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
+    
+    // Check if we already have parsed JSON
+    if let Ok(metadata) = fs::metadata(&json_cache_path) {
+        if metadata.is_file() {
+            log::info!("Found cached JSON file: {}", json_cache_path);
+            let cached_content = fs::read_to_string(&json_cache_path)?;
+            let cached_facts: HashMap<String, serde_json::Value> = 
+                serde_json::from_str(&cached_content)?;
+            return Ok(cached_facts);
+        }
+    }
+
+    log::info!("No cached JSON found, parsing XBRL file");
+    
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
     let raw_text = fs::read(filepath)?;
@@ -616,6 +645,11 @@ pub async fn extract_complete_submission_filing(
     // Create filing documents map
     let mut filing_documents = HashMap::new();
     filing_documents.insert("facts".to_string(), json_facts.clone());
+
+    // Cache the parsed JSON
+    log::info!("Caching parsed JSON to: {}", json_cache_path);
+    let json_content = serde_json::to_string_pretty(&filing_documents)?;
+    fs::write(&json_cache_path, json_content)?;
 
     // Create metadata for the document
     let metadata = serde_json::json!({
