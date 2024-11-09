@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &open_ai, &mut thread_id, &store).await {
+                match eval::eval(input, &http_client, &open_ai, &mut thread_id, store.as_ref()).await {
                     Ok(mut stream) => {
                         while let Some(chunk) = stream.next().await {
                             match chunk {
