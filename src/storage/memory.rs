@@ -48,16 +48,24 @@ impl VectorStore for InMemoryStore {
         let query_embedding: Vec<f64> = self.embedder.embed_query(query).await?;
         let query_embedding: Vec<f32> = query_embedding.iter().map(|&x| x as f32).collect();
         
-        let docs = self.docs.read().unwrap();
-        let mut scored_docs: Vec<(f32, Document)> = Vec::new();
-        
-        for doc in docs.iter() {
-            if let Some(embedding) = doc.metadata.get("embedding") {
-                let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
-                    .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
-                let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
-                scored_docs.push((similarity, doc.clone()));
-            }
+        // Collect all documents and embeddings before processing
+        let docs_with_embeddings = {
+            let docs = self.docs.read().unwrap();
+            docs.iter()
+                .filter_map(|doc| {
+                    doc.metadata.get("embedding")
+                        .map(|e| (doc.clone(), e.clone()))
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // Process embeddings and compute similarities
+        let mut scored_docs = Vec::new();
+        for (doc, embedding) in docs_with_embeddings {
+            let doc_embedding: Vec<f32> = serde_json::from_value(embedding)
+                .map_err(|e| Box::new(e) as Box<dyn StdError>)?;
+            let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
+            scored_docs.push((similarity, doc));
         }
         
         scored_docs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
@@ -72,9 +80,34 @@ impl VectorStore for InMemoryStore {
 }
 
 #[cfg(test)]
+mod fake {
+    use async_trait::async_trait;
+    use langchain_rust::embedding::Embedder;
+
+    pub struct FakeEmbedder;
+
+    impl FakeEmbedder {
+        pub fn new() -> Self {
+            Self
+        }
+    }
+
+    #[async_trait]
+    impl Embedder for FakeEmbedder {
+        async fn embed_documents(&self, texts: &[String]) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
+            Ok(texts.iter().map(|_| vec![0.5, 0.5]).collect())
+        }
+
+        async fn embed_query(&self, text: &str) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+            Ok(vec![0.5, 0.5])
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use langchain_rust::embedding::fake::FakeEmbedder;
+    use super::fake::FakeEmbedder;
 
     #[tokio::test]
     async fn test_add_and_search() {
