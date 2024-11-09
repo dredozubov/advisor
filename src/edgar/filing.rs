@@ -636,7 +636,38 @@ pub async fn extract_complete_submission_filing(
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
 
-    // Parse XBRL using the xml module
+    // Check for existing parsed JSON
+    let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
+    
+    if let Ok(entries) = fs::read_dir(&json_cache_dir) {
+        let has_cached_files = entries.filter_map(Result::ok).any(|e| {
+            e.path().extension().map_or(false, |ext| ext == "json")
+        });
+        
+        if has_cached_files {
+            log::info!(
+                "Skipping XBRL parsing - cached JSON exists in: {}",
+                json_cache_dir
+            );
+            let cached_files: Vec<_> = fs::read_dir(&json_cache_dir)?
+                .filter_map(Result::ok)
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+                .collect();
+            
+            let mut filing_documents = HashMap::new();
+            for file in cached_files {
+                let content = fs::read_to_string(file.path())?;
+                let json_value: serde_json::Value = serde_json::from_str(&content)?;
+                filing_documents.insert(
+                    file.path().file_stem().unwrap().to_string_lossy().to_string(),
+                    json_value
+                );
+            }
+            return Ok(filing_documents);
+        }
+    }
+
+    // Parse XBRL using the xml module if no cache exists
     let facts = super::xbrl::xml::parse_xml_to_facts(raw_text_string);
 
     // Convert facts to JSON value
