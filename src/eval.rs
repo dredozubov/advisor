@@ -3,7 +3,6 @@ use crate::edgar::{self, filing};
 use crate::query::Query;
 use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
-use langchain_rust::language_models::llm::LLM;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -86,7 +85,7 @@ pub async fn eval(
                         );
 
                         // Return streaming response
-                        return Ok(llm.chat_stream(vec![
+                        return Ok(llm.stream(vec![
                             langchain_rust::schemas::Message::new_system_message(
                                 "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
                             ),
