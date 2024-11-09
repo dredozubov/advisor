@@ -5,7 +5,7 @@ use langchain_rust::{
     vectorstore::{VecStoreOptions, VectorStore},
 };
 use std::error::Error as StdError;
-use anyhow::Result;
+use anyhow::{Result, Error};
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -81,7 +81,7 @@ impl InMemoryStore {
             }
         }
 
-        Ok(documents.iter().map(|d| d.page_content.clone()).collect())
+        Ok(texts)
     }
 
     async fn update_access_time(&self, doc: &Document) {
@@ -130,7 +130,7 @@ impl VectorStore for InMemoryStore {
             for cached_doc in docs.iter() {
                 if let Some(embedding) = cached_doc.document.metadata.get("embedding") {
                     let doc_embedding: Vec<f32> = serde_json::from_value(embedding.clone())
-                        .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)?;
+                        .map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)?;
                     let similarity = Self::compute_similarity(&query_embedding, &doc_embedding).await;
                     scored_docs.push((similarity, cached_doc.document.clone()));
                 }
@@ -173,7 +173,12 @@ mod tests {
     #[tokio::test]
     async fn test_add_and_search() {
         let embedder = Arc::new(FakeEmbedder::new());
-        let store = InMemoryStore::new(embedder);
+        let disk_store = Arc::new(InMemoryStore::new(
+            embedder.clone(),
+            Arc::new(FakeEmbedder::new()) as Arc<dyn VectorStore>,
+            None,
+        ));
+        let store = InMemoryStore::new(embedder, disk_store, None);
 
         let docs = vec![
             Document {
