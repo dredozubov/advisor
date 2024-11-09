@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -19,14 +20,19 @@ pub struct QdrantStorage {
 }
 
 #[async_trait]
+#[async_trait]
 impl VectorStore for QdrantStorage {
-    async fn add_documents(&self, documents: Vec<(Document, DocumentMetadata)>) -> Result<()> {
+    async fn add_documents(
+        &self,
+        documents: &[Document],
+        _options: &VecStoreOptions,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let points = documents
-            .into_iter()
-            .map(|(doc, _meta)| qdrant_client::qdrant::PointStruct {
+            .iter()
+            .map(|doc| qdrant_client::qdrant::PointStruct {
                 id: None,
                 vector: self.embedder.embed_document(&doc.page_content).await?,
-                payload: None, // Add metadata if needed
+                payload: HashMap::new(), // Add metadata if needed
             })
             .collect::<Vec<_>>();
 
@@ -38,7 +44,12 @@ impl VectorStore for QdrantStorage {
         Ok(())
     }
 
-    async fn similarity_search(&self, query: &str, limit: usize) -> Result<Vec<(Document, f32)>> {
+    async fn similarity_search(
+        &self,
+        query: &str,
+        limit: usize,
+        _options: &VecStoreOptions,
+    ) -> Result<Vec<Document>, Box<dyn std::error::Error>> {
         let query_vector = self.embedder.embed_query(query).await?;
         let search_result = self
             .client
@@ -61,12 +72,12 @@ impl VectorStore for QdrantStorage {
         Ok(documents)
     }
 
-    async fn delete_documents(&self, _filter: MetadataFilter) -> Result<u64> {
+    async fn delete_documents(&self, _filter: &str) -> Result<u64, Box<dyn std::error::Error>> {
         // Implement deletion logic if needed
         Ok(0)
     }
 
-    async fn count(&self) -> Result<u64> {
+    async fn count(&self) -> Result<u64, Box<dyn std::error::Error>> {
         let count = self
             .client
             .count_points(&self.collection_name)
