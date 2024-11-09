@@ -629,17 +629,31 @@ pub async fn extract_complete_submission_filing(
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
-    // Create a document with the JSON facts as content
-    let doc = langchain_rust::schemas::Document {
-        page_content: json_facts.to_string(),
-        metadata: metadata_map,
-        score: 0.0,
-    };
+    // Split the JSON facts into smaller chunks
+    let content = json_facts.to_string();
+    let chunk_size = 4000; // Characters per chunk, keeping well under token limits
+    let chunks: Vec<String> = content
+        .chars()
+        .collect::<Vec<char>>()
+        .chunks(chunk_size)
+        .map(|c| c.iter().collect::<String>())
+        .collect();
 
-    // Store the document in vector storage
-    store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
-        .await
-        .map_err(|e| anyhow!("Failed to store filing in vector storage: {}", e))?;
+    // Create and store documents for each chunk
+    for (i, chunk) in chunks.iter().enumerate() {
+        let mut chunk_metadata = metadata_map.clone();
+        chunk_metadata.insert("chunk_index".to_string(), serde_json::json!(i));
+        
+        let doc = langchain_rust::schemas::Document {
+            page_content: chunk.clone(),
+            metadata: chunk_metadata,
+            score: 0.0,
+        };
+
+        store.add_documents(&[doc], &langchain_rust::vectorstore::VecStoreOptions::default())
+            .await
+            .map_err(|e| anyhow!("Failed to store filing chunk in vector storage: {}", e))?;
+    }
 
     log::debug!("filing documents:\n {:?}", filing_documents);
     Ok(filing_documents)
