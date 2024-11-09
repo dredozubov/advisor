@@ -1,9 +1,9 @@
 use advisor::{
     edgar::filing,
     eval, repl,
-    storage::{QdrantStorage, QdrantStoreConfig, SqliteConfig, SqliteStorage, VectorStorage},
     utils::dirs,
 };
+use anyhow;
 use langchain_rust::embedding::openai::OpenAiEmbedder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
@@ -41,40 +41,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
-    // Initialize vector storage based on command line option
-    let storage: Box<dyn VectorStorage<Embedder = OpenAiEmbedder<OpenAIConfig>, Config = SqliteConfig>> =
-        match opt.storage.as_str() {
-            "sqlite" => Box::new(
-                SqliteStorage::new(
-                    SqliteConfig {
-                        path: "sqlite://data/vectors.db".to_string(),
-                    },
-                    Arc::new(embedder),
-                )
-                .await?,
-            ),
-            "qdrant" => {
-                if opt.qdrant_uri.is_empty() {
-                    return Err("Qdrant URI must be provided when using qdrant storage".into());
-                }
-                if opt.qdrant_collection.is_empty() {
-                    return Err(
-                        "Qdrant collection name must be provided when using qdrant storage".into(),
-                    );
-                }
-                Box::new(
-                    QdrantStorage::new(
-                        QdrantStoreConfig {
-                            uri: opt.qdrant_uri,
-                            collection_name: opt.qdrant_collection,
-                        },
-                        Arc::new(embedder),
-                    )
-                    .await?,
-                )
-            }
-            _ => return Err("Unsupported storage backend. Use 'sqlite' or 'qdrant'".into()),
-        };
+    // Initialize SQLite vector storage directly
+    let store = langchain_rust::vectorstore::sqlite_vss::StoreBuilder::new()
+        .embedder(embedder)
+        .connection_url("sqlite://data/vectors.db")
+        .table("documents")
+        .vector_dimensions(1536)
+        .build()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
