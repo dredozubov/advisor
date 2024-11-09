@@ -20,6 +20,9 @@ pub struct QdrantStorage {
 
 #[async_trait]
 impl VectorStorage for QdrantStorage {
+    fn is_in_memory(&self) -> bool {
+        false
+    }
     type Config = QdrantStoreConfig;
 
     async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self> {

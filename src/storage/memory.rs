@@ -34,6 +34,9 @@ impl InMemoryStore {
 
 #[async_trait]
 impl VectorStore for InMemoryStore {
+    fn is_in_memory(&self) -> bool {
+        true
+    }
     async fn add_documents(&self, documents: &[Document], _options: &VecStoreOptions) -> Result<Vec<String>, Box<dyn StdError>> {
         let texts: Vec<_> = documents.iter().map(|d| d.page_content.clone()).collect();
         let embeddings = self.embedder.embed_documents(&texts).await?;

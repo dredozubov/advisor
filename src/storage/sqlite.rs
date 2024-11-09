@@ -26,6 +26,9 @@ pub struct SqliteStorage {
 
 #[async_trait]
 impl VectorStorage for SqliteStorage {
+    fn is_in_memory(&self) -> bool {
+        false
+    }
     type Config = SqliteConfig;
 
     async fn new(config: Self::Config, embedder: EmbedderWrapper) -> Result<Self> {
