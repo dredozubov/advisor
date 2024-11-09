@@ -3,6 +3,7 @@ use crate::edgar::{self, filing};
 use crate::query::Query;
 use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
+use futures::StreamExt;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
     fmt_message,
@@ -94,7 +95,7 @@ pub async fn eval(
                         ];
                         
                         let stream = llm.stream(&messages).await?;
-                        return Ok(Box::pin(stream.map(|r| r.map(|s| s.to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))))
+                        return Ok(Box::pin(stream.map(|r| r.map(|s| s.to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))));
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
