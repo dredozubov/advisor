@@ -38,15 +38,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
-    // Initialize SQLite vector storage directly
-    let store = langchain_rust::vectorstore::sqlite_vss::StoreBuilder::new()
-        .embedder(embedder)
-        .connection_url("sqlite://data/vectors.db")
-        .table("documents")
-        .vector_dimensions(1536)
-        .build()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to create SQLite store: {}", e))?;
+    // Initialize in-memory vector storage
+    let store = advisor::storage::InMemoryStore::new(Arc::new(embedder));
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
