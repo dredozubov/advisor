@@ -25,7 +25,7 @@ pub struct SqliteStorage {
 }
 
 #[async_trait]
-impl VectorStorage for SqliteStorage {
+impl VectorStore for SqliteStorage {
     fn is_in_memory(&self) -> bool {
         false
     }
