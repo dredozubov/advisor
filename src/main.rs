@@ -1,4 +1,5 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
+use langchain_rust::vectorstore::qdrant::{Qdrant, QdrantStoreConfig};
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
@@ -37,7 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
     // Initialize in-memory vector storage with OpenAI embedder
-    let store = QdrantStorage::new(
+    let store = Qdrant::new(
         QdrantStoreConfig {
             uri: opt.qdrant_uri.clone(),
             collection_name: opt.qdrant_collection.clone(),

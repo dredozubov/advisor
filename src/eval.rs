@@ -1,7 +1,7 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
-use langchain_rust::vectorstore::VectorStore;
+use langchain_rust::vectorstore::{VectorStore, qdrant::Qdrant};
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use langchain_rust::{
