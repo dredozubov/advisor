@@ -9,6 +9,7 @@ use langchain_rust::{
     llm::{OpenAI, OpenAIConfig},
     message_formatter, prompt_args,
     schemas::Message,
+    language_models::llm::LLM,
 };
 use std::collections::HashMap;
 
