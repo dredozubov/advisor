@@ -61,7 +61,7 @@ pub async fn eval(
                             earnings_query.end_date,
                         )
                         .await?;
-                        process_earnings_transcripts(transcripts, &store).await?;
+                        process_earnings_transcripts(transcripts, store).await?;
                     }
                     Err(e) => {
                         log::error!("Failed to create earnings query: {}", e);
@@ -118,14 +118,37 @@ fn process_edgar_filings(filings: HashMap<String, filing::Filing>) -> Result<()>
     Ok(())
 }
 
-fn process_earnings_transcripts(transcripts: Vec<earnings::Transcript>) -> Result<()> {
+async fn process_earnings_transcripts(
+    transcripts: Vec<earnings::Transcript>,
+    store: &langchain_rust::vectorstore::sqlite_vss::Store,
+) -> Result<()> {
     for transcript in transcripts {
         log::info!(
             "Processing transcript for {} on {}",
             transcript.symbol,
             transcript.date
         );
-        // Add transcript processing logic here
+        
+        // Create document for vector storage
+        let metadata = serde_json::json!({
+            "symbol": transcript.symbol,
+            "quarter": transcript.quarter,
+            "year": transcript.year,
+            "date": transcript.date,
+            "type": "earnings_transcript"
+        });
+
+        let doc = langchain_rust::schemas::Document {
+            page_content: transcript.content,
+            metadata: Some(metadata),
+        };
+
+        // Store the document in vector storage
+        store.add_documents(vec![doc], None)
+            .await
+            .map_err(|e| anyhow!("Failed to store transcript in vector storage: {}", e))?;
+
+        log::info!("Stored transcript in vector storage");
     }
     Ok(())
 }
