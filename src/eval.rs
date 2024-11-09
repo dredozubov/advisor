@@ -1,6 +1,7 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
+use langchain_rust::vectorstore::VectorStore;
 use anyhow::{anyhow, Result};
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -130,17 +131,22 @@ async fn process_earnings_transcripts(
         );
         
         // Create document for vector storage
-        let metadata = serde_json::json!({
+        let metadata_json = serde_json::json!({
             "symbol": transcript.symbol,
             "quarter": transcript.quarter,
             "year": transcript.year,
             "date": transcript.date,
             "type": "earnings_transcript"
         });
+        
+        let metadata = metadata_json.as_object()
+            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default();
 
         let doc = langchain_rust::schemas::Document {
             page_content: transcript.content,
-            metadata: Some(metadata),
+            metadata: metadata,
+            score: None,
         };
 
         // Store the document in vector storage
