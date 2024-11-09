@@ -1,4 +1,11 @@
 use crate::storage::VectorStorage;
+
+#[async_trait::async_trait]
+impl VectorStorage for InMemoryStore {
+    fn is_ephemeral(&self) -> bool {
+        true
+    }
+}
 use async_trait::async_trait;
 use langchain_rust::{embedding::Embedder, schemas::Document, vectorstore::VecStoreOptions};
 use std::error::Error as StdError;
