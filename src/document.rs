@@ -6,7 +6,6 @@ use std::{collections::HashMap, fs, path::Path};
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under token limits
 
-/// Store a document in chunks, with caching support
 pub async fn store_chunked_document_with_cache(
     content: String,
     metadata: HashMap<String, Value>,
@@ -69,7 +68,7 @@ pub async fn store_chunked_document_with_cache(
 
     // Perform a similarity search to check if the document is already stored
     let existing_docs = store
-        .similarity_search(&identifier, 1, &VecStoreOptions::default())
+        .similarity_search(identifier, 1, &VecStoreOptions::default())
         .await
         .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
 
@@ -98,7 +97,7 @@ pub async fn store_chunked_document_with_cache(
     store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
-        .map_err(|e| anyhow!("Failed to store document chunks in vector storage: {}", e))?;
+        .map_err(|e| anyhow!("Failed to store document chunks in vector store: {}", e))?;
 
     // Cache the chunked document
     log::info!("Caching chunked document to: {}", cache_path);
@@ -106,9 +105,6 @@ pub async fn store_chunked_document_with_cache(
     fs::create_dir_all(cache_dir)?;
     fs::write(&cache_path, json_content)?;
 
-    log::info!(
-        "Stored {} document chunks in vector storage",
-        documents.len()
-    );
+    log::info!("Stored {} document chunks in vector store", documents.len());
     Ok(())
 }
