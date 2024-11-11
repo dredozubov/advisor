@@ -273,7 +273,7 @@ pub async fn eval(
 
     log::info!("=== Complete LLM Messages ===");
     for (i, msg) in messages.iter().enumerate() {
-        log::info!("Message {}: Role: {}, Content: {}", i, msg.role, msg.content);
+        log::info!("Message {}: Type: {}, Content: {}", i, msg.message_type, msg.content);
     }
     log::info!("=== End Messages ===");
     let stream = llm.stream(&messages).await?;
