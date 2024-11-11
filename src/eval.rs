@@ -41,21 +41,20 @@ pub async fn eval(
     log::debug!("Checking if filings data is requested");
     if let Some(filings) = base_query.parameters.get("filings") {
         log::debug!("Filings data is requested");
-        if let Some(_filings) = base_query.parameters.get("filings") {
-            match base_query.to_edgar_query() {
-                Ok(edgar_query) => {
-                    for ticker in &edgar_query.tickers {
-                        log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                        let filings =
-                            filing::fetch_matching_filings(http_client, &edgar_query).await?;
-                        process_edgar_filings(filings, store).await?;
-                    }
-                }
-                Err(e) => {
-                    log::error!("Failed to create EDGAR query: {}", e);
+        match base_query.to_edgar_query() {
+            Ok(edgar_query) => {
+                for ticker in &edgar_query.tickers {
+                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                    let filings =
+                        filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                    process_edgar_filings(filings, store).await?;
                 }
             }
+            Err(e) => {
+                log::error!("Failed to create EDGAR query: {}", e);
+            }
         }
+
         // Process filings if it's a Value object
         if let Some(filings_obj) = filings.as_object() {
             for (_, filing) in filings_obj {
@@ -87,20 +86,23 @@ pub async fn eval(
                     .into_iter()
                     .collect();
 
-            log::info!("Storing filing in vector store");
-            crate::document::store_chunked_document_with_cache(
-                serde_json::to_string_pretty(&filing)?,
-                metadata,
-                "data/edgar/parsed",
-                &format!("{}_{}", filing.report_type, filing.filing_date),
-                store,
-            )
-            .await?;
-            log::info!(
-                "Filing added to vector store: {}_{}",
-                filing.report_type,
-                filing.filing_date
-            );
+                    log::info!("Storing filing in vector store");
+                    crate::document::store_chunked_document_with_cache(
+                        serde_json::to_string_pretty(&filing)?,
+                        metadata,
+                        "data/edgar/parsed",
+                        &format!("{}_{}", filing_obj.get("report_type").and_then(|v| v.as_str()).unwrap_or("unknown"), 
+                                         filing_obj.get("filing_date").and_then(|v| v.as_str()).unwrap_or("unknown")),
+                        store,
+                    )
+                    .await?;
+                    log::info!(
+                        "Filing added to vector store: {}_{}",
+                        filing_obj.get("report_type").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                        filing_obj.get("filing_date").and_then(|v| v.as_str()).unwrap_or("unknown")
+                    );
+                }
+            }
         }
     }
 
