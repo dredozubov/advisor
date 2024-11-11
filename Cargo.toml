@@ -7,10 +7,6 @@ edition = "2021"
 name = "advisor"
 path = "src/main.rs"
 
-[[bin]]
-name = "xbrl_parser" 
-path = "src/bin/xbrl_parser.rs"
-
 [lib]
 name = "advisor"
 path = "src/lib.rs"

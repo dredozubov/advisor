@@ -42,11 +42,11 @@ pub async fn fetch_transcript(
     // Calculate the most recently completed quarter
     // Note: Earnings for Q4 are typically reported in Q1 of next year
     let (quarter, year) = match date.month() {
-        1..=2 => (4, date.year() - 1),  // Jan-Feb: Q4 of previous year
-        3..=5 => (1, date.year()),      // Mar-May: Q1 of current year
-        6..=8 => (2, date.year()),      // Jun-Aug: Q2 of current year
-        9..=11 => (3, date.year()),     // Sep-Nov: Q3 of current year
-        12 => (3, date.year()),         // December: still Q3, Q4 not reported yet
+        1..=2 => (4, date.year() - 1), // Jan-Feb: Q4 of previous year
+        3..=5 => (1, date.year()),     // Mar-May: Q1 of current year
+        6..=8 => (2, date.year()),     // Jun-Aug: Q2 of current year
+        9..=11 => (3, date.year()),    // Sep-Nov: Q3 of current year
+        12 => (3, date.year()),        // December: still Q3, Q4 not reported yet
         _ => unreachable!(),
     };
 
@@ -65,15 +65,15 @@ pub async fn fetch_transcript(
     }
 
     // Fetch and save transcript
-    crate::utils::http::fetch_and_save(
-    ).await;
+    let _ = crate::utils::http::fetch_and_save(
         client,
         &url::Url::parse(&url)?,
         &filepath,
         USER_AGENT,
         mime::APPLICATION_JSON,
         rate_limiter(),
-    );
+    )
+    .await;
 
     // Read and parse the saved transcript
     let content = fs::read_to_string(&filepath)?;

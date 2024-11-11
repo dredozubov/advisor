@@ -1,9 +1,9 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
-use qdrant_client::config::QdrantConfig;
-use langchain_rust::vectorstore::qdrant::Qdrant;
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::vectorstore::qdrant::{Qdrant, StoreBuilder};
+use qdrant_client::config::QdrantConfig;
 use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, io::Write};
@@ -12,10 +12,6 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "advisor", about = "AI-powered financial document analysis")]
 struct Opt {
-    /// Vector storage backend to use (sqlite or qdrant)
-    #[structopt(short, long, default_value = "sqlite")]
-    storage: String,
-
     /// Qdrant server URI (only used if storage=qdrant)
     #[structopt(long, default_value = "http://localhost:6334")]
     qdrant_uri: String,
@@ -38,10 +34,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
-    // Initialize in-memory vector storage with OpenAI embedder
-    let store = Qdrant::new(QdrantConfig {
-        uri: opt.qdrant_uri.clone(),
-    })?;
+    let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
+
+    let store = StoreBuilder::new()
+        .embedder(embedder)
+        .client(qdrant_client)
+        .collection_name(&opt.qdrant_collection)
+        .build()
+        .await
+        .unwrap();
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
@@ -86,15 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(
-                    input,
-                    &http_client,
-                    &open_ai,
-                    &mut thread_id,
-                    store,
-                )
-                .await
-                {
+                match eval::eval(input, &http_client, &open_ai, &mut thread_id, &store).await {
                     Ok(mut stream) => {
                         while let Some(chunk) = stream.next().await {
                             match chunk {
