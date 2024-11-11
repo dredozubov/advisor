@@ -56,28 +56,36 @@ pub async fn eval(
                 }
             }
         }
-        // Process each filing individually
-        for (_, filing) in filings {
-            let metadata: HashMap<String, Value> = [
-                (
-                    "type".to_string(),
-                    Value::String("edgar_filing".to_string()),
-                ),
-                (
-                    "report_type".to_string(),
-                    Value::String(filing.report_type.clone()),
-                ),
-                (
-                    "filing_date".to_string(),
-                    Value::String(filing.filing_date.to_string()),
-                ),
-                (
-                    "accession_number".to_string(),
-                    Value::String(filing.accession_number.clone()),
-                ),
-            ]
-            .into_iter()
-            .collect();
+        // Process filings if it's a Value object
+        if let Some(filings_obj) = filings.as_object() {
+            for (_, filing) in filings_obj {
+                if let Some(filing_obj) = filing.as_object() {
+                    let metadata: HashMap<String, Value> = [
+                        (
+                            "type".to_string(),
+                            Value::String("edgar_filing".to_string()),
+                        ),
+                        (
+                            "report_type".to_string(),
+                            filing_obj.get("report_type")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string()))
+                        ),
+                        (
+                            "filing_date".to_string(),
+                            filing_obj.get("filing_date")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string()))
+                        ),
+                        (
+                            "accession_number".to_string(),
+                            filing_obj.get("accession_number")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string()))
+                        ),
+                    ]
+                    .into_iter()
+                    .collect();
 
             log::info!("Storing filing in vector store");
             crate::document::store_chunked_document_with_cache(
