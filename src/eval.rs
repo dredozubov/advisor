@@ -12,8 +12,8 @@ use langchain_rust::{
     message_formatter, prompt_args,
     schemas::Message,
 };
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub async fn eval(
     input: &str,
@@ -24,6 +24,7 @@ pub async fn eval(
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
+    if let Err(e) = extract_query_params(llm, input).await {}
     match extract_query_params(llm, input).await {
         Ok(query_json) => {
             // Step 1: Extract date ranges and report types using Anthropic LLM
@@ -64,7 +65,11 @@ pub async fn eval(
                     store,
                 )
                 .await?;
-                log::info!("Filing added to vector store: {}_{}", filings["report_type"], filings["filing_date"]);
+                log::info!(
+                    "Filing added to vector store: {}_{}",
+                    filings["report_type"],
+                    filings["filing_date"]
+                );
             }
 
             // Process earnings data if requested
@@ -106,9 +111,15 @@ pub async fn eval(
                             .await
                             .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
 
-                        log::debug!("Similarity search returned {} documents", similar_docs.len());
+                        log::debug!(
+                            "Similarity search returned {} documents",
+                            similar_docs.len()
+                        );
                         if similar_docs.is_empty() {
-                            log::warn!("No similar documents found in vector store for input: {}", input);
+                            log::warn!(
+                                "No similar documents found in vector store for input: {}",
+                                input
+                            );
                         }
 
                         log::debug!("Similar search returned: {:?}", similar_docs);
