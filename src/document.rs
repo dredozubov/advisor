@@ -16,10 +16,9 @@ pub async fn store_chunked_document_with_cache(
     // Construct the cache path
     let cache_path = format!("{}/{}.json", cache_dir, cache_filename);
 
-    // Check if cached JSON exists
+    // Check if cached JSON exists and log it
     if fs::read_to_string(cache_path.as_str()).is_ok() {
-        log::info!("Using cached JSON from: {}", cache_path);
-        return Ok(());
+        log::debug!("Cache exists at: {}", cache_path);
     }
 
     // If no cache, proceed with chunking and storing
@@ -100,10 +99,14 @@ pub async fn store_chunked_document_with_cache(
         documents.first().map(|d| &d.metadata)
     );
     
+    log::debug!("First chunk content: {:?}", documents.first().map(|d| &d.page_content));
+    
     store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
         .map_err(|e| anyhow!("Failed to store document chunks in vector store: {}", e))?;
+    
+    log::debug!("Successfully added documents to vector store");
 
     // Cache the chunked document
     log::info!("Caching chunked document to: {}", cache_path);
