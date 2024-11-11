@@ -24,154 +24,135 @@ pub async fn eval(
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
-    if let Err(e) = extract_query_params(llm, input).await {}
-    match extract_query_params(llm, input).await {
-        Ok(query_json) => {
-            // Step 1: Extract date ranges and report types using Anthropic LLM
-            log::info!("Extracted query: {}", query_json);
+    if let Err(e) = extract_query_params(llm, input).await {
+        log::error!("Failure to create an EDGAR query: {e}");
+        return Err(anyhow!("Failed to create query: {}", e));
+    }
 
-            // Parse into our new high-level Query type
-            log::debug!("Parsing query JSON: {}", query_json);
-            let base_query: Query = serde_json::from_str(&query_json)?;
-            log::debug!("Parsed base query: {:?}", base_query);
+    let query_json = extract_query_params(llm, input).await?;
+    log::info!("Extracted query: {}", query_json);
 
-            // Process EDGAR filings if requested
-            log::debug!("Checking if filings data is requested");
-            if let Some(filings) = base_query.parameters.get("filings") {
-                log::debug!("Filings data is requested");
-                if let Some(_filings) = base_query.parameters.get("filings") {
-                    match base_query.to_edgar_query() {
-                        Ok(edgar_query) => {
-                            for ticker in &edgar_query.tickers {
-                                log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                                let filings =
-                                    filing::fetch_matching_filings(http_client, &edgar_query)
-                                        .await?;
-                                process_edgar_filings(filings, store).await?;
-                            }
-                        }
-                        Err(e) => {
-                            log::error!("Failed to create EDGAR query: {}", e);
-                        }
-                    }
-                }
-                // Ensure the parsed filing is added to the vector store
-                log::info!("Storing parsed filing in vector store");
-                crate::document::store_chunked_document_with_cache(
-                    serde_json::to_string_pretty(&filings)?,
-                    HashMap::new(), // Add any relevant metadata here
-                    "data/edgar/parsed",
-                    &format!("{}_{}", filings["report_type"], filings["filing_date"]),
-                    store,
-                )
-                .await?;
-                log::info!(
-                    "Filing added to vector store: {}_{}",
-                    filings["report_type"],
-                    filings["filing_date"]
-                );
-            }
+    // Parse into our new high-level Query type
+    log::debug!("Parsing query JSON: {}", query_json);
+    let base_query: Query = serde_json::from_str(&query_json)?;
+    log::debug!("Parsed base query: {:?}", base_query);
 
-            // Process earnings data if requested
-            log::debug!("Checking if earnings data is requested");
-            if let Some(earnings) = base_query.parameters.get("earnings") {
-                log::debug!("Earnings data is requested");
-                let _start_date = earnings
-                    .get("start_date")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
-                let _end_date = earnings
-                    .get("end_date")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
-
-                match base_query.to_earnings_query() {
-                    Ok(earnings_query) => {
-                        log::info!(
-                            "Fetching earnings data for ticker: {}",
-                            earnings_query.ticker
-                        );
-                        let transcripts = earnings::fetch_transcripts(
-                            http_client,
-                            &earnings_query.ticker,
-                            earnings_query.start_date,
-                            earnings_query.end_date,
-                        )
-                        .await?;
-                        process_earnings_transcripts(transcripts, store).await?;
-
-                        // Perform similarity search
-                        log::debug!("Performing similarity search for input: {}", input);
-                        let similar_docs = store
-                            .similarity_search(
-                                input,
-                                5, // Get top 5 most similar documents
-                                &langchain_rust::vectorstore::VecStoreOptions::default(),
-                            )
-                            .await
-                            .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
-
-                        log::debug!(
-                            "Similarity search returned {} documents",
-                            similar_docs.len()
-                        );
-                        if similar_docs.is_empty() {
-                            log::warn!(
-                                "No similar documents found in vector store for input: {}",
-                                input
-                            );
-                        }
-
-                        log::debug!("Similar search returned: {:?}", similar_docs);
-
-                        // Format documents for LLM context
-                        let context = similar_docs
-                            .iter()
-                            .map(|doc| {
-                                format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n\n");
-
-                        log::debug!("LLM context: {:?}", context);
-
-                        // Create prompt with context
-                        let prompt = format!(
-                            "Based on the following earnings call transcripts and financial documents, answer this question: {}\n\nContext:\n{}",
-                            input,
-                            context
-                        );
-
-                        // Return streaming response
-                        let messages = vec![
-                            langchain_rust::schemas::Message::new_system_message(
-                                "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
-                            ),
-                            langchain_rust::schemas::Message::new_human_message(&prompt)
-                        ];
-
-                        log::debug!("Sending prompt to LLM: {:?}", messages);
-                        let stream = llm.stream(&messages).await?;
-                        log::debug!("LLM stream started successfully");
-                        return Ok(Box::pin(stream.map(|r| {
-                            r.map(|s| s.content).map_err(|e| {
-                                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-                            })
-                        })));
-                    }
-                    Err(e) => {
-                        log::error!("Failed to create earnings query: {}", e);
-                    }
+    // Process EDGAR filings if requested
+    log::debug!("Checking if filings data is requested");
+    if let Some(filings) = base_query.parameters.get("filings") {
+        log::debug!("Filings data is requested");
+        if let Some(_filings) = base_query.parameters.get("filings") {
+            if let Err(e) = base_query.to_edgar_query() {
+                log::error!("Failed to create EDGAR query: {}", e);
+            } else {
+                let edgar_query = base_query.to_edgar_query()?;
+                for ticker in &edgar_query.tickers {
+                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                    let filings =
+                        filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                    process_edgar_filings(filings, store).await?;
                 }
             }
-
-            Err(anyhow!("No response generated"))
         }
-        Err(e) => {
-            log::error!("Failure to create an EDGAR query: {e}");
-            Err(anyhow!("Failed to create query: {}", e))
+        // Ensure the parsed filing is added to the vector store
+        log::info!("Storing parsed filing in vector store");
+        crate::document::store_chunked_document_with_cache(
+            serde_json::to_string_pretty(&filings)?,
+            HashMap::new(), // Add any relevant metadata here
+            "data/edgar/parsed",
+            &format!("{}_{}", filings["report_type"], filings["filing_date"]),
+            store,
+        )
+        .await?;
+        log::info!("Filing added to vector store: {}_{}", filings["report_type"], filings["filing_date"]);
+    }
+
+    // Process earnings data if requested
+    log::debug!("Checking if earnings data is requested");
+    if let Some(earnings) = base_query.parameters.get("earnings") {
+        log::debug!("Earnings data is requested");
+        let _start_date = earnings
+            .get("start_date")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
+        let _end_date = earnings
+            .get("end_date")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
+
+        if let Err(e) = base_query.to_earnings_query() {
+            log::error!("Failed to create earnings query: {}", e);
+        } else {
+            let earnings_query = base_query.to_earnings_query()?;
+            log::info!(
+                "Fetching earnings data for ticker: {}",
+                earnings_query.ticker
+            );
+            let transcripts = earnings::fetch_transcripts(
+                http_client,
+                &earnings_query.ticker,
+                earnings_query.start_date,
+                earnings_query.end_date,
+            )
+            .await?;
+            process_earnings_transcripts(transcripts, store).await?;
+
+            // Perform similarity search
+            log::debug!("Performing similarity search for input: {}", input);
+            let similar_docs = store
+                .similarity_search(
+                    input,
+                    5, // Get top 5 most similar documents
+                    &langchain_rust::vectorstore::VecStoreOptions::default(),
+                )
+                .await
+                .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+            log::debug!("Similarity search returned {} documents", similar_docs.len());
+            if similar_docs.is_empty() {
+                log::warn!("No similar documents found in vector store for input: {}", input);
+            }
+
+            log::debug!("Similar search returned: {:?}", similar_docs);
+
+            // Format documents for LLM context
+            let context = similar_docs
+                .iter()
+                .map(|doc| {
+                    format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n");
+
+            log::debug!("LLM context: {:?}", context);
+
+            // Create prompt with context
+            let prompt = format!(
+                "Based on the following earnings call transcripts and financial documents, answer this question: {}\n\nContext:\n{}",
+                input,
+                context
+            );
+
+            // Return streaming response
+            let messages = vec![
+                langchain_rust::schemas::Message::new_system_message(
+                    "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
+                ),
+                langchain_rust::schemas::Message::new_human_message(&prompt)
+            ];
+
+            log::debug!("Sending prompt to LLM: {:?}", messages);
+            let stream = llm.stream(&messages).await?;
+            log::debug!("LLM stream started successfully");
+            return Ok(Box::pin(stream.map(|r| {
+                r.map(|s| s.content).map_err(|e| {
+                    Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                })
+            })));
         }
     }
+
+    Err(anyhow!("No response generated"))
 }
 
 async fn process_edgar_filings(
