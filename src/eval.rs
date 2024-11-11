@@ -239,20 +239,22 @@ pub async fn eval(
     }
 
     // Format documents for LLM context
+    log::info!("Documents found for context:");
     let context = similar_docs
         .iter()
         .map(|doc| {
-            log::debug!(
-                "Document metadata: {:?}, score: {:.3}",
+            log::info!(
+                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
+                doc.score,
                 doc.metadata,
-                doc.score
+                doc.page_content
             );
             format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
         })
         .collect::<Vec<_>>()
         .join("\n\n");
 
-    log::debug!("Final context being sent to LLM: {}", context);
+    log::info!("=== Complete LLM Context ===\n{}\n=== End Context ===", context);
 
     // Create prompt with context
     let prompt = format!(
@@ -269,7 +271,11 @@ pub async fn eval(
         langchain_rust::schemas::Message::new_human_message(&prompt)
     ];
 
-    log::debug!("Sending prompt to LLM: {:?}", messages);
+    log::info!("=== Complete LLM Messages ===");
+    for (i, msg) in messages.iter().enumerate() {
+        log::info!("Message {}: Role: {}, Content: {}", i, msg.role, msg.content);
+    }
+    log::info!("=== End Messages ===");
     let stream = llm.stream(&messages).await?;
     log::debug!("LLM stream started successfully");
     Ok(Box::pin(stream.map(|r| {
