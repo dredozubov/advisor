@@ -45,8 +45,7 @@ pub async fn eval(
             Ok(edgar_query) => {
                 for ticker in &edgar_query.tickers {
                     log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                    let filings =
-                        filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                    let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
                     process_edgar_filings(filings, store).await?;
                 }
             }
@@ -66,21 +65,24 @@ pub async fn eval(
                         ),
                         (
                             "report_type".to_string(),
-                            filing_obj.get("report_type")
+                            filing_obj
+                                .get("report_type")
                                 .cloned()
-                                .unwrap_or(Value::String("unknown".to_string()))
+                                .unwrap_or(Value::String("unknown".to_string())),
                         ),
                         (
                             "filing_date".to_string(),
-                            filing_obj.get("filing_date")
+                            filing_obj
+                                .get("filing_date")
                                 .cloned()
-                                .unwrap_or(Value::String("unknown".to_string()))
+                                .unwrap_or(Value::String("unknown".to_string())),
                         ),
                         (
                             "accession_number".to_string(),
-                            filing_obj.get("accession_number")
+                            filing_obj
+                                .get("accession_number")
                                 .cloned()
-                                .unwrap_or(Value::String("unknown".to_string()))
+                                .unwrap_or(Value::String("unknown".to_string())),
                         ),
                     ]
                     .into_iter()
@@ -91,15 +93,30 @@ pub async fn eval(
                         serde_json::to_string_pretty(&filing)?,
                         metadata,
                         "data/edgar/parsed",
-                        &format!("{}_{}", filing_obj.get("report_type").and_then(|v| v.as_str()).unwrap_or("unknown"), 
-                                         filing_obj.get("filing_date").and_then(|v| v.as_str()).unwrap_or("unknown")),
+                        &format!(
+                            "{}_{}",
+                            filing_obj
+                                .get("report_type")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown"),
+                            filing_obj
+                                .get("filing_date")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown")
+                        ),
                         store,
                     )
                     .await?;
                     log::info!(
                         "Filing added to vector store: {}_{}",
-                        filing_obj.get("report_type").and_then(|v| v.as_str()).unwrap_or("unknown"),
-                        filing_obj.get("filing_date").and_then(|v| v.as_str()).unwrap_or("unknown")
+                        filing_obj
+                            .get("report_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown"),
+                        filing_obj
+                            .get("filing_date")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
                     );
                 }
             }
