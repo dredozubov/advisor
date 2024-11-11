@@ -37,6 +37,8 @@ pub async fn eval(
     let base_query: Query = serde_json::from_str(&query_json)?;
     log::debug!("Parsed base query: {:?}", base_query);
 
+    let mut has_processed_data = false;
+
     // Process EDGAR filings if requested
     log::debug!("Checking if filings data is requested");
     if let Some(filings) = base_query.parameters.get("filings") {
@@ -47,6 +49,7 @@ pub async fn eval(
                     log::info!("Fetching EDGAR filings for ticker: {}", ticker);
                     let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
                     process_edgar_filings(filings, store).await?;
+                    has_processed_data = true;
                 }
             }
             Err(e) => {
@@ -212,7 +215,58 @@ pub async fn eval(
         }
     }
 
-    Err(anyhow!("No response generated"))
+    if !has_processed_data {
+        return Err(anyhow!("No data was processed"));
+    }
+
+    // Perform similarity search
+    log::debug!("Performing similarity search for input: {}", input);
+    let similar_docs = store
+        .similarity_search(
+            input,
+            5, // Get top 5 most similar documents
+            &langchain_rust::vectorstore::VecStoreOptions::default(),
+        )
+        .await
+        .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+    log::debug!(
+        "Similarity search returned {} documents",
+        similar_docs.len()
+    );
+    if similar_docs.is_empty() {
+        return Err(anyhow!("No similar documents found in vector store"));
+    }
+
+    // Format documents for LLM context
+    let context = similar_docs
+        .iter()
+        .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    // Create prompt with context
+    let prompt = format!(
+        "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}",
+        input,
+        context
+    );
+
+    // Return streaming response
+    let messages = vec![
+        langchain_rust::schemas::Message::new_system_message(
+            "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
+        ),
+        langchain_rust::schemas::Message::new_human_message(&prompt)
+    ];
+
+    log::debug!("Sending prompt to LLM: {:?}", messages);
+    let stream = llm.stream(&messages).await?;
+    log::debug!("LLM stream started successfully");
+    Ok(Box::pin(stream.map(|r| {
+        r.map(|s| s.content)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    })))
 }
 
 async fn process_edgar_filings(
