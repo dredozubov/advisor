@@ -56,21 +56,30 @@ pub async fn eval(
                 }
             }
         }
-        // Ensure the parsed filing is added to the vector store
-        log::info!("Storing parsed filing in vector store");
-        crate::document::store_chunked_document_with_cache(
-            serde_json::to_string_pretty(&filings)?,
-            HashMap::new(), // Add any relevant metadata here
-            "data/edgar/parsed",
-            &format!("{}_{}", filings["report_type"], filings["filing_date"]),
-            store,
-        )
-        .await?;
-        log::info!(
-            "Filing added to vector store: {}_{}",
-            filings["report_type"],
-            filings["filing_date"]
-        );
+        // Process each filing individually
+        for (_, filing) in filings {
+            let metadata: HashMap<String, Value> = [
+                ("type".to_string(), Value::String("edgar_filing".to_string())),
+                ("report_type".to_string(), Value::String(filing.report_type.clone())),
+                ("filing_date".to_string(), Value::String(filing.filing_date.to_string())),
+                ("accession_number".to_string(), Value::String(filing.accession_number.clone())),
+            ].into_iter().collect();
+
+            log::info!("Storing filing in vector store");
+            crate::document::store_chunked_document_with_cache(
+                serde_json::to_string_pretty(&filing)?,
+                metadata,
+                "data/edgar/parsed",
+                &format!("{}_{}", filing.report_type, filing.filing_date),
+                store,
+            )
+            .await?;
+            log::info!(
+                "Filing added to vector store: {}_{}",
+                filing.report_type,
+                filing.filing_date
+            );
+        }
     }
 
     // Process earnings data if requested
