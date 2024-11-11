@@ -42,15 +42,17 @@ pub async fn eval(
     if let Some(filings) = base_query.parameters.get("filings") {
         log::debug!("Filings data is requested");
         if let Some(_filings) = base_query.parameters.get("filings") {
-            if let Err(e) = base_query.to_edgar_query() {
-                log::error!("Failed to create EDGAR query: {}", e);
-            } else {
-                let edgar_query = base_query.to_edgar_query()?;
-                for ticker in &edgar_query.tickers {
-                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
-                    let filings =
-                        filing::fetch_matching_filings(http_client, &edgar_query).await?;
-                    process_edgar_filings(filings, store).await?;
+            match base_query.to_edgar_query() {
+                Ok(edgar_query) => {
+                    for ticker in &edgar_query.tickers {
+                        log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                        let filings =
+                            filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                        process_edgar_filings(filings, store).await?;
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create EDGAR query: {}", e);
                 }
             }
         }
@@ -64,11 +66,16 @@ pub async fn eval(
             store,
         )
         .await?;
-        log::info!("Filing added to vector store: {}_{}", filings["report_type"], filings["filing_date"]);
+        log::info!(
+            "Filing added to vector store: {}_{}",
+            filings["report_type"],
+            filings["filing_date"]
+        );
     }
 
     // Process earnings data if requested
     log::debug!("Checking if earnings data is requested");
+
     if let Some(earnings) = base_query.parameters.get("earnings") {
         log::debug!("Earnings data is requested");
         let _start_date = earnings
@@ -108,9 +115,15 @@ pub async fn eval(
                 .await
                 .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
 
-            log::debug!("Similarity search returned {} documents", similar_docs.len());
+            log::debug!(
+                "Similarity search returned {} documents",
+                similar_docs.len()
+            );
             if similar_docs.is_empty() {
-                log::warn!("No similar documents found in vector store for input: {}", input);
+                log::warn!(
+                    "No similar documents found in vector store for input: {}",
+                    input
+                );
             }
 
             log::debug!("Similar search returned: {:?}", similar_docs);
@@ -118,9 +131,7 @@ pub async fn eval(
             // Format documents for LLM context
             let context = similar_docs
                 .iter()
-                .map(|doc| {
-                    format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
-                })
+                .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
                 .collect::<Vec<_>>()
                 .join("\n\n");
 
@@ -145,9 +156,8 @@ pub async fn eval(
             let stream = llm.stream(&messages).await?;
             log::debug!("LLM stream started successfully");
             return Ok(Box::pin(stream.map(|r| {
-                r.map(|s| s.content).map_err(|e| {
-                    Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-                })
+                r.map(|s| s.content)
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
             })));
         }
     }
