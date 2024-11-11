@@ -30,7 +30,7 @@ pub async fn eval(
     }
 
     let query_json = extract_query_params(llm, input).await?;
-    log::info!("Extracted query: {}", query_json);
+    log::debug!("Extracted query: {}", query_json);
 
     // Parse into our new high-level Query type
     log::debug!("Parsing query JSON: {}", query_json);
@@ -251,7 +251,7 @@ pub async fn eval(
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    
+
     log::debug!("Final context being sent to LLM: {}", context);
 
     // Create prompt with context
@@ -429,7 +429,7 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
     )
     .to_string();
 
-    log::info!("Task: {task}");
+    log::debug!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     let prompt = message_formatter![
