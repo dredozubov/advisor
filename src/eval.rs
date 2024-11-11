@@ -241,9 +241,18 @@ pub async fn eval(
     // Format documents for LLM context
     let context = similar_docs
         .iter()
-        .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
+        .map(|doc| {
+            log::debug!(
+                "Document metadata: {:?}, score: {:.3}",
+                doc.metadata,
+                doc.score
+            );
+            format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+        })
         .collect::<Vec<_>>()
         .join("\n\n");
+    
+    log::debug!("Final context being sent to LLM: {}", context);
 
     // Create prompt with context
     let prompt = format!(

@@ -94,6 +94,12 @@ pub async fn store_chunked_document_with_cache(
     }
 
     // Send all chunks in a single request
+    log::debug!(
+        "Adding {} chunks to vector store with metadata: {:?}",
+        documents.len(),
+        documents.first().map(|d| &d.metadata)
+    );
+    
     store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
