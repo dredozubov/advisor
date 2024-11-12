@@ -403,14 +403,7 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
         input
     );
 
-    let prompt = message_formatter![
-        fmt_message!(Message::new_system_message(
-            "You are a helpful assistant providing very brief summaries of financial queries."
-        )),
-        fmt_message!(Message::new_human_message(summary_task))
-    ];
-
-    match chain.invoke(prompt_args!{"input" => prompt}).await {
+    match chain.invoke(prompt_args!{"input" => summary_task}).await {
         Ok(result) => Ok(result.trim().to_string()),
         Err(e) => Err(anyhow!("Error getting summary: {:?}", e))
     }
@@ -463,14 +456,7 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     log::debug!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
-    let prompt = message_formatter![
-        fmt_message!(Message::new_system_message(
-            "You are the parser assising human with turning natural language response into structured JSON."
-        )),
-        fmt_message!(Message::new_human_message(task))
-    ];
-
-    match chain.invoke(prompt_args!{"input" => task}).await {
+    match chain.invoke(prompt_args!{"input" => task.clone()}).await {
         Ok(result) => {
             log::debug!("Result: {:?}", result);
             Ok(result)
