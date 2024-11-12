@@ -200,15 +200,19 @@ pub async fn eval(
             ];
 
             log::debug!("Sending prompt to LLM: {:?}", prompt_args);
-            let stream = chain.stream(prompt_args).await?;
-            log::debug!("LLM stream started successfully");
+            // Get the full response first
+            let response = chain.invoke(prompt_args).await?;
+            log::debug!("LLM response received successfully");
+            
+            // Create a single-item stream from the response
+            let stream = futures::stream::once(async move { Ok(response.content) });
+            
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
 
             return Ok((
                 Box::pin(stream.map(|r| {
-                    r.map(|s| s.content)
-                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                    r.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
                 })),
                 summary,
             ));
