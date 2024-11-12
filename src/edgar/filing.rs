@@ -513,6 +513,7 @@ pub async fn fetch_matching_filings(
             let filing_clone = filing.clone();
             let base = "https://www.sec.gov/Archives/edgar/data";
             let accession_number = filing.accession_number.replace("-", "");
+
             // The primary_document from FilingEntry contains the original .htm file
             // We need to construct URL for the XBRL version by transforming .htm to _htm.xml
             let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");

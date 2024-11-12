@@ -1,3 +1,4 @@
+// Based on fast_xbrl_parser: https://github.com/TiesdeKok/fast_xbrl_parser
 use regex::Regex;
 use scraper::Html;
 pub mod xml {
@@ -15,12 +16,15 @@ pub mod xml {
         pub accession_number: String,
     }
 
+    //     For accurate interpretation, we should remember:
+    // key_ns/key_value represents the axis/dimension
+    // member_ns/member_value represents the member value
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct Dimension {
-        pub key_ns: String,
-        pub key_value: String,
+        pub axis_ns: String,   // was key_ns
+        pub axis_name: String, // was key_value
         pub member_ns: String,
-        pub member_value: String,
+        pub member_name: String, // was member_value
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -81,15 +85,12 @@ pub mod xml {
                         .contains(&fact.context_ref.clone().expect("No context ref"))
                     {
                         let row = DimensionTableRow {
-                            // cik: input_details.cik.clone(),
-                            // accession_number: input_details.accession_number.clone(),
                             context_ref: fact.context_ref.clone().expect("No context ref"),
-                            axis_tag: dimension.key_value.clone(),
-                            axis_prefix: dimension.key_ns.clone(),
-                            member_tag: dimension.member_value.clone(),
+                            axis_tag: dimension.axis_name.clone(), // was key_value
+                            axis_prefix: dimension.axis_ns.clone(), // was key_ns
+                            member_tag: dimension.member_name.clone(), // was member_value
                             member_prefix: dimension.member_ns.clone(),
                         };
-
                         table_rows.push(row);
                         context_ref_tracker.push(fact.context_ref.clone().expect("No context ref"));
                     }
@@ -269,10 +270,10 @@ pub mod xml {
                                     .entry(id.to_string())
                                     .or_default()
                                     .push(Dimension {
-                                        key_ns: dimension_ns.to_string(),
-                                        key_value: dimension_value.to_string(),
+                                        axis_ns: dimension_ns.to_string(), // was key_ns in fast_xbrl_parser
+                                        axis_name: dimension_value.to_string(), // was key_value in fast_xbrl_parser
                                         member_ns: key_ns.to_string(),
-                                        member_value: key_value.to_string(),
+                                        member_name: key_value.to_string(), // was member_value in fast_xbrl_parser
                                     });
 
                                 log::debug!(
@@ -382,50 +383,6 @@ pub mod xml {
         pub json: Option<Vec<FactItem>>,
         pub facts: Option<Vec<FactTableRow>>,
         pub dimensions: Option<Vec<DimensionTableRow>>,
-    }
-
-    impl XBRLFiling {
-        pub fn new(input: String, output: Vec<&str>) -> XBRLFiling {
-            let raw_xml =
-                fs::read_to_string(input).expect("Something went wrong while reading XML file");
-
-            let mut filing_obj = XBRLFiling {
-                json: None,
-                facts: None,
-                dimensions: None,
-            };
-
-            // Parse the XML and generate JSON
-            let output_options = ["json", "facts", "dimensions"];
-
-            // If output contains any of output_options
-            if output.iter().any(|x| output_options.contains(x)) {
-                let json = parse_xml_to_facts(raw_xml);
-
-                // Return json if in output
-                if output.contains(&"json") {
-                    filing_obj.json = Some(json.clone());
-                }
-
-                // Parse facts tables
-
-                if output.contains(&"facts") {
-                    let facts_table = facts_to_table(json.clone());
-                    filing_obj.facts = Some(facts_table);
-                }
-
-                // Parse dimensions tables
-
-                if output.contains(&"dimensions") {
-                    let dimensions_table = dimensions_to_table(json.clone());
-                    filing_obj.dimensions = Some(dimensions_table);
-                }
-            }
-
-            // Return
-
-            filing_obj
-        }
     }
 }
 
