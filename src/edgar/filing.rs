@@ -667,10 +667,21 @@ pub async fn extract_complete_submission_filing(
     let mut filing_documents = HashMap::new();
     filing_documents.insert("facts".to_string(), json_facts.clone());
 
-    // Cache the parsed JSON
+    // Cache the parsed JSON and markdown
     log::info!("Caching parsed JSON to: {}", json_cache_path);
     let json_content = serde_json::to_string_pretty(&filing_documents)?;
-    fs::write(&json_cache_path, json_content)?;
+    fs::write(&json_cache_path, &json_content)?;
+
+    // Generate and save markdown alongside JSON
+    let md_cache_path = json_cache_path.replace(".json", ".md");
+    log::info!("Saving markdown to: {}", md_cache_path);
+    let xbrl_filing = super::xbrl::XBRLFiling {
+        json: Some(facts.clone()),
+        facts: None,
+        dimensions: None,
+    };
+    let markdown_content = xbrl_filing.to_markdown();
+    fs::write(&md_cache_path, markdown_content)?;
 
     // Create metadata for the document
     let metadata = serde_json::json!({
