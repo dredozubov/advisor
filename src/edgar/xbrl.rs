@@ -16,7 +16,7 @@ pub struct InputDetails {
 //     For accurate interpretation, we should remember:
 // key_ns/key_value represents the axis/dimension
 // member_ns/member_value represents the member value
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Dimension {
     pub axis_ns: String,   // was key_ns
     pub axis_name: String, // was key_value
@@ -24,7 +24,7 @@ pub struct Dimension {
     pub member_name: String, // was member_value
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Unit {
     pub unit_type: String,
     pub unit_value: String,
@@ -36,7 +36,7 @@ impl std::fmt::Display for Unit {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Period {
     pub period_type: String,
     pub period_value: String,
@@ -383,7 +383,7 @@ impl XBRLFiling {
 
         if let Some(facts) = &self.json {
             // Group facts by concept and dimensions signature
-            let mut tables = self.detect_tables(facts);
+            let tables = self.detect_tables(facts);
             let standalone_facts: Vec<&FactItem> = facts
                 .iter()
                 .filter(|f| !tables.values().any(|table_facts| table_facts.contains(&f)))
