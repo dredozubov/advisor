@@ -12,6 +12,7 @@ name = "advisor"
 path = "src/lib.rs"
 
 [dependencies]
+colored = "2.1.0"
 security-framework = "3.0.0"
 structopt = "0.3"
 tokio = { version = "1.25.0", features = ["full", "rt-multi-thread"] }
