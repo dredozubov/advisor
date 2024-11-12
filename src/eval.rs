@@ -5,12 +5,7 @@ use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{
-    chain::Chain,
-    fmt_message,
-    message_formatter, prompt_args,
-    schemas::Message,
-};
+use langchain_rust::{chain::Chain, fmt_message, message_formatter, prompt_args, schemas::Message};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -19,9 +14,10 @@ pub async fn eval(
     http_client: &reqwest::Client,
     chain: &ConversationalChain,
     store: &dyn VectorStore,
-) -> Result<
-    (futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>, String),
-> {
+) -> Result<(
+    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
+    String,
+)> {
     if let Err(e) = extract_query_params(chain, input).await {
         log::error!("Failure to create an EDGAR query: {e}");
         return Err(anyhow!("Failed to create query: {}", e));
@@ -208,11 +204,14 @@ pub async fn eval(
             log::debug!("LLM stream started successfully");
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
-            
-            return Ok((Box::pin(stream.map(|r| {
-                r.map(|s| s.content)
-                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-            })), summary));
+
+            return Ok((
+                Box::pin(stream.map(|r| {
+                    r.map(|s| s.content)
+                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                })),
+                summary,
+            ));
         }
     }
 
@@ -279,11 +278,14 @@ pub async fn eval(
     log::debug!("LLM stream started successfully");
     // Get conversation summary
     let summary = get_conversation_summary(chain, input).await?;
-    
-    Ok((Box::pin(stream.map(|r| {
-        r.map(|s| s.content)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    })), summary))
+
+    Ok((
+        Box::pin(stream.map(|r| {
+            r.map(|s| s.content)
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        })),
+        summary,
+    ))
 }
 
 async fn process_edgar_filings(
@@ -396,16 +398,16 @@ async fn process_earnings_transcripts(
 async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> Result<String> {
     let summary_task = format!(
         "Provide a 2-3 word summary of this query, mentioning any ticker symbols if present. Examples:\n\
-         Input: 'Show me Apple's revenue breakdown for Q1 2024' -> 'AAPL Revenue'\n\
-         Input: 'What were the key risks mentioned in the latest 10-K?' -> 'Risk Factors'\n\
-         Input: 'Compare Microsoft and Google cloud revenue growth' -> 'MSFT GOOGL Cloud'\n\n\
+         Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
+         Input: What were the key risks mentioned in the latest 10-K of TSLA? -> TSLA Risk Factors\n\
+         Input: Compare Microsoft and Google cloud revenue growth -> MSFT GOOGL comparison\n\n\
          Query to summarize: {}", 
         input
     );
 
-    match chain.invoke(prompt_args!{"input" => summary_task}).await {
+    match chain.invoke(prompt_args! {"input" => summary_task}).await {
         Ok(result) => Ok(result.trim().to_string()),
-        Err(e) => Err(anyhow!("Error getting summary: {:?}", e))
+        Err(e) => Err(anyhow!("Error getting summary: {:?}", e)),
     }
 }
 
@@ -456,7 +458,7 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     log::debug!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
-    match chain.invoke(prompt_args!{"input" => task.clone()}).await {
+    match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
             log::debug!("Result: {:?}", result);
             Ok(result)
