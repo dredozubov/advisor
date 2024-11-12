@@ -142,6 +142,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+use colored::*;
+
 fn get_prompt(summary: &str) -> String {
-    format!("{}> ", summary)
+    format!("{}{}", summary.blue(), ">".yellow())
 }
