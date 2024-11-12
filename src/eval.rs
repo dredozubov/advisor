@@ -22,7 +22,7 @@ pub async fn eval(
     chain: &ConversationalChain,
     store: &dyn VectorStore,
 ) -> Result<
-    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
+    (futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>, String),
 > {
     if let Err(e) = extract_query_params(chain, input).await {
         log::error!("Failure to create an EDGAR query: {e}");
@@ -276,10 +276,13 @@ pub async fn eval(
 
     let stream = chain.stream(prompt_args).await?;
     log::debug!("LLM stream started successfully");
-    Ok(Box::pin(stream.map(|r| {
+    // Get conversation summary
+    let summary = get_conversation_summary(chain, input).await?;
+    
+    Ok((Box::pin(stream.map(|r| {
         r.map(|s| s.content)
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    })))
+    })), summary))
 }
 
 async fn process_edgar_filings(
@@ -387,6 +390,29 @@ async fn process_earnings_transcripts(
         );
     }
     Ok(())
+}
+
+async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> Result<String> {
+    let summary_task = format!(
+        "Provide a 2-3 word summary of this query, mentioning any ticker symbols if present. Examples:\n\
+         Input: 'Show me Apple's revenue breakdown for Q1 2024' -> 'AAPL Revenue'\n\
+         Input: 'What were the key risks mentioned in the latest 10-K?' -> 'Risk Factors'\n\
+         Input: 'Compare Microsoft and Google cloud revenue growth' -> 'MSFT GOOGL Cloud'\n\n\
+         Query to summarize: {}", 
+        input
+    );
+
+    let prompt = message_formatter![
+        fmt_message!(Message::new_system_message(
+            "You are a helpful assistant providing very brief summaries of financial queries."
+        )),
+        fmt_message!(Message::new_human_message(summary_task))
+    ];
+
+    match chain.invoke(prompt_args! {"input" => prompt}).await {
+        Ok(result) => Ok(result.trim().to_string()),
+        Err(e) => Err(anyhow!("Error getting summary: {:?}", e))
+    }
 }
 
 async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Result<String> {
