@@ -211,7 +211,7 @@ pub async fn eval(
             let summary = get_conversation_summary(chain, input).await?;
 
             return Ok((
-                Box::pin(stream.map(|r| r.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))),
+                Box::pin(stream.map(|r| r.map_err(|e: langchain_rust::error::Error| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))),
                 summary,
             ));
         }
