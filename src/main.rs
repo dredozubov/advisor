@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Enter 'quit' to exit");
     let mut summary = String::new();
     loop {
-        let prompt = get_prompt(summary);
+        let prompt = get_prompt(&summary[..]);
         let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 // Process the input using the eval function
                 match eval::eval(input, &http_client, &chain, &store).await {
                     Ok((mut stream, new_summary)) => {
-                        summary = &new_summary;
+                        summary = new_summary;
                         while let Some(chunk) = stream.next().await {
                             match chunk {
                                 Ok(c) => {
