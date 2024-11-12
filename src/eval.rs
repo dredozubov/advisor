@@ -205,14 +205,15 @@ pub async fn eval(
             log::debug!("LLM response received successfully");
             
             // Create a single-item stream from the response
-            let stream = futures::stream::once(async move { Ok(response.content) });
+            let stream = futures::stream::once(async move { Ok(response) });
             
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
 
             return Ok((
                 Box::pin(stream.map(|r| {
-                    r.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                    r.map(|s| s.content)
+                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
                 })),
                 summary,
             ));
