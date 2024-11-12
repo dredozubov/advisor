@@ -206,7 +206,7 @@ pub async fn eval(
 
             // Create a single-item stream from the response
             let stream =
-                futures::stream::once(async move { Ok::<String, core::error::Error>(response) });
+                futures::stream::once(async move { Ok::<String, Box<dyn std::error::Error + Send + Sync>>(response) });
 
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
