@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{chain::Chain, fmt_message, message_formatter, prompt_args, schemas::Message};
+use langchain_rust::{chain::Chain, prompt_args};
 use serde_json::Value;
 use std::collections::HashMap;
 
