@@ -24,6 +24,7 @@ pub async fn eval(
     }
 
     let query_json = extract_query_params(chain, input).await?;
+
     log::debug!("Extracted query: {}", query_json);
 
     // Parse into our new high-level Query type
@@ -205,16 +206,14 @@ pub async fn eval(
             log::debug!("LLM response received successfully");
 
             // Create a single-item stream from the response
-            let stream =
-                futures::stream::once(async move { Ok::<String, Box<dyn std::error::Error + Send + Sync>>(response) });
+            let stream = futures::stream::once(async move {
+                Ok::<String, Box<dyn std::error::Error + Send + Sync>>(response)
+            });
 
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
 
-            return Ok((
-                Box::pin(stream),
-                summary,
-            ));
+            return Ok((Box::pin(stream), summary));
         }
     }
 
