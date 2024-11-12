@@ -8,6 +8,7 @@ use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::error::Error;
 
 pub async fn eval(
     input: &str,
@@ -203,15 +204,17 @@ pub async fn eval(
             // Get the full response first
             let response = chain.invoke(prompt_args).await?;
             log::debug!("LLM response received successfully");
-            
+
             // Create a single-item stream from the response
             let stream = futures::stream::once(async move { Ok(response) });
-            
+
             // Get conversation summary
             let summary = get_conversation_summary(chain, input).await?;
 
             return Ok((
-                Box::pin(stream.map(|r| r.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>))),
+                Box::pin(stream.map(|r| {
+                    r.map_err(|e: Error| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                })),
                 summary,
             ));
         }
