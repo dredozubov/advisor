@@ -386,10 +386,10 @@ impl XBRLFiling {
             let tables = self.detect_tables(facts);
             let standalone_facts: Vec<&FactItem> = facts
                 .iter()
-                .filter(|f| !tables.values().any(|table_facts| table_facts.contains(&f)))
+                .filter(|f| f.dimensions.is_empty() && !tables.values().any(|table_facts| table_facts.contains(&f)))
                 .collect();
 
-            // Generate tables section
+            // Generate tables section for facts with dimensions
             if !tables.is_empty() {
                 md.push_str("# Data Tables\n\n");
                 for (sig, facts) in tables {
@@ -398,11 +398,11 @@ impl XBRLFiling {
                 }
             }
 
-            // Generate standalone facts section
+            // Generate standalone facts section in compact format
             if !standalone_facts.is_empty() {
-                md.push_str("# Individual Facts\n\n");
+                md.push_str("# Facts\n\n");
                 for fact in standalone_facts {
-                    md.push_str(&self.format_standalone_fact(fact));
+                    md.push_str(&self.format_compact_fact(fact));
                     md.push_str("\n");
                 }
             }
@@ -518,40 +518,39 @@ impl XBRLFiling {
         md
     }
 
-    fn format_standalone_fact(&self, fact: &FactItem) -> String {
-        let mut md = String::new();
-
-        md.push_str(&format!("### {}:{}\n", fact.prefix, fact.name));
-        md.push_str(&format!("**Value:** {}\n", fact.value));
-
+    fn format_compact_fact(&self, fact: &FactItem) -> String {
+        let mut parts = vec![format!("{}:{}", fact.prefix, fact.name)];
+        
+        // Add value
+        parts.push(fact.value.clone());
+        
+        // Add period(s) with "/" separator for ranges
         if !fact.periods.is_empty() {
-            md.push_str("**Period(s):**\n");
+            let mut start_date = None;
+            let mut end_date = None;
+            
             for period in &fact.periods {
-                md.push_str(&format!(
-                    "- {}: {}\n",
-                    period.period_type, period.period_value
-                ));
+                match period.period_type.as_str() {
+                    "startDate" => start_date = Some(period.period_value.clone()),
+                    "endDate" => end_date = Some(period.period_value.clone()),
+                    "instant" => start_date = Some(period.period_value.clone()),
+                    _ => {}
+                }
+            }
+
+            let period_str = match (start_date, end_date) {
+                (Some(start), Some(end)) if start == end => format!("({})", start),
+                (Some(start), Some(end)) => format!("({}/{})", start, end),
+                (Some(date), None) | (None, Some(date)) => format!("({})", date),
+                (None, None) => String::new(),
+            };
+            
+            if !period_str.is_empty() {
+                parts.push(period_str);
             }
         }
-
-        if !fact.dimensions.is_empty() {
-            md.push_str("**Dimensions:**\n");
-            for dim in &fact.dimensions {
-                md.push_str(&format!(
-                    "- {}:{} = {}:{}\n",
-                    dim.axis_ns, dim.axis_name, dim.member_ns, dim.member_name
-                ));
-            }
-        }
-
-        if !fact.units.is_empty() {
-            md.push_str("**Units:**\n");
-            for unit in &fact.units {
-                md.push_str(&format!("- {} ({})\n", unit.unit_value, unit.unit_type));
-            }
-        }
-
-        md
+        
+        parts.join(" ")
     }
 }
 
