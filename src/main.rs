@@ -1,7 +1,9 @@
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use futures::StreamExt;
+use langchain_rust::chain::builder::ConversationalChainBuilder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::memory::WindowBufferMemory;
 use langchain_rust::vectorstore::qdrant::{Qdrant, StoreBuilder};
 use qdrant_client::config::QdrantConfig;
 use rustyline::error::ReadlineError;
@@ -36,6 +38,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
 
+    // Only keep last 10 messages in memory
+    let memory = WindowBufferMemory::new(10);
+
     let store = StoreBuilder::new()
         .embedder(embedder)
         .client(qdrant_client)
@@ -51,10 +56,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize ChatGPT executor with API key from environment
     log::debug!("Initializing OpenAI client");
 
-    let open_ai = OpenAI::default()
+    let llm = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
     log::debug!("OpenAI client initialized successfully");
+
+    // Create the conversational chain
+    let chain = ConversationalChainBuilder::new()
+        .llm(llm.clone())
+        .memory(memory.into())
+        .build()
+        .expect("Error building ConversationalChain");
 
     // Create a rustyline Editor
     log::debug!("Creating rustyline editor");
@@ -73,11 +85,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::debug!("Starting REPL loop");
     println!("Enter 'quit' to exit");
-    let mut thread_id = None;
+    let mut summary = "";
     loop {
-        let prompt = thread_id
-            .as_ref()
-            .map_or(">> ".to_string(), |id| format!("{}> ", id));
+        let prompt = get_prompt(summary);
         let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
@@ -87,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &open_ai, &mut thread_id, &store).await {
+                match eval::eval(input, &http_client, &chain, &store).await {
                     Ok(mut stream) => {
                         while let Some(chunk) = stream.next().await {
                             match chunk {
@@ -129,4 +139,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("REPL history saved successfully");
 
     Ok(())
+}
+
+fn get_prompt(summary: &str) -> String {
+    format!("{}> ", summary)
 }

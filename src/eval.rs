@@ -3,6 +3,7 @@ use crate::edgar::{self, filing};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
+use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
     chain::{Chain, LLMChainBuilder},
@@ -18,18 +19,17 @@ use std::collections::HashMap;
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
-    llm: &OpenAI<OpenAIConfig>,
-    _thread_id: &mut Option<String>,
+    chain: &ConversationalChain,
     store: &dyn VectorStore,
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
-    if let Err(e) = extract_query_params(llm, input).await {
+    if let Err(e) = extract_query_params(chain, input).await {
         log::error!("Failure to create an EDGAR query: {e}");
         return Err(anyhow!("Failed to create query: {}", e));
     }
 
-    let query_json = extract_query_params(llm, input).await?;
+    let query_json = extract_query_params(chain, input).await?;
     log::debug!("Extracted query: {}", query_json);
 
     // Parse into our new high-level Query type
@@ -198,15 +198,15 @@ pub async fn eval(
             );
 
             // Return streaming response
-            let messages = vec![
-                langchain_rust::schemas::Message::new_system_message(
-                    "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
-                ),
-                langchain_rust::schemas::Message::new_human_message(&prompt)
+            let prompt_args = prompt_args![
+                "input" => [
+                    "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context.",
+                    &prompt
+                ]
             ];
 
-            log::debug!("Sending prompt to LLM: {:?}", messages);
-            let stream = llm.stream(&messages).await?;
+            log::debug!("Sending prompt to LLM: {:?}", prompt_args);
+            let stream = chain.stream(prompt_args).await?;
             log::debug!("LLM stream started successfully");
             return Ok(Box::pin(stream.map(|r| {
                 r.map(|s| s.content)
@@ -267,24 +267,14 @@ pub async fn eval(
     );
 
     // Return streaming response
-    let messages = vec![
-        langchain_rust::schemas::Message::new_system_message(
-            "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context."
-        ),
-        langchain_rust::schemas::Message::new_human_message(&prompt)
+    let prompt_args = prompt_args![
+        "input" => [
+            "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context.",
+            &prompt
+        ]
     ];
 
-    log::info!("=== Complete LLM Messages ===");
-    for (i, msg) in messages.iter().enumerate() {
-        log::info!(
-            "Message {}: Type: {:?}, Content: {}",
-            i,
-            msg.message_type,
-            msg.content
-        );
-    }
-    log::info!("=== End Messages ===");
-    let stream = llm.stream(&messages).await?;
+    let stream = chain.stream(prompt_args).await?;
     log::debug!("LLM stream started successfully");
     Ok(Box::pin(stream.map(|r| {
         r.map(|s| s.content)
@@ -399,7 +389,7 @@ async fn process_earnings_transcripts(
     Ok(())
 }
 
-async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
+async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Result<String> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
@@ -452,12 +442,6 @@ async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result
         )),
         fmt_message!(Message::new_human_message(task))
     ];
-
-    let chain = LLMChainBuilder::new()
-        .prompt(prompt)
-        .llm(llm.clone())
-        .build()
-        .unwrap();
 
     match chain.invoke(prompt_args! {}).await {
         Ok(result) => {
