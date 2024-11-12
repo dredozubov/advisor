@@ -410,7 +410,7 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
         fmt_message!(Message::new_human_message(summary_task))
     ];
 
-    match chain.invoke(&prompt).await {
+    match chain.invoke(prompt_args!{"input" => prompt}).await {
         Ok(result) => Ok(result.trim().to_string()),
         Err(e) => Err(anyhow!("Error getting summary: {:?}", e))
     }
@@ -470,7 +470,7 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
         fmt_message!(Message::new_human_message(task))
     ];
 
-    match chain.invoke(&task).await {
+    match chain.invoke(prompt_args!{"input" => task}).await {
         Ok(result) => {
             log::debug!("Result: {:?}", result);
             Ok(result)
