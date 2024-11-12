@@ -2,10 +2,7 @@
 use regex::Regex;
 use scraper::Html;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    fs,
-};
+use std::collections::{HashMap, HashSet};
 
 // Define structs
 
@@ -45,7 +42,7 @@ pub struct Period {
     pub period_value: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FactItem {
     pub id: String,
     pub prefix: String,
@@ -413,7 +410,7 @@ impl XBRLFiling {
         md
     }
 
-    fn detect_tables(&self, facts: &[FactItem]) -> HashMap<String, Vec<&FactItem>> {
+    fn detect_tables<'a>(&self, facts: &'a [FactItem]) -> HashMap<String, Vec<&'a FactItem>> {
         let mut tables: HashMap<String, Vec<&FactItem>> = HashMap::new();
 
         // Group facts by name and dimension structure
@@ -440,7 +437,7 @@ impl XBRLFiling {
         tables
     }
 
-    fn generate_table(&self, signature: &str, facts: &[&FactItem]) -> String {
+    fn generate_table(&self, _signature: &str, facts: &[&FactItem]) -> String {
         let mut md = String::new();
 
         if facts.is_empty() {
