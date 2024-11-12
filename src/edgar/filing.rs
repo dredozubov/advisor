@@ -511,7 +511,6 @@ pub async fn fetch_matching_filings(
         let cik = cik.to_string();
         let handle = tokio::spawn(async move {
             let filing_clone = filing.clone();
-            log::info!("calling fetching task");
             let base = "https://www.sec.gov/Archives/edgar/data";
             let accession_number = filing.accession_number.replace("-", "");
             // The primary_document from FilingEntry contains the original .htm file

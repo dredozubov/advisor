@@ -162,7 +162,7 @@ pub async fn eval(
             let similar_docs = store
                 .similarity_search(
                     input,
-                    5, // Get top 5 most similar documents
+                    50,
                     &langchain_rust::vectorstore::VecStoreOptions::default(),
                 )
                 .await
@@ -254,7 +254,10 @@ pub async fn eval(
         .collect::<Vec<_>>()
         .join("\n\n");
 
-    log::info!("=== Complete LLM Context ===\n{}\n=== End Context ===", context);
+    log::info!(
+        "=== Complete LLM Context ===\n{}\n=== End Context ===",
+        context
+    );
 
     // Create prompt with context
     let prompt = format!(
@@ -273,7 +276,12 @@ pub async fn eval(
 
     log::info!("=== Complete LLM Messages ===");
     for (i, msg) in messages.iter().enumerate() {
-        log::info!("Message {}: Type: {:?}, Content: {}", i, msg.message_type, msg.content);
+        log::info!(
+            "Message {}: Type: {:?}, Content: {}",
+            i,
+            msg.message_type,
+            msg.content
+        );
     }
     log::info!("=== End Messages ===");
     let stream = llm.stream(&messages).await?;
