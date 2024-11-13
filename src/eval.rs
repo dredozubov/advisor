@@ -9,6 +9,192 @@ use langchain_rust::{chain::Chain, prompt_args};
 use serde_json::Value;
 use std::collections::HashMap;
 
+async fn process_documents(
+    query: &Query,
+    http_client: &reqwest::Client,
+    store: &dyn VectorStore,
+) -> Result<()> {
+    // Process EDGAR filings if requested
+    if let Some(filings) = query.parameters.get("filings") {
+        log::debug!("Filings data is requested");
+        match query.to_edgar_query() {
+            Ok(edgar_query) => {
+                for ticker in &edgar_query.tickers {
+                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                    let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                    process_edgar_filings(filings, store).await?;
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to create EDGAR query: {}", e);
+            }
+        }
+
+        if let Some(filings_obj) = filings.as_object() {
+            for (_, filing) in filings_obj {
+                if let Some(filing_obj) = filing.as_object() {
+                    let metadata: HashMap<String, Value> = [
+                        (
+                            "type".to_string(),
+                            Value::String("edgar_filing".to_string()),
+                        ),
+                        (
+                            "report_type".to_string(),
+                            filing_obj
+                                .get("report_type")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string())),
+                        ),
+                        (
+                            "filing_date".to_string(),
+                            filing_obj
+                                .get("filing_date")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string())),
+                        ),
+                        (
+                            "accession_number".to_string(),
+                            filing_obj
+                                .get("accession_number")
+                                .cloned()
+                                .unwrap_or(Value::String("unknown".to_string())),
+                        ),
+                    ]
+                    .into_iter()
+                    .collect();
+
+                    log::info!("Storing filing in vector store");
+                    crate::document::store_chunked_document_with_cache(
+                        serde_json::to_string_pretty(&filing)?,
+                        metadata,
+                        "data/edgar/parsed",
+                        &format!(
+                            "{}_{}",
+                            filing_obj
+                                .get("report_type")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown"),
+                            filing_obj
+                                .get("filing_date")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown")
+                        ),
+                        store,
+                    )
+                    .await?;
+                }
+            }
+        }
+    }
+
+    // Process earnings data if requested
+    if let Some(earnings) = query.parameters.get("earnings") {
+        log::debug!("Earnings data is requested");
+        if let Ok(earnings_query) = query.to_earnings_query() {
+            log::info!(
+                "Fetching earnings data for ticker: {}",
+                earnings_query.ticker
+            );
+            let transcripts = earnings::fetch_transcripts(
+                http_client,
+                &earnings_query.ticker,
+                earnings_query.start_date,
+                earnings_query.end_date,
+            )
+            .await?;
+            process_earnings_transcripts(transcripts, store).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
+    // Perform similarity search
+    log::debug!("Performing similarity search for input: {}", input);
+    let similar_docs = store
+        .similarity_search(
+            input,
+            15, // Get top 15 most similar documents
+            &langchain_rust::vectorstore::VecStoreOptions::default(),
+        )
+        .await
+        .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+
+    log::debug!(
+        "Similarity search returned {} documents",
+        similar_docs.len()
+    );
+    if similar_docs.is_empty() {
+        return Err(anyhow!("No relevant documents found in vector store"));
+    }
+
+    // Format documents for LLM context
+    log::info!("Documents found for context:");
+    let context = similar_docs
+        .iter()
+        .map(|doc| {
+            log::info!(
+                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
+                doc.score,
+                doc.metadata,
+                doc.page_content
+            );
+            format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    log::info!(
+        "=== Complete LLM Context ===\n{}\n=== End Context ===",
+        context
+    );
+
+    Ok(context)
+}
+
+async fn generate_query(
+    chain: &ConversationalChain,
+    input: &str,
+) -> Result<(Query, String)> {
+    let summary = get_conversation_summary(chain, input).await?;
+    println!("summary done");
+
+    let query = extract_query_params(chain, input).await?;
+    println!("query params done");
+
+    Ok((query, summary))
+}
+
+async fn generate_response(
+    chain: &ConversationalChain,
+    input: &str,
+    context: &str,
+) -> Result<futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>> {
+    // Create prompt with context
+    let prompt = format!(
+        "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}",
+        input,
+        context
+    );
+
+    // Return streaming response
+    let prompt_args = prompt_args![
+        "input" => [
+            "You are a helpful financial analyst assistant. Provide clear and informative answers based on the provided context.",
+            &prompt
+        ]
+    ];
+
+    let stream = chain.stream(prompt_args).await?;
+    log::debug!("LLM stream started successfully");
+
+    Ok(Box::pin(stream.map(|r| {
+        r.map(|s| s.content)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    })))
+}
+
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
