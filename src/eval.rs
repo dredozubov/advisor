@@ -18,33 +18,19 @@ pub async fn eval(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
 )> {
-    if let Err(e) = extract_query_params(chain, input).await {
-        log::error!("Failure to create an EDGAR query: {e}");
-        return Err(anyhow!("Failed to create query: {}", e));
-    }
+    let summary = get_conversation_summary(chain, input).await?;
 
-    let query_json = extract_query_params(chain, input).await?;
-
-    log::debug!("Extracted query: {}", query_json);
-
-    // Parse into our new high-level Query type
-    log::debug!("Parsing query JSON: {}", query_json);
-    let base_query: Query = serde_json::from_str(&query_json)?;
-    log::debug!("Parsed base query: {:?}", base_query);
-
-    let mut has_processed_data = false;
+    let query = extract_query_params(chain, input).await?;
 
     // Process EDGAR filings if requested
-    log::debug!("Checking if filings data is requested");
-    if let Some(filings) = base_query.parameters.get("filings") {
+    if let Some(filings) = query.parameters.get("filings") {
         log::debug!("Filings data is requested");
-        match base_query.to_edgar_query() {
+        match query.to_edgar_query() {
             Ok(edgar_query) => {
                 for ticker in &edgar_query.tickers {
                     log::info!("Fetching EDGAR filings for ticker: {}", ticker);
                     let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
                     process_edgar_filings(filings, store).await?;
-                    has_processed_data = true;
                 }
             }
             Err(e) => {
@@ -52,7 +38,6 @@ pub async fn eval(
             }
         }
 
-        // Process filings if it's a Value object
         if let Some(filings_obj) = filings.as_object() {
             for (_, filing) in filings_obj {
                 if let Some(filing_obj) = filing.as_object() {
@@ -124,7 +109,7 @@ pub async fn eval(
     // Process earnings data if requested
     log::debug!("Checking if earnings data is requested");
 
-    if let Some(earnings) = base_query.parameters.get("earnings") {
+    if let Some(earnings) = query.parameters.get("earnings") {
         log::debug!("Earnings data is requested");
         let _start_date = earnings
             .get("start_date")
@@ -135,10 +120,10 @@ pub async fn eval(
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
 
-        if let Err(e) = base_query.to_earnings_query() {
+        if let Err(e) = query.to_earnings_query() {
             log::error!("Failed to create earnings query: {}", e);
         } else {
-            let earnings_query = base_query.to_earnings_query()?;
+            let earnings_query = query.to_earnings_query()?;
             log::info!(
                 "Fetching earnings data for ticker: {}",
                 earnings_query.ticker
@@ -151,74 +136,7 @@ pub async fn eval(
             )
             .await?;
             process_earnings_transcripts(transcripts, store).await?;
-
-            // Perform similarity search
-            log::debug!("Performing similarity search for input: {}", input);
-            let similar_docs = store
-                .similarity_search(
-                    input,
-                    50,
-                    &langchain_rust::vectorstore::VecStoreOptions::default(),
-                )
-                .await
-                .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
-
-            log::debug!(
-                "Similarity search returned {} documents",
-                similar_docs.len()
-            );
-            if similar_docs.is_empty() {
-                log::warn!(
-                    "No similar documents found in vector store for input: {}",
-                    input
-                );
-            }
-
-            log::debug!("Similar search returned: {:?}", similar_docs);
-
-            // Format documents for LLM context
-            let context = similar_docs
-                .iter()
-                .map(|doc| format!("Document (score: {:.3}): {}", doc.score, doc.page_content))
-                .collect::<Vec<_>>()
-                .join("\n\n");
-
-            log::debug!("LLM context: {:?}", context);
-
-            // Create prompt with context
-            let prompt = format!(
-                "Based on the following earnings call transcripts and financial documents, answer this question: {}\n\nContext:\n{}",
-                input,
-                context
-            );
-
-            // Return streaming response
-            let prompt_args = prompt_args![
-                "input" => [
-                    "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context.",
-                    &prompt
-                ]
-            ];
-
-            log::debug!("Sending prompt to LLM: {:?}", prompt_args);
-            // Get the full response first
-            let response = chain.invoke(prompt_args).await?;
-            log::debug!("LLM response received successfully");
-
-            // Create a single-item stream from the response
-            let stream = futures::stream::once(async move {
-                Ok::<String, Box<dyn std::error::Error + Send + Sync>>(response)
-            });
-
-            // Get conversation summary
-            let summary = get_conversation_summary(chain, input).await?;
-
-            return Ok((Box::pin(stream), summary));
         }
-    }
-
-    if !has_processed_data {
-        return Err(anyhow!("No data was processed"));
     }
 
     // Perform similarity search
@@ -226,7 +144,7 @@ pub async fn eval(
     let similar_docs = store
         .similarity_search(
             input,
-            5, // Get top 5 most similar documents
+            15, // Get top 5 most similar documents
             &langchain_rust::vectorstore::VecStoreOptions::default(),
         )
         .await
@@ -237,7 +155,7 @@ pub async fn eval(
         similar_docs.len()
     );
     if similar_docs.is_empty() {
-        return Err(anyhow!("No similar documents found in vector store"));
+        return Err(anyhow!("No relevant documents found in vector store"));
     }
 
     // Format documents for LLM context
@@ -271,15 +189,13 @@ pub async fn eval(
     // Return streaming response
     let prompt_args = prompt_args![
         "input" => [
-            "You are a helpful financial analyst assistant. Provide clear, concise answers based on the provided context.",
+            "You are a helpful financial analyst assistant. Provide clear and informative answers based on the provided context.",
             &prompt
         ]
     ];
 
     let stream = chain.stream(prompt_args).await?;
     log::debug!("LLM stream started successfully");
-    // Get conversation summary
-    let summary = get_conversation_summary(chain, input).await?;
 
     Ok((
         Box::pin(stream.map(|r| {
@@ -413,7 +329,7 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
     }
 }
 
-async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Result<String> {
+async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Result<Query> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
@@ -463,8 +379,15 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
             log::debug!("Result: {:?}", result);
-            Ok(result)
+            let query: Query = match serde_json::from_str(&result) {
+                Ok(query) => query,
+                Err(e) => {
+                    return Err(anyhow!("LLM returned a malformed query, halting: {}", e));
+                }
+            };
+            log::debug!("Parsed generated query: {:?}", query);
+            Ok(query)
         }
-        Err(e) => panic!("Error invoking LLMChain: {:?}", e),
+        Err(e) => Err(anyhow!("Error invoking LLMChain: {:?}", e)),
     }
 }
