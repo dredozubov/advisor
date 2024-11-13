@@ -19,8 +19,10 @@ pub async fn eval(
     String,
 )> {
     let summary = get_conversation_summary(chain, input).await?;
+    println!("summary done");
 
     let query = extract_query_params(chain, input).await?;
+    println!("query params done");
 
     // Process EDGAR filings if requested
     if let Some(filings) = query.parameters.get("filings") {
