@@ -614,14 +614,13 @@ pub async fn extract_complete_submission_filing(
     // Use the original filename but with .json extension
     let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
 
-    // Check if we already have parsed JSON
-    if let Ok(metadata) = fs::metadata(&json_cache_path) {
+    // Check if we already have parsed markdown
+    let md_cache_path = format!("{}/{}.md", json_cache_dir, file_stem);
+    if let Ok(metadata) = fs::metadata(&md_cache_path) {
         if metadata.is_file() {
-            log::info!("Found cached JSON file: {}", json_cache_path);
-            let cached_content = fs::read_to_string(&json_cache_path)?;
-            let cached_facts: HashMap<String, serde_json::Value> =
-                serde_json::from_str(&cached_content)?;
-            return Ok(cached_facts);
+            log::info!("Found cached markdown file: {}", md_cache_path);
+            // Return empty map since we don't need JSON anymore
+            return Ok(HashMap::new());
         }
     }
 
@@ -640,22 +639,6 @@ pub async fn extract_complete_submission_filing(
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
 
-    // Check for existing parsed JSON
-    let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
-
-    let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
-
-    if Path::new(&json_cache_path).exists() {
-        log::info!(
-            "Skipping XBRL parsing - cached JSON exists: {}",
-            json_cache_path
-        );
-
-        let cached_content = fs::read_to_string(&json_cache_path)?;
-        let cached_facts: HashMap<String, serde_json::Value> =
-            serde_json::from_str(&cached_content)?;
-        return Ok(cached_facts);
-    }
 
     // Parse XBRL using the xml module if no cache exists
     let facts = super::xbrl::parse_xml_to_facts(raw_text_string);
@@ -667,13 +650,8 @@ pub async fn extract_complete_submission_filing(
     let mut filing_documents = HashMap::new();
     filing_documents.insert("facts".to_string(), json_facts.clone());
 
-    // Cache the parsed JSON and markdown
-    log::info!("Caching parsed JSON to: {}", json_cache_path);
-    let json_content = serde_json::to_string_pretty(&filing_documents)?;
-    fs::write(&json_cache_path, &json_content)?;
-
-    // Generate and save markdown alongside JSON
-    let md_cache_path = json_cache_path.replace(".json", ".md");
+    // Generate and save markdown
+    let md_cache_path = format!("{}/{}.md", json_cache_dir, file_stem);
     log::info!("Saving markdown to: {}", md_cache_path);
     let xbrl_filing = super::xbrl::XBRLFiling {
         json: Some(facts.clone()),
@@ -681,13 +659,14 @@ pub async fn extract_complete_submission_filing(
         dimensions: None,
     };
     let markdown_content = xbrl_filing.to_markdown();
-    fs::write(&md_cache_path, markdown_content)?;
+    fs::write(&md_cache_path, &markdown_content)?;
 
     // Create metadata for the document
     let metadata = serde_json::json!({
         "type": "edgar_filing",
         "filepath": filepath,
-        "source": "xbrl"
+        "source": "xbrl",
+        "filing_type": "10-Q"  // Add more metadata as needed
     });
 
     // Convert the metadata to the required HashMap format
@@ -696,9 +675,9 @@ pub async fn extract_complete_submission_filing(
         .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
-    // Store the JSON facts using the chunking utility with caching
+    // Store the markdown content using the chunking utility with caching
     crate::document::store_chunked_document_with_cache(
-        json_facts.to_string(),
+        markdown_content,
         metadata_map,
         &json_cache_dir,
         &file_stem,
