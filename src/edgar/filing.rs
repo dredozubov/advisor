@@ -573,12 +573,30 @@ pub async fn extract_complete_submission_filing(
     let markdown_content = xbrl_filing.to_markdown();
     log::debug!("Generated markdown content:\n{}", markdown_content);
 
+    // Extract CIK and accession number from filepath
+    let path = Path::new(filepath);
+    let parts: Vec<&str> = path.parent().unwrap().to_str().unwrap().split('/').collect();
+    let cik = parts[parts.len() - 2];
+    let accession_number = parts[parts.len() - 1];
+
+    // Create markdown directory
+    let markdown_dir = format!("data/edgar/parsed/{}/{}", cik, accession_number);
+    fs::create_dir_all(&markdown_dir)?;
+
+    // Save markdown file
+    let markdown_path = format!("{}/filing.md", markdown_dir);
+    fs::write(&markdown_path, &markdown_content)?;
+    log::info!("Saved markdown version to: {}", markdown_path);
+
     // Create metadata for the document
     let metadata = serde_json::json!({
         "type": "edgar_filing",
         "filepath": filepath,
+        "markdown_path": markdown_path,
         "source": "xbrl",
-        "filing_type": "10-Q"  // Add more metadata as needed
+        "filing_type": "10-Q",  // Add more metadata as needed
+        "cik": cik,
+        "accession_number": accession_number
     });
 
     // Convert the metadata to the required HashMap format
