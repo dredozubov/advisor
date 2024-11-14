@@ -640,12 +640,8 @@ pub async fn extract_complete_submission_filing(
     // Convert facts to JSON value
     let json_facts = serde_json::to_value(&facts)?;
 
-    // Create filing documents map
-    let mut filing_documents = HashMap::new();
-    filing_documents.insert("facts".to_string(), json_facts.clone());
-
     // Generate and save markdown
-    let md_cache_path = format!("{}/{}.md", json_cache_dir, file_stem);
+    let md_cache_path = format!("{}/{}.md", cache_dir, file_stem);
     log::info!("Saving markdown to: {}", md_cache_path);
     let xbrl_filing = super::xbrl::XBRLFiling {
         json: Some(facts.clone()),
@@ -681,6 +677,6 @@ pub async fn extract_complete_submission_filing(
 
     log::info!("Added filing document to vector store: {}", filepath);
 
-    log::debug!("filing documents:\n {:?}", filing_documents);
-    Ok(filing_documents)
+    log::debug!("Filing processed and saved as markdown: {}", md_cache_path);
+    Ok(HashMap::new())
 }
