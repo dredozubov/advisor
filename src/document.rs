@@ -86,10 +86,12 @@ pub async fn store_chunked_document(
         documents.first().map(|d| &d.metadata)
     );
 
-    log::debug!(
-        "First chunk content: {:?}",
-        documents.first().map(|d| &d.page_content)
-    );
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!(
+            "First chunk content: {:?}",
+            documents.first().map(|d| &d.page_content)
+        );
+    }
 
     store
         .add_documents(&documents, &VecStoreOptions::default())

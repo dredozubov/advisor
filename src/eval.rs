@@ -178,7 +178,7 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     let context = similar_docs
         .iter()
         .map(|doc| {
-            log::info!(
+            log::debug!(
                 "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
                 doc.score,
                 doc.metadata,

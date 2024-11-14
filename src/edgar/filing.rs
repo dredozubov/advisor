@@ -595,7 +595,9 @@ pub async fn extract_complete_submission_filing(
     };
 
     let markdown_content = xbrl_filing.to_markdown();
-    log::debug!("Generated markdown content:\n{}", markdown_content);
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!("Generated markdown content:\n{}", markdown_content);
+    }
 
     // Extract CIK and accession number from filepath
     let path = Path::new(filepath);
