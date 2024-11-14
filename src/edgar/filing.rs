@@ -622,6 +622,7 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved markdown version to: {}", markdown_path);
 
     // Create metadata for the document
+    log::debug!("Creating metadata with report_type: {}", report_type);
     let metadata = serde_json::json!({
         "type": "edgar_filing",
         "filepath": filepath,
