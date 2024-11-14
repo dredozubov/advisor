@@ -113,7 +113,9 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
                     "type:edgar_filing AND filing_type:{} AND filing_date:[{} TO {}]",
                     filing_type, start_date, end_date
                 );
-                let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default()).await?;
+                let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default())
+                    .await
+                    .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
                 required_docs.extend(docs);
             }
         }
@@ -130,7 +132,9 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
                 "type:earnings_transcript AND date:[{} TO {}]",
                 start_date, end_date
             );
-            let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default()).await?;
+            let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default())
+                .await
+                .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
             required_docs.extend(docs);
         }
     }
@@ -167,7 +171,8 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
             input,
             MAX_TOKENS / 500, // Rough estimate of docs that will fit
             &langchain_rust::vectorstore::VecStoreOptions::default(),
-        ).await?
+        ).await
+        .map_err(|e| anyhow!("Failed to search documents: {}", e))?
     } else {
         required_docs
     };
@@ -223,7 +228,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
         }
     }
 
-    let mut summary = build_metadata_summary(filing_types, companies, date_range, &similar_docs);
+    let mut summary = build_metadata_summary(filing_types, companies, date_range, &final_docs);
 
     // Format documents for LLM context
     let context = final_docs
