@@ -114,8 +114,67 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
         return Err(anyhow!("No relevant documents found in vector store"));
     }
 
+    // Compile metadata summary
+    let mut filing_types = std::collections::HashSet::new();
+    let mut companies = std::collections::HashSet::new();
+    let mut date_range = (None, None);
+    
+    for doc in &similar_docs {
+        if let Some(doc_type) = doc.metadata.get("type").and_then(|v| v.as_str()) {
+            match doc_type {
+                "edgar_filing" => {
+                    if let Some(filing_type) = doc.metadata.get("filing_type").and_then(|v| v.as_str()) {
+                        filing_types.insert(filing_type.to_string());
+                    }
+                    if let Some(cik) = doc.metadata.get("cik").and_then(|v| v.as_str()) {
+                        companies.insert(cik.to_string());
+                    }
+                },
+                "earnings_transcript" => {
+                    if let Some(symbol) = doc.metadata.get("symbol").and_then(|v| v.as_str()) {
+                        companies.insert(symbol.to_string());
+                    }
+                },
+                _ => {}
+            }
+        }
+        
+        // Track date range across all documents
+        if let Some(date) = doc.metadata.get("filing_date")
+            .or_else(|| doc.metadata.get("date"))
+            .and_then(|v| v.as_str()) {
+            if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+                match date_range {
+                    (None, None) => date_range = (Some(parsed_date), Some(parsed_date)),
+                    (Some(start), Some(end)) => {
+                        if parsed_date < start {
+                            date_range.0 = Some(parsed_date);
+                        }
+                        if parsed_date > end {
+                            date_range.1 = Some(parsed_date);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // Build metadata summary
+    let mut summary = String::new();
+    summary.push_str("Context includes:\n");
+    if !filing_types.is_empty() {
+        summary.push_str(&format!("- Filing types: {}\n", filing_types.into_iter().collect::<Vec<_>>().join(", ")));
+    }
+    if !companies.is_empty() {
+        summary.push_str(&format!("- Companies: {}\n", companies.into_iter().collect::<Vec<_>>().join(", ")));
+    }
+    if let (Some(start), Some(end)) = date_range {
+        summary.push_str(&format!("- Date range: {} to {}\n", start, end));
+    }
+    summary.push_str("\nRelevant excerpts:\n\n");
+
     // Format documents for LLM context
-    log::info!("Documents found for context:");
     let context = similar_docs
         .iter()
         .map(|doc| {
@@ -130,12 +189,14 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
         .collect::<Vec<_>>()
         .join("\n\n");
 
+    summary.push_str(&context);
+
     log::info!(
         "=== Complete LLM Context ===\n{}\n=== End Context ===",
-        context
+        summary
     );
 
-    Ok(context)
+    Ok(summary)
 }
 
 async fn generate_query(chain: &ConversationalChain, input: &str) -> Result<(Query, String)> {
