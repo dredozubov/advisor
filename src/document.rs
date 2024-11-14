@@ -23,14 +23,6 @@ impl fmt::Display for DocType {
     }
 }
 
-impl ToString for DocType {
-    fn to_string(&self) -> String {
-        match self {
-            DocType::EdgarFiling => "EdgarFiling".to_string(),
-            DocType::EarningTranscript => "EarningTranscript".to_string(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metadata {
