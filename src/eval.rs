@@ -16,7 +16,7 @@ async fn process_documents(
     store: &dyn VectorStore,
 ) -> Result<()> {
     // Process EDGAR filings if requested
-    if let Some(filings) = query.parameters.get("filings") {
+    if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
         match query.to_edgar_query() {
             Ok(edgar_query) => {
@@ -28,50 +28,6 @@ async fn process_documents(
             }
             Err(e) => {
                 log::error!("Failed to create EDGAR query: {}", e);
-            }
-        }
-
-        if let Some(filings_obj) = filings.as_object() {
-            for (_, filing) in filings_obj {
-                if let Some(filing_obj) = filing.as_object() {
-                    let metadata: HashMap<String, Value> = [
-                        (
-                            "type".to_string(),
-                            Value::String("edgar_filing".to_string()),
-                        ),
-                        (
-                            "report_type".to_string(),
-                            filing_obj
-                                .get("report_type")
-                                .cloned()
-                                .unwrap_or(Value::String("unknown".to_string())),
-                        ),
-                        (
-                            "filing_date".to_string(),
-                            filing_obj
-                                .get("filing_date")
-                                .cloned()
-                                .unwrap_or(Value::String("unknown".to_string())),
-                        ),
-                        (
-                            "accession_number".to_string(),
-                            filing_obj
-                                .get("accession_number")
-                                .cloned()
-                                .unwrap_or(Value::String("unknown".to_string())),
-                        ),
-                    ]
-                    .into_iter()
-                    .collect();
-
-                    log::info!("Storing filing in vector store");
-                    crate::document::store_chunked_document(
-                        serde_json::to_string_pretty(&filing)?,
-                        metadata,
-                        store,
-                    )
-                    .await?;
-                }
             }
         }
     }
@@ -116,9 +72,7 @@ async fn build_context(
             .ok_or_else(|| anyhow!("Missing end_date"))?;
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
-            let filing_types: Vec<&str> = types.iter()
-                .filter_map(|t| t.as_str())
-                .collect();
+            let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filter = serde_json::json!({
                 "must": [
                     {
@@ -137,7 +91,8 @@ async fn build_context(
                         }
                     }
                 ]
-            }).to_string();
+            })
+            .to_string();
             log::debug!("Using filter for similarity search: {}", filter);
             let docs = store
                 .similarity_search(
@@ -146,9 +101,7 @@ async fn build_context(
                     &langchain_rust::vectorstore::VecStoreOptions::default(),
                 )
                 .await
-                .map_err(|e| {
-                    anyhow!("Failed to retrieve documents from vector store: {}", e)
-                })?;
+                .map_err(|e| anyhow!("Failed to retrieve documents from vector store: {}", e))?;
             required_docs.extend(docs);
         }
     }
@@ -177,7 +130,8 @@ async fn build_context(
                     }
                 }
             ]
-        }).to_string();
+        })
+        .to_string();
         log::debug!("Using filter for similarity search: {}", filter);
         let docs = store
             .similarity_search(
