@@ -52,14 +52,80 @@ pub async fn store_chunked_document(
     // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
     log::info!("Checking if document already exists in persistent vector store");
 
+    // Create a proper filter to check for existing documents
+    let filter = match doc_type {
+        "edgar_filing" => {
+            let filing_type = metadata.get("filing_type").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let cik = metadata.get("cik").and_then(|v| v.as_str()).unwrap_or("unknown");
+            serde_json::json!({
+                "must": [
+                    {
+                        "key": "type",
+                        "match": { "value": "edgar_filing" }
+                    },
+                    {
+                        "key": "filing_type",
+                        "match": { "value": filing_type }
+                    },
+                    {
+                        "key": "cik",
+                        "match": { "value": cik }
+                    }
+                ]
+            })
+        },
+        "earnings_transcript" => {
+            let symbol = metadata.get("symbol").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let quarter = metadata.get("quarter").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let year = metadata.get("year").and_then(|v| v.as_str()).unwrap_or("unknown");
+            serde_json::json!({
+                "must": [
+                    {
+                        "key": "type",
+                        "match": { "value": "earnings_transcript" }
+                    },
+                    {
+                        "key": "symbol",
+                        "match": { "value": symbol }
+                    },
+                    {
+                        "key": "quarter",
+                        "match": { "value": quarter }
+                    },
+                    {
+                        "key": "year",
+                        "match": { "value": year }
+                    }
+                ]
+            })
+        },
+        _ => serde_json::json!({
+            "must": [
+                {
+                    "key": "type",
+                    "match": { "value": doc_type }
+                }
+            ]
+        })
+    };
+
+    log::debug!("Checking for existing documents with filter: {}", filter);
+    
     // Perform a similarity search to check if the document is already stored
     let existing_docs = store
-        .similarity_search(identifier, 1, &VecStoreOptions::default())
+        .similarity_search(
+            &filter.to_string(),
+            1,
+            &VecStoreOptions::default()
+        )
         .await
         .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
 
     if !existing_docs.is_empty() {
-        log::info!("Document already exists in vector store, skipping embedding");
+        log::info!(
+            "Document already exists in vector store (found {} matches), skipping embedding",
+            existing_docs.len()
+        );
         return Ok(());
     }
 
