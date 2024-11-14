@@ -669,7 +669,7 @@ pub async fn extract_complete_submission_filing(
     crate::document::store_chunked_document_with_cache(
         markdown_content,
         metadata_map,
-        &json_cache_dir,
+        &cache_dir,
         &file_stem,
         store,
     )

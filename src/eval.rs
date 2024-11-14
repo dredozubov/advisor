@@ -1,5 +1,5 @@
 use crate::earnings;
-use crate::edgar::{self, filing};
+use crate::edgar::{self, filing, xbrl};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
@@ -251,7 +251,7 @@ async fn process_edgar_filings(
                     std::fs::create_dir_all(output_path.parent().unwrap())?;
                 }
                 let output_file = output_path.with_extension("md");
-                let xbrl_filing = super::xbrl::XBRLFiling {
+                let xbrl_filing = xbrl::XBRLFiling {
                     json: Some(parsed),
                     facts: None,
                     dimensions: None,
