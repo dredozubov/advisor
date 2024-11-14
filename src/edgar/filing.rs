@@ -609,17 +609,7 @@ pub async fn extract_complete_submission_filing(
     let cache_dir = format!("data/edgar/parsed/{}", accession_number);
     fs::create_dir_all(&cache_dir)?;
 
-    // Check if we already have parsed markdown
-    let md_cache_path = format!("{}/{}.md", cache_dir, file_stem);
-    if let Ok(metadata) = fs::metadata(&md_cache_path) {
-        if metadata.is_file() {
-            log::info!("Found cached markdown file: {}", md_cache_path);
-            // Return empty map since we don't need JSON anymore
-            return Ok(HashMap::new());
-        }
-    }
-
-    log::info!("No cached file found, parsing XBRL file");
+    log::info!("Parsing XBRL file");
 
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
@@ -637,16 +627,14 @@ pub async fn extract_complete_submission_filing(
     // Parse XBRL using the xml module if no cache exists
     let facts = super::xbrl::parse_xml_to_facts(raw_text_string);
 
-    // Generate and save markdown
-    let md_cache_path = format!("{}/{}.md", cache_dir, file_stem);
-    log::info!("Saving markdown to: {}", md_cache_path);
+    // Generate markdown
     let xbrl_filing = super::xbrl::XBRLFiling {
         json: Some(facts.clone()),
         facts: None,
         dimensions: None,
     };
     let markdown_content = xbrl_filing.to_markdown();
-    fs::write(&md_cache_path, &markdown_content)?;
+    log::debug!("Generated markdown content:\n{}", markdown_content);
 
     // Create metadata for the document
     let metadata = serde_json::json!({
@@ -674,6 +662,6 @@ pub async fn extract_complete_submission_filing(
 
     log::info!("Added filing document to vector store: {}", filepath);
 
-    log::debug!("Filing processed and saved as markdown: {}", md_cache_path);
+    log::debug!("Filing processed and converted to markdown");
     Ok(HashMap::new())
 }
