@@ -95,48 +95,72 @@ async fn process_documents(
     Ok(())
 }
 
-async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
+async fn build_context(
+    query: &Query,
+    input: &str,
+    store: &dyn VectorStore,
+) -> Result<(String, String)> {
     log::debug!("Building context for query: {:?}", query);
-    
+
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
-    
+
     if let Some(filings) = query.parameters.get("filings") {
-        let start_date = filings.get("start_date").and_then(|d| d.as_str())
+        let start_date = filings
+            .get("start_date")
+            .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing start_date"))?;
-        let end_date = filings.get("end_date").and_then(|d| d.as_str())
+        let end_date = filings
+            .get("end_date")
+            .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing end_date"))?;
-        
+
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             for filing_type in types.iter().filter_map(|t| t.as_str()) {
                 let filter = format!(
                     "type:edgar_filing AND filing_type:{} AND filing_date:[{} TO {}]",
                     filing_type, start_date, end_date
                 );
-                let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default())
+                log::debug!("Using filter for similarity search: {}", filter);
+                let docs = store
+                    .similarity_search(
+                        &filter,
+                        50,
+                        &langchain_rust::vectorstore::VecStoreOptions::default(),
+                    )
                     .await
-                    .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
+                    .map_err(|e| {
+                        anyhow!("Failed to retrieve documents from vector store: {}", e)
+                    })?;
                 required_docs.extend(docs);
             }
         }
     }
-    
-    if query.parameters.get("earnings").is_some() {
-        if let Some(earnings) = query.parameters.get("earnings") {
-            let start_date = earnings.get("start_date").and_then(|d| d.as_str())
-                .ok_or_else(|| anyhow!("Missing earnings start_date"))?;
-            let end_date = earnings.get("end_date").and_then(|d| d.as_str())
-                .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
-            
-            let filter = format!(
-                "type:earnings_transcript AND date:[{} TO {}]",
-                start_date, end_date
-            );
-            let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default())
-                .await
-                .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
-            required_docs.extend(docs);
-        }
+
+    if let Some(earnings) = query.parameters.get("earnings") {
+        let start_date = earnings
+            .get("start_date")
+            .and_then(|d| d.as_str())
+            .ok_or_else(|| anyhow!("Missing earnings start_date"))?;
+        let end_date = earnings
+            .get("end_date")
+            .and_then(|d| d.as_str())
+            .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
+
+        let filter = format!(
+            "type:earnings_transcript AND date:[{} TO {}]",
+            start_date, end_date
+        );
+        log::debug!("Using filter for similarity search: {}", filter);
+        let docs = store
+            .similarity_search(
+                &filter,
+                50,
+                &langchain_rust::vectorstore::VecStoreOptions::default(),
+            )
+            .await
+            .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
+        required_docs.extend(docs);
     }
 
     log::debug!(
@@ -149,13 +173,14 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
 
     // 2. Calculate total tokens
     const MAX_TOKENS: usize = 12000; // Adjust based on your model
-    let total_tokens: usize = required_docs.iter()
+    let total_tokens: usize = required_docs
+        .iter()
         .map(|doc| doc.page_content.split_whitespace().count() * 4) // Estimate 4 tokens per word
         .sum();
 
     log::info!(
-        "Retrieved {} documents with approximately {} tokens", 
-        required_docs.len(), 
+        "Retrieved {} documents with approximately {} tokens",
+        required_docs.len(),
         total_tokens
     );
 
@@ -166,13 +191,15 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
             total_tokens,
             MAX_TOKENS
         );
-        
-        store.similarity_search(
-            input,
-            MAX_TOKENS / 500, // Rough estimate of docs that will fit
-            &langchain_rust::vectorstore::VecStoreOptions::default(),
-        ).await
-        .map_err(|e| anyhow!("Failed to search documents: {}", e))?
+
+        store
+            .similarity_search(
+                input,
+                MAX_TOKENS / 500, // Rough estimate of docs that will fit
+                &langchain_rust::vectorstore::VecStoreOptions::default(),
+            )
+            .await
+            .map_err(|e| anyhow!("Failed to search documents: {}", e))?
     } else {
         required_docs
     };
@@ -231,7 +258,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
     let summary = build_metadata_summary(filing_types, companies, date_range, &final_docs);
 
     // Format documents for LLM context
-    let _context = final_docs
+    let context = final_docs
         .iter()
         .map(|doc| {
             log::debug!(
@@ -250,7 +277,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
         summary
     );
 
-    Ok(summary)
+    Ok((summary, context))
 }
 
 fn build_metadata_summary(
@@ -376,7 +403,7 @@ pub async fn eval(
     process_documents(&query, http_client, store).await?;
 
     // 3. Build context from processed documents
-    let context = build_context(&query, input, store).await?;
+    let (_summary, context) = build_context(&query, input, store).await?;
 
     // 4. Generate streaming response
     let stream = generate_response(stream_chain, input, &context).await?;
