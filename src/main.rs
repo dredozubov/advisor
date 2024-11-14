@@ -146,8 +146,8 @@ use colored::*;
 
 fn get_prompt(summary: &str) -> String {
     if summary.is_empty() {
-        format!("{}", ">".yellow().bold())
+        format!("{}", "> ".green().bold())
     } else {
-        format!("{} {}", summary.blue().bold(), ">".yellow().bold())
+        format!("{} {}", summary.blue().bold(), " > ".green().bold())
     }
 }

@@ -1,5 +1,5 @@
 use crate::earnings;
-use crate::edgar::{self, filing, xbrl};
+use crate::edgar::{self, filing};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
@@ -64,21 +64,9 @@ async fn process_documents(
                     .collect();
 
                     log::info!("Storing filing in vector store");
-                    crate::document::store_chunked_document_with_cache(
+                    crate::document::store_chunked_document(
                         serde_json::to_string_pretty(&filing)?,
                         metadata,
-                        "data/edgar/parsed",
-                        &format!(
-                            "{}_{}",
-                            filing_obj
-                                .get("report_type")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("unknown"),
-                            filing_obj
-                                .get("filing_date")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("unknown")
-                        ),
                         store,
                     )
                     .await?;
@@ -179,7 +167,7 @@ async fn generate_response(
     // Return streaming response
     let prompt_args = prompt_args![
         "input" => [
-            "You are a helpful financial analyst assistant. Provide clear, quantitative, and informative answers based on the provided context.",
+            "You are a helpful financial analyst assistant. Provide clear, quantitative, and informative answers for the analyst based on the provided context.",
             &prompt
         ]
     ];
@@ -275,16 +263,10 @@ async fn process_earnings_transcripts(
             .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
-        // Define cache directory and filename
-        let cache_dir = format!("data/earnings/parsed/{}", transcript.symbol);
-        let cache_filename = format!("{}_Q{}", transcript.year, transcript.quarter);
-
         // Store the transcript using the chunking utility with caching
-        crate::document::store_chunked_document_with_cache(
+        crate::document::store_chunked_document(
             transcript.content.clone(),
             metadata.clone(),
-            &cache_dir,
-            &cache_filename,
             store,
         )
         .await?;
@@ -297,14 +279,7 @@ async fn process_earnings_transcripts(
 
         // Store the transcript using the chunking utility with caching
         log::info!("Storing earnings transcript in vector store");
-        crate::document::store_chunked_document_with_cache(
-            transcript.content,
-            metadata,
-            &cache_dir,
-            &cache_filename,
-            store,
-        )
-        .await?;
+        crate::document::store_chunked_document(transcript.content, metadata, store).await?;
         log::info!(
             "Added earnings transcript to vector store: {} Q{}",
             transcript.symbol,
