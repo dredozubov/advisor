@@ -112,35 +112,6 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn validate_json(content: &str) {
-        match serde_json::from_str::<serde_json::Value>(content) {
-            Ok(raw_json) => {
-                println!(
-                    "JSON is valid. Content type: {}",
-                    if raw_json.is_object() {
-                        "object"
-                    } else {
-                        "not an object"
-                    }
-                );
-
-                if let Some(obj) = raw_json.as_object() {
-                    println!("Top-level keys: {:?}", obj.keys().collect::<Vec<_>>());
-                }
-            }
-            Err(e) => {
-                println!("Invalid JSON structure: {}", e);
-                let line = e.line();
-                let column = e.column();
-                let start = content.len().saturating_sub(100);
-                let end = content.len().min(start + 200);
-                println!("Error at line {}, column {}", line, column);
-                println!("Error context: {}", &content[start..end]);
-                panic!("Invalid JSON in test file: {}", e);
-            }
-        }
-    }
-
     fn get_test_companies() -> Vec<String> {
         let test_dir = PathBuf::from("src/edgar/tests");
         std::fs::read_dir(test_dir)
@@ -165,8 +136,6 @@ mod tests {
 
             let content = std::fs::read_to_string(&file_path)
                 .unwrap_or_else(|_| panic!("Failed to read test file for {}", company));
-
-            validate_json(&content);
 
             let entry: FilingEntry = serde_json::from_str(&content)
                 .unwrap_or_else(|_| panic!("Failed to parse filing entry JSON for {}", company));
@@ -199,8 +168,6 @@ mod tests {
 
             let content = std::fs::read_to_string(&file_path)
                 .unwrap_or_else(|_| panic!("Failed to read test file for {}", company));
-
-            validate_json(&content);
 
             let filings: CompanyFilings = serde_json::from_str(&content)
                 .unwrap_or_else(|_| panic!("Failed to parse company filings JSON for {}", company));
@@ -343,22 +310,6 @@ pub async fn get_company_filings(
             anyhow!("Failed to read filing file: {}", e)
         })?;
 
-        // Validate JSON before parsing
-        if let Err(e) = serde_json::from_str::<serde_json::Value>(&content) {
-            error!("Invalid JSON in response from {}: {}", current_url, e);
-            error!("Content length: {}", content.len());
-            if content.len() > 1000 {
-                error!("First 1000 chars: {}", &content[..1000]);
-                error!("Last 1000 chars: {}", &content[content.len() - 1000..]);
-            } else {
-                error!("Full content: {}", &content);
-            }
-            // Delete potentially corrupted file
-            if let Err(e) = fs::remove_file(&filepath) {
-                warn!("Failed to remove corrupted file {:?}: {}", filepath, e);
-            }
-            return Err(anyhow!("Invalid JSON response from SEC: {}", e));
-        }
         log::debug!(
             "Read file content from {:?}, length: {}",
             filepath,
