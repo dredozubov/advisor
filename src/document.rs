@@ -52,7 +52,16 @@ fn to_hashmap(metadata: Metadata) -> HashMap<String, Value> {
             "year" => Value::String(metadata.year),
 
         },
-        DocType::EarningTranscript => todo!(),
+        DocType::EarningTranscript => hashmap! {
+            "doc_type" => Value::String("earnings_transcript"),
+            "filepath" => Value::Null,
+            "filing_type" => Value::Null,
+            "cik" => Value::Null,
+            "accession_number" => Value::Null,
+            "symbol" => Value::String(metadata.symbol),
+            "quarter" => Value::String(metadata.quarter.unwrap_or_else(|| "unknown".to_string())),
+            "year" => Value::String(metadata.year),
+        },
     }
 }
 
