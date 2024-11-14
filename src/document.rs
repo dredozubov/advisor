@@ -1,25 +1,50 @@
+use anyhow::anyhow;
+use core::fmt;
+use langchain_rust::vectorstore::VectorStore;
+use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashSet;
+use std::path::Display;
+use std::{collections::HashMap, path::Path};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DocType {
+    EdgarFiling,
+    EarningTranscript,
+}
+
+impl fmt::Display for DocType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DocType::EdgarFiling => write!(f, "EdgarFiling"),
+            DocType::EarningTranscript => write!(f, "EarningTranscript"),
+        }
+    }
+}
+
+impl ToString for DocType {
+    fn to_string(&self) -> String {
+        match self {
+            DocType::EdgarFiling => "EdgarFiling".to_string(),
+            DocType::EarningTranscript => "EarningTranscript".to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metadata {
-    pub doc_type: String,
+    pub doc_type: DocType,
     pub filepath: Option<String>,
     pub filing_type: Option<String>,
     pub cik: Option<String>,
     pub accession_number: Option<String>,
-    pub symbol: Option<String>,
+    pub symbol: String,
     pub quarter: Option<String>,
     pub year: Option<String>,
-    pub chunk_index: Option<usize>,
-    pub total_chunks: Option<usize>,
+    pub chunk_index: usize,
+    pub total_chunks: usize,
 }
-
-use anyhow::anyhow;
-use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
-use serde_json::Value;
-use std::collections::HashSet;
-use std::{collections::HashMap, path::Path};
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under token limits
 
@@ -40,11 +65,6 @@ pub async fn store_chunked_document(
 
     // Extract document type and identifier from metadata
     let doc_type = &metadata.doc_type;
-    let identifier = match doc_type.as_str() {
-        "edgar_filing" => metadata.filepath.as_deref().unwrap_or("unknown"),
-        "earnings_transcript" => metadata.symbol.as_deref().unwrap_or("unknown"),
-        _ => "unknown",
-    };
 
     log::info!(
         "Created {} chunks for document type '{}' ({})",
@@ -84,18 +104,9 @@ pub async fn store_chunked_document(
             })
         }
         "earnings_transcript" => {
-            let symbol = metadata
-                .get("symbol")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            let quarter = metadata
-                .get("quarter")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            let year = metadata
-                .get("year")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
+            let symbol = metadata.symbol.unwrap_or("unknown".to_string());
+            let quarter = metadata.quarter.unwrap_or("unknown".to_string());
+            let year = metadata.year.unwrap_or("unknown".to_string());
             serde_json::json!({
                 "must": [
                     {
