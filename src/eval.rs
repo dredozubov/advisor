@@ -88,22 +88,19 @@ async fn process_documents(
     }
 
     // Process earnings data if requested
-    if let Some(earnings) = query.parameters.get("earnings") {
-        log::debug!("Earnings data is requested");
-        if let Ok(earnings_query) = query.to_earnings_query() {
-            log::info!(
-                "Fetching earnings data for ticker: {}",
-                earnings_query.ticker
-            );
-            let transcripts = earnings::fetch_transcripts(
-                http_client,
-                &earnings_query.ticker,
-                earnings_query.start_date,
-                earnings_query.end_date,
-            )
-            .await?;
-            process_earnings_transcripts(transcripts, store).await?;
-        }
+    if let Ok(earnings_query) = query.to_earnings_query() {
+        log::info!(
+            "Fetching earnings data for ticker: {}",
+            earnings_query.ticker
+        );
+        let transcripts = earnings::fetch_transcripts(
+            http_client,
+            &earnings_query.ticker,
+            earnings_query.start_date,
+            earnings_query.end_date,
+        )
+        .await?;
+        process_earnings_transcripts(transcripts, store).await?;
     }
 
     Ok(())
@@ -153,15 +150,12 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     Ok(context)
 }
 
-async fn generate_query(
-    chain: &ConversationalChain,
-    input: &str,
-) -> Result<(Query, String)> {
+async fn generate_query(chain: &ConversationalChain, input: &str) -> Result<(Query, String)> {
     let summary = get_conversation_summary(chain, input).await?;
-    println!("summary done");
+    log::info!("Summary done: {}", summary);
 
     let query = extract_query_params(chain, input).await?;
-    println!("query params done");
+    log::info!("Query params done: {:?}", query);
 
     Ok((query, summary))
 }
@@ -170,24 +164,28 @@ async fn generate_response(
     chain: &ConversationalChain,
     input: &str,
     context: &str,
-) -> Result<futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>> {
+) -> Result<
+    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
+> {
+    log::info!("generate_response::input: {}", input);
     // Create prompt with context
     let prompt = format!(
         "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}",
         input,
         context
     );
+    log::info!("Prompt: {}", prompt);
 
     // Return streaming response
     let prompt_args = prompt_args![
         "input" => [
-            "You are a helpful financial analyst assistant. Provide clear and informative answers based on the provided context.",
+            "You are a helpful financial analyst assistant. Provide clear, quantitative, and informative answers based on the provided context.",
             &prompt
         ]
     ];
 
     let stream = chain.stream(prompt_args).await?;
-    log::debug!("LLM stream started successfully");
+    log::info!("LLM stream started successfully");
 
     Ok(Box::pin(stream.map(|r| {
         r.map(|s| s.content)
@@ -209,13 +207,13 @@ pub async fn eval(
 
     // 2. Process documents based on query
     process_documents(&query, http_client, store).await?;
-    
+
     // 3. Build context from processed documents
     let context = build_context(input, store).await?;
-    
+
     // 4. Generate streaming response
     let stream = generate_response(chain, input, &context).await?;
-    
+
     Ok((stream, summary))
 }
 

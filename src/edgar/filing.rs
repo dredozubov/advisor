@@ -594,8 +594,6 @@ pub async fn extract_complete_submission_filing(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
     );
-
-    // Construct the path for the cached JSON file
     let path = std::path::Path::new(filepath);
     let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let parent_dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
@@ -608,14 +606,11 @@ pub async fn extract_complete_submission_filing(
         .unwrap_or_else(|| std::ffi::OsStr::new(""))
         .to_string_lossy();
 
-    let json_cache_dir = format!("data/edgar/parsed/{}", accession_number);
-    fs::create_dir_all(&json_cache_dir)?;
-
-    // Use the original filename but with .json extension
-    let json_cache_path = format!("{}/{}.json", json_cache_dir, file_stem);
+    let cache_dir = format!("data/edgar/parsed/{}", accession_number);
+    fs::create_dir_all(&cache_dir)?;
 
     // Check if we already have parsed markdown
-    let md_cache_path = format!("{}/{}.md", json_cache_dir, file_stem);
+    let md_cache_path = format!("{}/{}.md", cache_dir, file_stem);
     if let Ok(metadata) = fs::metadata(&md_cache_path) {
         if metadata.is_file() {
             log::info!("Found cached markdown file: {}", md_cache_path);
@@ -624,7 +619,7 @@ pub async fn extract_complete_submission_filing(
         }
     }
 
-    log::info!("No cached JSON found, parsing XBRL file");
+    log::info!("No cached file found, parsing XBRL file");
 
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
@@ -638,7 +633,6 @@ pub async fn extract_complete_submission_filing(
 
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
-
 
     // Parse XBRL using the xml module if no cache exists
     let facts = super::xbrl::parse_xml_to_facts(raw_text_string);
