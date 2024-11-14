@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use langchain_rust::vectorstore::VectorStore;
-use log::{error, info, warn};
+use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -540,23 +540,11 @@ pub async fn fetch_matching_filings(
 pub async fn extract_complete_submission_filing(
     filepath: &str,
     store: &dyn VectorStore,
-) -> Result<HashMap<String, String>> {
+) -> Result<()> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
     );
-    let path = std::path::Path::new(filepath);
-    let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
-    let parent_dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
-
-    // Extract date and form type from the filepath
-    let accession_number = parent_dir
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new(""))
-        .file_name()
-        .unwrap_or_else(|| std::ffi::OsStr::new(""))
-        .to_string_lossy();
-
     log::info!("Parsing XBRL file");
 
     // Read and decode the file content
@@ -572,7 +560,7 @@ pub async fn extract_complete_submission_filing(
     let mut raw_text_string = String::new();
     reader.read_to_string(&mut raw_text_string)?;
 
-    // Parse XBRL using the xml module if no cache exists
+    // Parse XBRL using the xml module
     let facts = super::xbrl::parse_xml_to_facts(raw_text_string);
 
     // Generate markdown
@@ -582,7 +570,6 @@ pub async fn extract_complete_submission_filing(
         dimensions: None,
     };
 
-    let mut filing_to_markdown = HashMap::new();
     let markdown_content = xbrl_filing.to_markdown();
     log::debug!("Generated markdown content:\n{}", markdown_content);
 
@@ -601,17 +588,10 @@ pub async fn extract_complete_submission_filing(
         .unwrap_or_default();
 
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document_with_cache(
-        markdown_content,
-        metadata_map,
-        &cache_dir,
-        &file_stem,
-        store,
-    )
-    .await?;
+    crate::document::store_chunked_document(markdown_content, metadata_map, store).await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 
     log::debug!("Filing processed and converted to markdown");
-    Ok(filing_to_markdown)
+    Ok(())
 }
