@@ -626,8 +626,8 @@ pub async fn extract_complete_submission_filing(
 
     // Generate markdown
     let xbrl_filing = super::xbrl::XBRLFiling {
-        json: Some(facts.clone()),
-        facts: None,
+        raw_facts: Some(facts.clone()),
+        fact_table: None,
         dimensions: None,
     };
 

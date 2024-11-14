@@ -372,8 +372,8 @@ pub fn parse_xml_to_facts(raw_xml: String) -> Vec<FactItem> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct XBRLFiling {
-    pub json: Option<Vec<FactItem>>,
-    pub facts: Option<Vec<FactTableRow>>,
+    pub raw_facts: Option<Vec<FactItem>>,
+    pub fact_table: Option<Vec<FactTableRow>>,
     pub dimensions: Option<Vec<DimensionTableRow>>,
 }
 
@@ -381,7 +381,7 @@ impl XBRLFiling {
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
 
-        if let Some(facts) = &self.json {
+        if let Some(facts) = &self.raw_facts {
             // Group facts by concept and dimensions signature
             let tables = self.detect_tables(facts);
             let standalone_facts: Vec<&FactItem> = facts
