@@ -177,16 +177,32 @@ pub async fn store_chunked_document(
             .unwrap_or_default()
     );
 
+    log::info!(
+        "Attempting to store {} documents in vector store with metadata:\n{:#?}",
+        documents.len(),
+        documents.iter().map(|d| &d.metadata).collect::<Vec<_>>()
+    );
+
     match store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
     {
         Ok(_) => {
-            log::info!("Successfully added {} documents to vector store", documents.len());
+            log::info!(
+                "Successfully added {} documents to vector store with types: {:?}",
+                documents.len(),
+                documents.iter()
+                    .map(|d| d.metadata.get("filing_type").and_then(|v| v.as_str()).unwrap_or("unknown"))
+                    .collect::<HashSet<_>>()
+            );
             Ok(())
         }
         Err(e) => {
-            log::error!("Failed to store documents in vector store: {}", e);
+            log::error!(
+                "Failed to store documents in vector store: {}\nAttempted to store documents with metadata: {:#?}",
+                e,
+                documents.iter().map(|d| &d.metadata).collect::<Vec<_>>()
+            );
             Err(anyhow!("Failed to store document chunks in vector store: {}", e))
         }
     }?;
