@@ -61,12 +61,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_model(OpenAIModel::Gpt4oMini.to_string());
     log::debug!("OpenAI client initialized successfully");
 
-    // Create the conversational chain
-    let chain = ConversationalChainBuilder::new()
+    // Create two separate chains - one for streaming responses and one for query generation
+    let stream_chain = ConversationalChainBuilder::new()
         .llm(llm.clone())
+        .memory(memory.clone().into())
+        .build()
+        .expect("Error building streaming ConversationalChain");
+
+    let query_chain = ConversationalChainBuilder::new()
+        .llm(llm)
         .memory(memory.into())
         .build()
-        .expect("Error building ConversationalChain");
+        .expect("Error building query ConversationalChain");
 
     // Create a rustyline Editor
     log::debug!("Creating rustyline editor");
@@ -97,7 +103,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &chain, &store).await {
+                match eval::eval(input, &http_client, &stream_chain, &query_chain, &store).await {
                     Ok((mut stream, new_summary)) => {
                         summary = new_summary;
                         while let Some(chunk) = stream.next().await {

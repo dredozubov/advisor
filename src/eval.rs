@@ -184,14 +184,15 @@ async fn generate_response(
 pub async fn eval(
     input: &str,
     http_client: &reqwest::Client,
-    chain: &ConversationalChain,
+    stream_chain: &ConversationalChain,
+    query_chain: &ConversationalChain,
     store: &dyn VectorStore,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
 )> {
     // 1. Generate query and get summary
-    let (query, summary) = generate_query(chain, input).await?;
+    let (query, summary) = generate_query(query_chain, input).await?;
 
     // 2. Process documents based on query
     process_documents(&query, http_client, store).await?;
@@ -200,7 +201,7 @@ pub async fn eval(
     let context = build_context(input, store).await?;
 
     // 4. Generate streaming response
-    let stream = generate_response(chain, input, &context).await?;
+    let stream = generate_response(stream_chain, input, &context).await?;
 
     Ok((stream, summary))
 }
