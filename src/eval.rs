@@ -445,10 +445,18 @@ async fn process_earnings_transcripts(
             "type": "earnings_transcript"
         });
 
-        let metadata: HashMap<String, Value> = metadata_json
-            .as_object()
-            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-            .unwrap_or_default();
+        let metadata = Metadata {
+            doc_type: "edgar_filing".to_string(),
+            filepath: Some(filepath.to_string()),
+            filing_type: Some(report_type),
+            cik: Some(cik.to_string()),
+            accession_number: Some(accession_number.to_string()),
+            symbol: None,
+            quarter: None,
+            year: None,
+            chunk_index: None,
+            total_chunks: None,
+        };
 
         // Store the transcript using the chunking utility with caching
         log::info!("Storing earnings transcript in vector store");

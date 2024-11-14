@@ -1,3 +1,19 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Metadata {
+    pub doc_type: String,
+    pub filepath: Option<String>,
+    pub filing_type: Option<String>,
+    pub cik: Option<String>,
+    pub accession_number: Option<String>,
+    pub symbol: Option<String>,
+    pub quarter: Option<String>,
+    pub year: Option<String>,
+    pub chunk_index: Option<usize>,
+    pub total_chunks: Option<usize>,
+}
+
 use anyhow::anyhow;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
@@ -9,7 +25,7 @@ const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under toke
 
 pub async fn store_chunked_document(
     content: String,
-    metadata: HashMap<String, Value>,
+    metadata: Metadata,
     store: &dyn VectorStore,
 ) -> anyhow::Result<()> {
     println!("Storing document with metadata: {:?}", metadata);
@@ -23,25 +39,10 @@ pub async fn store_chunked_document(
         .collect();
 
     // Extract document type and identifier from metadata
-    let doc_type = metadata
-        .get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
-    let identifier = match doc_type {
-        "edgar_filing" => metadata
-            .get("filepath")
-            .and_then(|v| v.as_str())
-            .map(|p| {
-                Path::new(p)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown")
-            })
-            .unwrap_or("unknown"),
-        "earnings_transcript" => metadata
-            .get("symbol")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown"),
+    let doc_type = &metadata.doc_type;
+    let identifier = match doc_type.as_str() {
+        "edgar_filing" => metadata.filepath.as_deref().unwrap_or("unknown"),
+        "earnings_transcript" => metadata.symbol.as_deref().unwrap_or("unknown"),
         _ => "unknown",
     };
 
@@ -56,20 +57,11 @@ pub async fn store_chunked_document(
     log::info!("Checking if document already exists in persistent vector store");
 
     // Create a proper filter to check for existing documents
-    let filter = match doc_type {
+    let filter = match metadata.doc_type.as_str() {
         "edgar_filing" => {
-            let filing_type = metadata
-                .get("filing_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            let cik = metadata
-                .get("cik")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            let accession_number = metadata
-                .get("accession_number")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
+            let filing_type = metadata.filing_type.as_deref().unwrap_or("unknown");
+            let cik = metadata.cik.as_deref().unwrap_or("unknown");
+            let accession_number = metadata.accession_number.as_deref().unwrap_or("unknown");
             serde_json::json!({
                 "must": [
                     {
@@ -155,8 +147,8 @@ pub async fn store_chunked_document(
     let mut documents = Vec::new();
     for (i, chunk) in chunks.iter().enumerate() {
         let mut chunk_metadata = metadata.clone();
-        chunk_metadata.insert("chunk_index".to_string(), serde_json::json!(i));
-        chunk_metadata.insert("total_chunks".to_string(), serde_json::json!(chunks.len()));
+        chunk_metadata.chunk_index = Some(i);
+        chunk_metadata.total_chunks = Some(chunks.len());
 
         let doc = Document {
             page_content: chunk.clone(),
