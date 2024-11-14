@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::{collections::HashMap, path::Path};
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under token limits
@@ -55,8 +56,14 @@ pub async fn store_chunked_document(
     // Create a proper filter to check for existing documents
     let filter = match doc_type {
         "edgar_filing" => {
-            let filing_type = metadata.get("filing_type").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let cik = metadata.get("cik").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let filing_type = metadata
+                .get("filing_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let cik = metadata
+                .get("cik")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
             serde_json::json!({
                 "must": [
                     {
@@ -73,11 +80,20 @@ pub async fn store_chunked_document(
                     }
                 ]
             })
-        },
+        }
         "earnings_transcript" => {
-            let symbol = metadata.get("symbol").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let quarter = metadata.get("quarter").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let year = metadata.get("year").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let symbol = metadata
+                .get("symbol")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let quarter = metadata
+                .get("quarter")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let year = metadata
+                .get("year")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
             serde_json::json!({
                 "must": [
                     {
@@ -98,7 +114,7 @@ pub async fn store_chunked_document(
                     }
                 ]
             })
-        },
+        }
         _ => serde_json::json!({
             "must": [
                 {
@@ -106,18 +122,14 @@ pub async fn store_chunked_document(
                     "match": { "value": doc_type }
                 }
             ]
-        })
+        }),
     };
 
     log::debug!("Checking for existing documents with filter: {}", filter);
-    
+
     // Perform a similarity search to check if the document is already stored
     let existing_docs = store
-        .similarity_search(
-            &filter.to_string(),
-            1,
-            &VecStoreOptions::default()
-        )
+        .similarity_search(&filter.to_string(), 1, &VecStoreOptions::default())
         .await
         .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
 
@@ -172,7 +184,8 @@ pub async fn store_chunked_document(
 
     log::debug!(
         "First document content preview (first 200 chars): {}",
-        documents.first()
+        documents
+            .first()
             .map(|d| d.page_content.chars().take(200).collect::<String>())
             .unwrap_or_default()
     );
@@ -191,8 +204,13 @@ pub async fn store_chunked_document(
             log::info!(
                 "Successfully added {} documents to vector store with types: {:?}",
                 documents.len(),
-                documents.iter()
-                    .map(|d| d.metadata.get("filing_type").and_then(|v| v.as_str()).unwrap_or("unknown"))
+                documents
+                    .iter()
+                    .map(|d| d
+                        .metadata
+                        .get("filing_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown"))
                     .collect::<HashSet<_>>()
             );
             Ok(())
@@ -203,7 +221,10 @@ pub async fn store_chunked_document(
                 e,
                 documents.iter().map(|d| &d.metadata).collect::<Vec<_>>()
             );
-            Err(anyhow!("Failed to store document chunks in vector store: {}", e))
+            Err(anyhow!(
+                "Failed to store document chunks in vector store: {}",
+                e
+            ))
         }
     }?;
 

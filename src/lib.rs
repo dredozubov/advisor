@@ -5,3 +5,4 @@ pub mod eval;
 pub mod query;
 pub mod repl;
 pub mod utils;
+pub mod vectorstore;

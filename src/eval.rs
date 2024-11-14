@@ -1,7 +1,6 @@
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
-use crate::vectorstore::store_document;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;

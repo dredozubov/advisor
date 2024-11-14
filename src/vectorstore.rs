@@ -1,6 +1,6 @@
 use anyhow::Result;
-use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::schemas::Document;
+use langchain_rust::vectorstore::VectorStore;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -28,7 +28,7 @@ fn chunk_document(content: String) -> Vec<String> {
 
 fn create_documents(chunks: Vec<String>, metadata: HashMap<String, Value>) -> Vec<Document> {
     chunks
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, chunk)| {
             let mut chunk_metadata = metadata.clone();
@@ -36,7 +36,7 @@ fn create_documents(chunks: Vec<String>, metadata: HashMap<String, Value>) -> Ve
             chunk_metadata.insert("total_chunks".to_string(), serde_json::json!(chunks.len()));
 
             Document {
-                page_content: chunk,
+                page_content: chunk.clone(),
                 metadata: chunk_metadata,
                 score: 0.0,
             }
@@ -44,12 +44,12 @@ fn create_documents(chunks: Vec<String>, metadata: HashMap<String, Value>) -> Ve
         .collect()
 }
 
-async fn store_documents(
-    documents: Vec<Document>,
-    store: &dyn VectorStore,
-) -> Result<()> {
+async fn store_documents(documents: Vec<Document>, store: &dyn VectorStore) -> Result<()> {
     store
-        .add_documents(&documents, &langchain_rust::vectorstore::VecStoreOptions::default())
+        .add_documents(
+            &documents,
+            &langchain_rust::vectorstore::VecStoreOptions::default(),
+        )
         .await
         .map_err(|e| anyhow::anyhow!("Failed to store documents: {}", e))?;
 
