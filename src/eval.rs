@@ -95,11 +95,20 @@ async fn process_documents(
 }
 
 async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
-    // Perform similarity search
+    // Perform similarity search with filing type context
     log::debug!("Performing similarity search for input: {}", input);
+    let search_input = if input.to_lowercase().contains("10-q") {
+        format!("{} AND filing_type:10-Q", input)
+    } else if input.to_lowercase().contains("10-k") {
+        format!("{} AND filing_type:10-K", input)
+    } else {
+        input.to_string()
+    };
+    
+    log::debug!("Enhanced search input: {}", search_input);
     let similar_docs = store
         .similarity_search(
-            input,
+            &search_input,
             15, // Get top 15 most similar documents
             &langchain_rust::vectorstore::VecStoreOptions::default(),
         )

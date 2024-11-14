@@ -626,7 +626,7 @@ pub async fn extract_complete_submission_filing(
         "filepath": filepath,
         "markdown_path": markdown_path,
         "source": "xbrl",
-        "filing_type": "10-Q",  // Add more metadata as needed
+        "filing_type": filing.report_type.clone(),
         "cik": cik,
         "accession_number": accession_number
     });
