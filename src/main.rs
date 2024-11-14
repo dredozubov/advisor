@@ -38,8 +38,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
 
-    // Only keep last 10 messages in memory
-    let memory = WindowBufferMemory::new(10);
+    // Create separate memory buffers for each chain
+    let stream_memory = WindowBufferMemory::new(10);
+    let query_memory = WindowBufferMemory::new(10);
 
     let store = StoreBuilder::new()
         .embedder(embedder)
@@ -64,13 +65,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Create two separate chains - one for streaming responses and one for query generation
     let stream_chain = ConversationalChainBuilder::new()
         .llm(llm.clone())
-        .memory(memory.clone().into())
+        .memory(stream_memory.into())
         .build()
         .expect("Error building streaming ConversationalChain");
 
     let query_chain = ConversationalChainBuilder::new()
         .llm(llm)
-        .memory(memory.into())
+        .memory(query_memory.into())
         .build()
         .expect("Error building query ConversationalChain");
 
