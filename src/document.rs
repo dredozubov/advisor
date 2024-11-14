@@ -12,6 +12,8 @@ pub async fn store_chunked_document(
     metadata: HashMap<String, Value>,
     store: &dyn VectorStore,
 ) -> anyhow::Result<()> {
+    println!("Storing document with metadata: {:?}", metadata);
+
     // Split content into smaller chunks
     let chunks: Vec<String> = content
         .chars()
@@ -64,6 +66,10 @@ pub async fn store_chunked_document(
                 .get("cik")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
+            let accession_number = metadata
+                .get("accession_number")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
             serde_json::json!({
                 "must": [
                     {
@@ -77,6 +83,10 @@ pub async fn store_chunked_document(
                     {
                         "key": "cik",
                         "match": { "value": cik }
+                    },
+                    {
+                        "key": "accession_number",
+                        "match": { "value": accession_number }
                     }
                 ]
             })
@@ -156,39 +166,6 @@ pub async fn store_chunked_document(
 
         documents.push(doc);
     }
-
-    // Send all chunks in a single request
-    log::debug!(
-        "Adding {} chunks to vector store with metadata: {:?}",
-        documents.len(),
-        documents.first().map(|d| &d.metadata)
-    );
-
-    if log::log_enabled!(log::Level::Debug) {
-        log::debug!(
-            "First chunk content: {:?}",
-            documents.first().map(|d| &d.page_content)
-        );
-    }
-
-    log::debug!(
-        "Storing documents in vector store with metadata sample: {:#?}",
-        documents.first().map(|d| &d.metadata)
-    );
-
-    log::info!(
-        "Attempting to store {} documents in vector store with first document metadata: {:#?}",
-        documents.len(),
-        documents.first().map(|d| &d.metadata)
-    );
-
-    log::debug!(
-        "First document content preview (first 200 chars): {}",
-        documents
-            .first()
-            .map(|d| d.page_content.chars().take(200).collect::<String>())
-            .unwrap_or_default()
-    );
 
     log::info!(
         "Attempting to store {} documents in vector store with metadata:\n{:#?}",

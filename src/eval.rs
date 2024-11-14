@@ -320,7 +320,6 @@ fn build_metadata_summary(
         ));
     }
 
-    summary.push_str("\nRelevant excerpts:\n\n");
     summary
 }
 
@@ -348,7 +347,7 @@ async fn generate_response(
         input,
         context
     );
-    log::info!("Prompt: {}", prompt);
+    log::trace!("Prompt: {}", prompt);
 
     // Return streaming response
     let prompt_args = prompt_args![
