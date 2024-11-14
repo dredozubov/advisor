@@ -252,7 +252,7 @@ async fn process_edgar_filings(
                 }
                 let output_file = output_path.with_extension("md");
                 let xbrl_filing = xbrl::XBRLFiling {
-                    json: Some(parsed),
+                    json: Some(vec![]), // Empty vec since we don't need the JSON anymore
                     facts: None,
                     dimensions: None,
                 };

@@ -637,9 +637,6 @@ pub async fn extract_complete_submission_filing(
     // Parse XBRL using the xml module if no cache exists
     let facts = super::xbrl::parse_xml_to_facts(raw_text_string);
 
-    // Convert facts to JSON value
-    let json_facts = serde_json::to_value(&facts)?;
-
     // Generate and save markdown
     let md_cache_path = format!("{}/{}.md", cache_dir, file_stem);
     log::info!("Saving markdown to: {}", md_cache_path);
