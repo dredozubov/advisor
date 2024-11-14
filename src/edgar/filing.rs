@@ -422,6 +422,16 @@ pub async fn get_company_filings(
     // Update the initial response with merged filings
     initial_response.filings.recent = merged;
 
+    // Log summary of fetched data
+    info!(
+        "Fetched filings summary for CIK {}: {} total filings, {} unique report types, date range: {} to {}",
+        padded_cik,
+        merged.accession_number.len(),
+        merged.report_type.iter().collect::<std::collections::HashSet<_>>().len(),
+        merged.filing_date.iter().min().map_or("N/A".to_string(), |d| d.to_string()),
+        merged.filing_date.iter().max().map_or("N/A".to_string(), |d| d.to_string())
+    );
+
     Ok(initial_response)
 }
 
@@ -452,7 +462,20 @@ pub async fn fetch_matching_filings(
     let total_tasks = matching_filings.len();
     let mut completed_tasks = 0;
 
-    log::info!("Matching filings: {:?}", matching_filings);
+    info!(
+        "Found {} matching filings for query parameters:\n\
+         - Report types: {}\n\
+         - Date range: {} to {}", 
+        matching_filings.len(),
+        matching_filings.iter()
+            .map(|f| f.report_type.as_str())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", "),
+        query.start_date,
+        query.end_date
+    );
 
     // Spawn async tasks to fetch and save each matching filing
     let mut handles = Vec::new();
