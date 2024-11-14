@@ -97,7 +97,7 @@ pub async fn store_chunked_document(
         "Storing documents in vector store with metadata sample: {:#?}",
         documents.first().map(|d| &d.metadata)
     );
-    
+
     store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
