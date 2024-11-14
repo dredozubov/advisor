@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Display;
-use std::ptr::metadata;
 use std::{collections::HashMap, path::Path};
+
+use crate::edgar::report::ReportType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DocType {
@@ -25,42 +26,85 @@ impl fmt::Display for DocType {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Metadata {
+    MetaEarningsTranscript {
+        doc_type: DocType,
+        filepath: String,
+        symbol: String,
+        year: usize,
+        quarter: usize,
+        chunk_index: usize,
+        total_chunks: usize,
+    },
+    MetaEdgarFiling {
+        doc_type: DocType,
+        filepath: String,
+        filing_type: ReportType,
+        cik: String,
+        accession_number: String,
+        symbol: String,
+        chunk_index: usize,
+        total_chunks: usize,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Metadata {
-    pub doc_type: DocType,
-    pub filepath: Option<String>,
-    pub filing_type: Option<String>,
+pub struct MetadataJson {
+    pub doc_type: String,
+    pub filepath: String,
+    pub filing_type: Option<ReportType>,
     pub cik: Option<String>,
     pub accession_number: Option<String>,
     pub symbol: String,
-    pub quarter: Option<String>,
-    pub year: String,
+    pub quarter: Option<usize>,
+    pub year: Option<usize>,
     pub chunk_index: usize,
     pub total_chunks: usize,
 }
 
-fn to_hashmap(metadata: Metadata) -> HashMap<String, Value> {
-    match metadata.doc_type {
-        DocType::EdgarFiling => hashmap! {
-            "doc_type" => Value::String("filing"),
-            "filepath" => Value::String(metadata.filepath.unwrap()),
-            "filing_type" => Value::String(metadata.filing_type.unwrap()),
-            "cik" => Value::String(metadata.cik.unwrap()),
-            "accession_number" => Value::String(metadata.accession_number.unwrap()),
-            "symbol" => metadata.symbol,
-            "quarter" => Value::Null,
-            "year" => Value::String(metadata.year),
-
+fn to_hashmap(metadata: Metadata) -> MetadataJson {
+    match metadata {
+        Metadata::MetaEdgarFiling {
+            doc_type,
+            filepath,
+            filing_type,
+            cik,
+            accession_number,
+            symbol,
+            chunk_index,
+            total_chunks,
+        } => MetadataJson {
+            doc_type: "filing".to_string(),
+            filepath,
+            filing_type: Some(filing_type),
+            cik: Some(cik),
+            accession_number: Some(accession_number),
+            symbol,
+            quarter: None,
+            year: None,
+            chunk_index,
+            total_chunks,
         },
-        DocType::EarningTranscript => hashmap! {
-            "doc_type" => Value::String("earnings_transcript"),
-            "filepath" => Value::Null,
-            "filing_type" => Value::Null,
-            "cik" => Value::Null,
-            "accession_number" => Value::Null,
-            "symbol" => Value::String(metadata.symbol),
-            "quarter" => Value::String(metadata.quarter.unwrap_or_else(|| "unknown".to_string())),
-            "year" => Value::String(metadata.year),
+        Metadata::MetaEarningsTranscript {
+            doc_type,
+            filepath,
+            symbol,
+            quarter,
+            year,
+            chunk_index,
+            total_chunks,
+        } => MetadataJson {
+            doc_type: "earnings_transcript".to_string(),
+            filepath,
+            filing_type: None,
+            cik: None,
+            accession_number: None,
+            symbol,
+            quarter: Some(quarter),
+            year: Some(year),
+            chunk_index,
+            total_chunks,
         },
     }
 }
@@ -121,7 +165,7 @@ pub async fn store_chunked_document(
         DocType::EarningTranscript => {
             let symbol = metadata.symbol;
             let quarter = metadata.quarter.unwrap_or("unknown".to_string());
-            let year = metadata.year.unwrap_or("unknown".to_string());
+            let year = metadata.year;
             serde_json::json!({
                 "must": [
                     {
@@ -170,7 +214,7 @@ pub async fn store_chunked_document(
 
         let doc = Document {
             page_content: chunk.clone(),
-            metadata: chunk_metadata,
+            metadata: MetadataJson::from(metadata),
             score: 0.0,
         };
 
