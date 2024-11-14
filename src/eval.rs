@@ -116,24 +116,26 @@ async fn build_context(
             .ok_or_else(|| anyhow!("Missing end_date"))?;
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
-            for filing_type in types.iter().filter_map(|t| t.as_str()) {
-                let filter = format!(
-                    "type:edgar_filing AND filing_type:{} AND filing_date:[{} TO {}]",
-                    filing_type, start_date, end_date
-                );
-                log::debug!("Using filter for similarity search: {}", filter);
-                let docs = store
-                    .similarity_search(
-                        &filter,
-                        50,
-                        &langchain_rust::vectorstore::VecStoreOptions::default(),
-                    )
-                    .await
-                    .map_err(|e| {
-                        anyhow!("Failed to retrieve documents from vector store: {}", e)
-                    })?;
-                required_docs.extend(docs);
-            }
+            let filing_types = types.iter()
+                .filter_map(|t| t.as_str())
+                .collect::<Vec<_>>()
+                .join(",");
+            let filter = format!(
+                "type:edgar_filing AND filing_type:[{}] AND filing_date:[{} TO {}]",
+                filing_types, start_date, end_date
+            );
+            log::debug!("Using filter for similarity search: {}", filter);
+            let docs = store
+                .similarity_search(
+                    &filter,
+                    50,
+                    &langchain_rust::vectorstore::VecStoreOptions::default(),
+                )
+                .await
+                .map_err(|e| {
+                    anyhow!("Failed to retrieve documents from vector store: {}", e)
+                })?;
+            required_docs.extend(docs);
         }
     }
 
