@@ -2,12 +2,13 @@ use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
+use chrono::NaiveDate;
 use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 async fn process_documents(
     query: &Query,
@@ -94,7 +95,7 @@ async fn process_documents(
     Ok(())
 }
 
-async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
+async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
     // Perform similarity search with filing type context
     log::debug!("Performing similarity search for input: {}", input);
     let search_input = if input.to_lowercase().contains("10-q") {
@@ -174,6 +175,37 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
         }
     }
 
+    let mut summary = build_metadata_summary(filing_types, companies, date_range, &similar_docs);
+
+    // Format documents for LLM context
+    let context = similar_docs
+        .iter()
+        .map(|doc| {
+            log::debug!(
+                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
+                doc.score,
+                doc.metadata,
+                doc.page_content
+            );
+            format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    log::info!(
+        "=== Complete LLM Context ===\n{}\n=== End Context ===",
+        summary
+    );
+
+    Ok(summary)
+}
+
+fn build_metadata_summary(
+    filing_types: HashSet<String>,
+    companies: HashSet<String>,
+    date_range: (Option<NaiveDate>, Option<NaiveDate>),
+    similar_docs: &Vec<langchain_rust::schemas::Document>,
+) -> String {
     // Build metadata summary
     let mut summary = String::new();
     summary.push_str("Context includes:\n");
@@ -195,7 +227,7 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
 
     // Group documents by source and count chunks
     let mut doc_summaries = std::collections::HashMap::new();
-    for doc in &similar_docs {
+    for doc in similar_docs {
         let key = match (
             doc.metadata.get("type").and_then(|v| v.as_str()),
             doc.metadata.get("filing_type").and_then(|v| v.as_str()),
@@ -228,30 +260,7 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     }
 
     summary.push_str("\nRelevant excerpts:\n\n");
-
-    // Format documents for LLM context
-    let context = similar_docs
-        .iter()
-        .map(|doc| {
-            log::debug!(
-                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
-                doc.score,
-                doc.metadata,
-                doc.page_content
-            );
-            format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
-        })
-        .collect::<Vec<_>>()
-        .join("\n\n");
-
-    summary.push_str(&context);
-
-    log::info!(
-        "=== Complete LLM Context ===\n{}\n=== End Context ===",
-        summary
-    );
-
-    Ok(summary)
+    summary
 }
 
 async fn generate_query(chain: &ConversationalChain, input: &str) -> Result<(Query, String)> {
@@ -314,7 +323,7 @@ pub async fn eval(
     process_documents(&query, http_client, store).await?;
 
     // 3. Build context from processed documents
-    let context = build_context(input, store).await?;
+    let context = build_context(&query, input, store).await?;
 
     // 4. Generate streaming response
     let stream = generate_response(stream_chain, input, &context).await?;
