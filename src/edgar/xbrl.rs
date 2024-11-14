@@ -386,7 +386,10 @@ impl XBRLFiling {
             let tables = self.detect_tables(facts);
             let standalone_facts: Vec<&FactItem> = facts
                 .iter()
-                .filter(|f| f.dimensions.is_empty() && !tables.values().any(|table_facts| table_facts.contains(&f)))
+                .filter(|f| {
+                    f.dimensions.is_empty()
+                        && !tables.values().any(|table_facts| table_facts.contains(f))
+                })
                 .collect();
 
             // Generate tables section for facts with dimensions
@@ -403,7 +406,7 @@ impl XBRLFiling {
                 md.push_str("# Facts\n\n");
                 for fact in standalone_facts {
                     md.push_str(&self.format_compact_fact(fact));
-                    md.push_str("\n");
+                    md.push('\n');
                 }
             }
         }
@@ -475,7 +478,7 @@ impl XBRLFiling {
         headers.push("Value".to_string());
 
         // Header row
-        md.push_str("|");
+        md.push('|');
         for header in &headers {
             md.push_str(&format!(" {} |", header));
         }
@@ -485,7 +488,7 @@ impl XBRLFiling {
         for _ in &headers {
             md.push_str(" --- |");
         }
-        md.push_str("\n");
+        md.push('\n');
 
         // Data rows
         let periods: Vec<String> = all_periods.into_iter().collect();
@@ -520,15 +523,15 @@ impl XBRLFiling {
 
     fn format_compact_fact(&self, fact: &FactItem) -> String {
         let mut parts = vec![format!("{}:{}", fact.prefix, fact.name)];
-        
+
         // Add value
         parts.push(fact.value.clone());
-        
+
         // Add period(s) with "/" separator for ranges
         if !fact.periods.is_empty() {
             let mut start_date = None;
             let mut end_date = None;
-            
+
             for period in &fact.periods {
                 match period.period_type.as_str() {
                     "startDate" => start_date = Some(period.period_value.clone()),
@@ -544,12 +547,12 @@ impl XBRLFiling {
                 (Some(date), None) | (None, Some(date)) => format!("({})", date),
                 (None, None) => String::new(),
             };
-            
+
             if !period_str.is_empty() {
                 parts.push(period_str);
             }
         }
-        
+
         parts.join(" ")
     }
 }

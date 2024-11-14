@@ -589,7 +589,7 @@ pub async fn fetch_matching_filings(
 pub async fn extract_complete_submission_filing(
     filepath: &str,
     store: &dyn VectorStore,
-) -> Result<HashMap<String, serde_json::Value>> {
+) -> Result<HashMap<String, String>> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
         filepath
@@ -605,9 +605,6 @@ pub async fn extract_complete_submission_filing(
         .file_name()
         .unwrap_or_else(|| std::ffi::OsStr::new(""))
         .to_string_lossy();
-
-    let cache_dir = format!("data/edgar/parsed/{}", accession_number);
-    fs::create_dir_all(&cache_dir)?;
 
     log::info!("Parsing XBRL file");
 
@@ -633,6 +630,8 @@ pub async fn extract_complete_submission_filing(
         facts: None,
         dimensions: None,
     };
+
+    let mut filing_to_markdown = HashMap::new();
     let markdown_content = xbrl_filing.to_markdown();
     log::debug!("Generated markdown content:\n{}", markdown_content);
 
@@ -663,5 +662,5 @@ pub async fn extract_complete_submission_filing(
     log::info!("Added filing document to vector store: {}", filepath);
 
     log::debug!("Filing processed and converted to markdown");
-    Ok(HashMap::new())
+    Ok(filing_to_markdown)
 }

@@ -245,23 +245,7 @@ async fn process_edgar_filings(
             output_path.parent().unwrap()
         );
 
-        match filing::extract_complete_submission_filing(input_file, store).await {
-            Ok(parsed) => {
-                if !output_path.exists() {
-                    std::fs::create_dir_all(output_path.parent().unwrap())?;
-                }
-                let output_file = output_path.with_extension("md");
-                let xbrl_filing = xbrl::XBRLFiling {
-                    json: Some(vec![]), // Empty vec since we don't need the JSON anymore
-                    facts: None,
-                    dimensions: None,
-                };
-                let markdown_content = xbrl_filing.to_markdown();
-                std::fs::write(&output_file, markdown_content)?;
-                log::info!("Saved parsed results to: {:?}", output_file);
-            }
-            Err(e) => log::error!("Failed to parse filing: {}", e),
-        }
+        filing::extract_complete_submission_filing(input_file, store).await?;
     }
     Ok(())
 }
