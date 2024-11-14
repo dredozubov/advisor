@@ -563,6 +563,7 @@ pub async fn fetch_matching_filings(
 
 pub async fn extract_complete_submission_filing(
     filepath: &str,
+    report_type: String,
     store: &dyn VectorStore,
 ) -> Result<()> {
     log::info!(
@@ -626,7 +627,7 @@ pub async fn extract_complete_submission_filing(
         "filepath": filepath,
         "markdown_path": markdown_path,
         "source": "xbrl",
-        "filing_type": filing.report_type.clone(),
+        "filing_type": report_type,
         "cik": cik,
         "accession_number": accession_number
     });

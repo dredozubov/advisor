@@ -25,6 +25,7 @@ dependencies = [
  "async-trait",
  "chardet",
  "chrono",
+ "colored",
  "csv",
  "encoding_rs",
  "encoding_rs_io",
