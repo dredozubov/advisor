@@ -116,14 +116,28 @@ async fn build_context(
             .ok_or_else(|| anyhow!("Missing end_date"))?;
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
-            let filing_types = types.iter()
+            let filing_types: Vec<&str> = types.iter()
                 .filter_map(|t| t.as_str())
-                .collect::<Vec<_>>()
-                .join(",");
-            let filter = format!(
-                "type:edgar_filing AND filing_type:[{}] AND filing_date:[{} TO {}]",
-                filing_types, start_date, end_date
-            );
+                .collect();
+            let filter = serde_json::json!({
+                "must": [
+                    {
+                        "key": "type",
+                        "match": { "value": "edgar_filing" }
+                    },
+                    {
+                        "key": "filing_type",
+                        "match": { "any": filing_types }
+                    },
+                    {
+                        "key": "filing_date",
+                        "range": {
+                            "gte": start_date,
+                            "lte": end_date
+                        }
+                    }
+                ]
+            }).to_string();
             log::debug!("Using filter for similarity search: {}", filter);
             let docs = store
                 .similarity_search(
@@ -149,10 +163,21 @@ async fn build_context(
             .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
 
-        let filter = format!(
-            "type:earnings_transcript AND date:[{} TO {}]",
-            start_date, end_date
-        );
+        let filter = serde_json::json!({
+            "must": [
+                {
+                    "key": "type",
+                    "match": { "value": "earnings_transcript" }
+                },
+                {
+                    "key": "date",
+                    "range": {
+                        "gte": start_date,
+                        "lte": end_date
+                    }
+                }
+            ]
+        }).to_string();
         log::debug!("Using filter for similarity search: {}", filter);
         let docs = store
             .similarity_search(
