@@ -96,33 +96,81 @@ async fn process_documents(
 }
 
 async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
-    // Perform similarity search with filing type context
-    log::debug!("Performing similarity search for input: {}", input);
-    let search_input = if input.to_lowercase().contains("10-q") {
-        format!("{} AND filing_type:10-Q", input)
-    } else if input.to_lowercase().contains("10-k") {
-        format!("{} AND filing_type:10-K", input)
-    } else {
-        input.to_string()
-    };
-
-    log::debug!("Enhanced search input: {}", search_input);
-    let similar_docs = store
-        .similarity_search(
-            &search_input,
-            15, // Get top 15 most similar documents
-            &langchain_rust::vectorstore::VecStoreOptions::default(),
-        )
-        .await
-        .map_err(|e| anyhow!("Failed to perform similarity search: {}", e))?;
+    log::debug!("Building context for query: {:?}", query);
+    
+    // 1. Get all documents specified by the query
+    let mut required_docs = Vec::new();
+    
+    if let Some(filings) = query.parameters.get("filings") {
+        let start_date = filings.get("start_date").and_then(|d| d.as_str())
+            .ok_or_else(|| anyhow!("Missing start_date"))?;
+        let end_date = filings.get("end_date").and_then(|d| d.as_str())
+            .ok_or_else(|| anyhow!("Missing end_date"))?;
+        
+        if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
+            for filing_type in types.iter().filter_map(|t| t.as_str()) {
+                let filter = format!(
+                    "type:edgar_filing AND filing_type:{} AND filing_date:[{} TO {}]",
+                    filing_type, start_date, end_date
+                );
+                let docs = store.filter_documents(&filter).await?;
+                required_docs.extend(docs);
+            }
+        }
+    }
+    
+    if query.parameters.get("earnings").is_some() {
+        if let Some(earnings) = query.parameters.get("earnings") {
+            let start_date = earnings.get("start_date").and_then(|d| d.as_str())
+                .ok_or_else(|| anyhow!("Missing earnings start_date"))?;
+            let end_date = earnings.get("end_date").and_then(|d| d.as_str())
+                .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
+            
+            let filter = format!(
+                "type:earnings_transcript AND date:[{} TO {}]",
+                start_date, end_date
+            );
+            let docs = store.filter_documents(&filter).await?;
+            required_docs.extend(docs);
+        }
+    }
 
     log::debug!(
-        "Similarity search returned {} documents",
-        similar_docs.len()
+        "Query-based search returned {} documents",
+        required_docs.len()
     );
-    if similar_docs.is_empty() {
+    if required_docs.is_empty() {
         return Err(anyhow!("No relevant documents found in vector store"));
     }
+
+    // 2. Calculate total tokens
+    const MAX_TOKENS: usize = 12000; // Adjust based on your model
+    let total_tokens: usize = required_docs.iter()
+        .map(|doc| doc.page_content.split_whitespace().count() * 4) // Estimate 4 tokens per word
+        .sum();
+
+    log::info!(
+        "Retrieved {} documents with approximately {} tokens", 
+        required_docs.len(), 
+        total_tokens
+    );
+
+    // 3. If we're over the token limit, use similarity search to reduce content
+    let final_docs = if total_tokens > MAX_TOKENS {
+        log::info!(
+            "Token count ({}) exceeds limit ({}), using similarity search to reduce content",
+            total_tokens,
+            MAX_TOKENS
+        );
+        
+        store.similarity_search(
+            input,
+            (MAX_TOKENS / 500), // Rough estimate of docs that will fit
+            &langchain_rust::vectorstore::VecStoreOptions::default(),
+        ).await?
+    } else {
+        required_docs
+    };
 
     // Compile metadata summary
     let mut filing_types = std::collections::HashSet::new();
