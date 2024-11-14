@@ -113,7 +113,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
                     "type:edgar_filing AND filing_type:{} AND filing_date:[{} TO {}]",
                     filing_type, start_date, end_date
                 );
-                let docs = store.filter_documents(&filter).await?;
+                let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default()).await?;
                 required_docs.extend(docs);
             }
         }
@@ -130,7 +130,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
                 "type:earnings_transcript AND date:[{} TO {}]",
                 start_date, end_date
             );
-            let docs = store.filter_documents(&filter).await?;
+            let docs = store.similarity_search(&filter, 50, &langchain_rust::vectorstore::VecStoreOptions::default()).await?;
             required_docs.extend(docs);
         }
     }
@@ -165,7 +165,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
         
         store.similarity_search(
             input,
-            (MAX_TOKENS / 500), // Rough estimate of docs that will fit
+            MAX_TOKENS / 500, // Rough estimate of docs that will fit
             &langchain_rust::vectorstore::VecStoreOptions::default(),
         ).await?
     } else {
@@ -177,7 +177,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
     let mut companies = std::collections::HashSet::new();
     let mut date_range = (None, None);
 
-    for doc in &similar_docs {
+    for doc in &final_docs {
         if let Some(doc_type) = doc.metadata.get("type").and_then(|v| v.as_str()) {
             match doc_type {
                 "edgar_filing" => {
@@ -226,7 +226,7 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
     let mut summary = build_metadata_summary(filing_types, companies, date_range, &similar_docs);
 
     // Format documents for LLM context
-    let context = similar_docs
+    let context = final_docs
         .iter()
         .map(|doc| {
             log::debug!(
