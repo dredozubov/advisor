@@ -98,12 +98,32 @@ pub async fn store_chunked_document(
         documents.first().map(|d| &d.metadata)
     );
 
-    store
+    log::info!(
+        "Attempting to store {} documents in vector store with first document metadata: {:#?}",
+        documents.len(),
+        documents.first().map(|d| &d.metadata)
+    );
+
+    log::debug!(
+        "First document content preview (first 200 chars): {}",
+        documents.first()
+            .map(|d| d.page_content.chars().take(200).collect::<String>())
+            .unwrap_or_default()
+    );
+
+    match store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
-        .map_err(|e| anyhow!("Failed to store document chunks in vector store: {}", e))?;
-
-    log::debug!("Successfully added documents to vector store");
+    {
+        Ok(_) => {
+            log::info!("Successfully added {} documents to vector store", documents.len());
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to store documents in vector store: {}", e);
+            Err(anyhow!("Failed to store document chunks in vector store: {}", e))
+        }
+    }?;
 
     log::info!("Stored {} document chunks in vector store", documents.len());
     Ok(())
