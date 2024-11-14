@@ -599,6 +599,11 @@ pub async fn extract_complete_submission_filing(
         "accession_number": accession_number
     });
 
+    // Save metadata alongside markdown
+    let metadata_path = format!("{}/filing.json", markdown_dir);
+    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata)?)?;
+    log::info!("Saved metadata to: {}", metadata_path);
+
     // Convert the metadata to the required HashMap format
     let metadata_map: HashMap<String, serde_json::Value> = metadata
         .as_object()
