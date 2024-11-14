@@ -181,6 +181,38 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     if let (Some(start), Some(end)) = date_range {
         summary.push_str(&format!("- Date range: {} to {}\n", start, end));
     }
+
+    // Group documents by source and count chunks
+    let mut doc_summaries = std::collections::HashMap::new();
+    for doc in &similar_docs {
+        let key = match (
+            doc.metadata.get("type").and_then(|v| v.as_str()),
+            doc.metadata.get("filing_type").and_then(|v| v.as_str()),
+            doc.metadata.get("quarter").and_then(|v| v.as_str()),
+            doc.metadata.get("year").and_then(|v| v.as_str()),
+            doc.metadata.get("total_chunks").and_then(|v| v.as_i64()),
+        ) {
+            (Some("edgar_filing"), Some(filing_type), _, _, Some(total)) => {
+                format!("SEC {} Filing", filing_type)
+            }
+            (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total)) => {
+                format!("Q{} {} Earnings Call", quarter, year)
+            }
+            _ => "Unknown Document Type".to_string(),
+        };
+        
+        let entry = doc_summaries.entry(key).or_insert((0, 0));
+        entry.0 += 1; // Increment chunk count
+        if let Some(total) = doc.metadata.get("total_chunks").and_then(|v| v.as_i64()) {
+            entry.1 = total as usize; // Update total chunks
+        }
+    }
+
+    summary.push_str("\nDocuments retrieved:\n");
+    for (doc_type, (chunks_found, total_chunks)) in doc_summaries {
+        summary.push_str(&format!("- {}: {} of {} chunks\n", doc_type, chunks_found, total_chunks));
+    }
+
     summary.push_str("\nRelevant excerpts:\n\n");
 
     // Format documents for LLM context
