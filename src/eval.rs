@@ -104,7 +104,7 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     } else {
         input.to_string()
     };
-    
+
     log::debug!("Enhanced search input: {}", search_input);
     let similar_docs = store
         .similarity_search(
@@ -127,31 +127,36 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     let mut filing_types = std::collections::HashSet::new();
     let mut companies = std::collections::HashSet::new();
     let mut date_range = (None, None);
-    
+
     for doc in &similar_docs {
         if let Some(doc_type) = doc.metadata.get("type").and_then(|v| v.as_str()) {
             match doc_type {
                 "edgar_filing" => {
-                    if let Some(filing_type) = doc.metadata.get("filing_type").and_then(|v| v.as_str()) {
+                    if let Some(filing_type) =
+                        doc.metadata.get("filing_type").and_then(|v| v.as_str())
+                    {
                         filing_types.insert(filing_type.to_string());
                     }
                     if let Some(cik) = doc.metadata.get("cik").and_then(|v| v.as_str()) {
                         companies.insert(cik.to_string());
                     }
-                },
+                }
                 "earnings_transcript" => {
                     if let Some(symbol) = doc.metadata.get("symbol").and_then(|v| v.as_str()) {
                         companies.insert(symbol.to_string());
                     }
-                },
+                }
                 _ => {}
             }
         }
-        
+
         // Track date range across all documents
-        if let Some(date) = doc.metadata.get("filing_date")
+        if let Some(date) = doc
+            .metadata
+            .get("filing_date")
             .or_else(|| doc.metadata.get("date"))
-            .and_then(|v| v.as_str()) {
+            .and_then(|v| v.as_str())
+        {
             if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
                 match date_range {
                     (None, None) => date_range = (Some(parsed_date), Some(parsed_date)),
@@ -162,7 +167,7 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
                         if parsed_date > end {
                             date_range.1 = Some(parsed_date);
                         }
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -173,10 +178,16 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
     let mut summary = String::new();
     summary.push_str("Context includes:\n");
     if !filing_types.is_empty() {
-        summary.push_str(&format!("- Filing types: {}\n", filing_types.into_iter().collect::<Vec<_>>().join(", ")));
+        summary.push_str(&format!(
+            "- Filing types: {}\n",
+            filing_types.into_iter().collect::<Vec<_>>().join(", ")
+        ));
     }
     if !companies.is_empty() {
-        summary.push_str(&format!("- Companies: {}\n", companies.into_iter().collect::<Vec<_>>().join(", ")));
+        summary.push_str(&format!(
+            "- Companies: {}\n",
+            companies.into_iter().collect::<Vec<_>>().join(", ")
+        ));
     }
     if let (Some(start), Some(end)) = date_range {
         summary.push_str(&format!("- Date range: {} to {}\n", start, end));
@@ -193,14 +204,14 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
             doc.metadata.get("total_chunks").and_then(|v| v.as_i64()),
         ) {
             (Some("edgar_filing"), Some(filing_type), _, _, Some(total)) => {
-                format!("SEC {} Filing", filing_type)
+                format!("SEC {} Filing ({} chunks)", filing_type, total)
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total)) => {
-                format!("Q{} {} Earnings Call", quarter, year)
+                format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
             }
             _ => "Unknown Document Type".to_string(),
         };
-        
+
         let entry = doc_summaries.entry(key).or_insert((0, 0));
         entry.0 += 1; // Increment chunk count
         if let Some(total) = doc.metadata.get("total_chunks").and_then(|v| v.as_i64()) {
@@ -210,7 +221,10 @@ async fn build_context(input: &str, store: &dyn VectorStore) -> Result<String> {
 
     summary.push_str("\nDocuments retrieved:\n");
     for (doc_type, (chunks_found, total_chunks)) in doc_summaries {
-        summary.push_str(&format!("- {}: {} of {} chunks\n", doc_type, chunks_found, total_chunks));
+        summary.push_str(&format!(
+            "- {}: {} of {} chunks\n",
+            doc_type, chunks_found, total_chunks
+        ));
     }
 
     summary.push_str("\nRelevant excerpts:\n\n");
@@ -336,7 +350,8 @@ async fn process_edgar_filings(
             output_path.parent().unwrap()
         );
 
-        filing::extract_complete_submission_filing(input_file, store).await?;
+        filing::extract_complete_submission_filing(input_file, filing.report_type.clone(), store)
+            .await?;
     }
     Ok(())
 }
