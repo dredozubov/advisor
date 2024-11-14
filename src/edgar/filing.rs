@@ -623,19 +623,21 @@ pub async fn extract_complete_submission_filing(
 
     // Create metadata for the document
     log::debug!("Creating metadata with report_type: {}", report_type);
-    let metadata = serde_json::json!({
-        "type": "edgar_filing",
-        "filepath": filepath,
-        "markdown_path": markdown_path,
-        "source": "xbrl",
-        "filing_type": report_type,
-        "cik": cik,
-        "accession_number": accession_number
-    });
+    let metadata = Metadata::MetaEdgarFiling {
+        doc_type: DocType::EdgarFiling,
+        filepath: filepath.to_string(),
+        filing_type: report_type,
+        cik: cik.to_string(),
+        accession_number: accession_number.to_string(),
+        symbol: "unknown".to_string(), // Adjust as needed
+        chunk_index: 0, // Set appropriately
+        total_chunks: 1, // Set appropriately
+    };
 
     // Save metadata alongside markdown
+    let metadata_json = to_hashmap(metadata.clone());
     let metadata_path = format!("{}/filing.json", markdown_dir);
-    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata)?)?;
+    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata_json)?)?;
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Convert the metadata to the required HashMap format

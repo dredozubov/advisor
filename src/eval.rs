@@ -437,25 +437,14 @@ async fn process_earnings_transcripts(
         );
 
         // Create document for vector storage
-        let metadata_json = serde_json::json!({
-            "symbol": transcript.symbol,
-            "quarter": transcript.quarter,
-            "year": transcript.year,
-            "date": transcript.date,
-            "type": "earnings_transcript"
-        });
-
-        let metadata = Metadata {
-            doc_type: "edgar_filing".to_string(),
-            filepath: Some(filepath.to_string()),
-            filing_type: Some(report_type),
-            cik: Some(cik.to_string()),
-            accession_number: Some(accession_number.to_string()),
-            symbol: None,
-            quarter: None,
-            year: None,
-            chunk_index: None,
-            total_chunks: None,
+        let metadata = Metadata::MetaEarningsTranscript {
+            doc_type: DocType::EarningTranscript,
+            filepath: "path/to/transcript".to_string(), // Adjust as needed
+            symbol: transcript.symbol.clone(),
+            year: transcript.year,
+            quarter: transcript.quarter,
+            chunk_index: 0, // Set appropriately
+            total_chunks: 1, // Set appropriately
         };
 
         // Store the transcript using the chunking utility with caching

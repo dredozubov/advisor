@@ -214,7 +214,7 @@ pub async fn store_chunked_document(
 
         let doc = Document {
             page_content: chunk.clone(),
-            metadata: MetadataJson::from(metadata),
+            metadata: to_hashmap(metadata.clone()), // Use the to_hashmap function to convert Metadata to MetadataJson
             score: 0.0,
         };
 
