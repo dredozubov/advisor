@@ -228,10 +228,10 @@ async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> R
         }
     }
 
-    let mut summary = build_metadata_summary(filing_types, companies, date_range, &final_docs);
+    let summary = build_metadata_summary(filing_types, companies, date_range, &final_docs);
 
     // Format documents for LLM context
-    let context = final_docs
+    let _context = final_docs
         .iter()
         .map(|doc| {
             log::debug!(
