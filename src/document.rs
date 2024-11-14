@@ -2,10 +2,12 @@ use anyhow::anyhow;
 use core::fmt;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
+use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Display;
+use std::ptr::metadata;
 use std::{collections::HashMap, path::Path};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +25,6 @@ impl fmt::Display for DocType {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metadata {
     pub doc_type: DocType,
@@ -33,9 +34,26 @@ pub struct Metadata {
     pub accession_number: Option<String>,
     pub symbol: String,
     pub quarter: Option<String>,
-    pub year: Option<String>,
+    pub year: String,
     pub chunk_index: usize,
     pub total_chunks: usize,
+}
+
+fn to_hashmap(metadata: Metadata) -> HashMap<String, Value> {
+    match metadata.doc_type {
+        DocType::EdgarFiling => hashmap! {
+            "doc_type" => Value::String("filing"),
+            "filepath" => Value::String(metadata.filepath.unwrap()),
+            "filing_type" => Value::String(metadata.filing_type.unwrap()),
+            "cik" => Value::String(metadata.cik.unwrap()),
+            "accession_number" => Value::String(metadata.accession_number.unwrap()),
+            "symbol" => metadata.symbol,
+            "quarter" => Value::Null,
+            "year" => Value::String(metadata.year),
+
+        },
+        DocType::EarningTranscript => todo!(),
+    }
 }
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under token limits
@@ -55,22 +73,18 @@ pub async fn store_chunked_document(
         .map(|c| c.iter().collect::<String>())
         .collect();
 
-    // Extract document type and identifier from metadata
-    let doc_type = &metadata.doc_type;
-
     log::info!(
-        "Created {} chunks for document type '{}' ({})",
+        "Created {} chunks for document type '{}'",
         chunks.len(),
-        doc_type,
-        identifier
+        &metadata.doc_type,
     );
 
     // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
     log::info!("Checking if document already exists in persistent vector store");
 
     // Create a proper filter to check for existing documents
-    let filter = match metadata.doc_type.as_str() {
-        "edgar_filing" => {
+    let filter = match metadata.doc_type {
+        DocType::EdgarFiling => {
             let filing_type = metadata.filing_type.as_deref().unwrap_or("unknown");
             let cik = metadata.cik.as_deref().unwrap_or("unknown");
             let accession_number = metadata.accession_number.as_deref().unwrap_or("unknown");
@@ -95,8 +109,8 @@ pub async fn store_chunked_document(
                 ]
             })
         }
-        "earnings_transcript" => {
-            let symbol = metadata.symbol.unwrap_or("unknown".to_string());
+        DocType::EarningTranscript => {
+            let symbol = metadata.symbol;
             let quarter = metadata.quarter.unwrap_or("unknown".to_string());
             let year = metadata.year.unwrap_or("unknown".to_string());
             serde_json::json!({
@@ -120,14 +134,6 @@ pub async fn store_chunked_document(
                 ]
             })
         }
-        _ => serde_json::json!({
-            "must": [
-                {
-                    "key": "type",
-                    "match": { "value": doc_type }
-                }
-            ]
-        }),
     };
 
     log::debug!("Checking for existing documents with filter: {}", filter);
@@ -150,8 +156,8 @@ pub async fn store_chunked_document(
     let mut documents = Vec::new();
     for (i, chunk) in chunks.iter().enumerate() {
         let mut chunk_metadata = metadata.clone();
-        chunk_metadata.chunk_index = Some(i);
-        chunk_metadata.total_chunks = Some(chunks.len());
+        chunk_metadata.chunk_index = i;
+        chunk_metadata.total_chunks = chunks.len();
 
         let doc = Document {
             page_content: chunk.clone(),
