@@ -2,28 +2,15 @@ use anyhow::anyhow;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde_json::Value;
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, path::Path};
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under token limits
 
-pub async fn store_chunked_document_with_cache(
+pub async fn store_chunked_document(
     content: String,
     metadata: HashMap<String, Value>,
-    cache_dir: &str,
-    cache_filename: &str,
     store: &dyn VectorStore,
 ) -> anyhow::Result<()> {
-    // Construct the cache path
-    let cache_path = format!("{}/{}.json", cache_dir, cache_filename);
-
-    // Check if cached JSON exists and log it
-    if fs::read_to_string(cache_path.as_str()).is_ok() {
-        log::debug!("Cache exists at: {}", cache_path);
-    }
-
-    // If no cache, proceed with chunking and storing
-    log::info!("No cached JSON found, chunking and storing document");
-
     // Split content into smaller chunks
     let chunks: Vec<String> = content
         .chars()
@@ -98,21 +85,18 @@ pub async fn store_chunked_document_with_cache(
         documents.len(),
         documents.first().map(|d| &d.metadata)
     );
-    
-    log::debug!("First chunk content: {:?}", documents.first().map(|d| &d.page_content));
-    
+
+    log::debug!(
+        "First chunk content: {:?}",
+        documents.first().map(|d| &d.page_content)
+    );
+
     store
         .add_documents(&documents, &VecStoreOptions::default())
         .await
         .map_err(|e| anyhow!("Failed to store document chunks in vector store: {}", e))?;
-    
-    log::debug!("Successfully added documents to vector store");
 
-    // Cache the chunked document
-    log::info!("Caching chunked document to: {}", cache_path);
-    let json_content = serde_json::to_string_pretty(&metadata)?;
-    fs::create_dir_all(cache_dir)?;
-    fs::write(&cache_path, json_content)?;
+    log::debug!("Successfully added documents to vector store");
 
     log::info!("Stored {} document chunks in vector store", documents.len());
     Ok(())

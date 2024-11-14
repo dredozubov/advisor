@@ -420,7 +420,7 @@ pub async fn get_company_filings(
     }
 
     // Update the initial response with merged filings
-    initial_response.filings.recent = merged;
+    initial_response.filings.recent = merged.clone();
 
     // Log summary of fetched data
     info!(
@@ -465,9 +465,10 @@ pub async fn fetch_matching_filings(
     info!(
         "Found {} matching filings for query parameters:\n\
          - Report types: {}\n\
-         - Date range: {} to {}", 
+         - Date range: {} to {}",
         matching_filings.len(),
-        matching_filings.iter()
+        matching_filings
+            .iter()
             .map(|f| f.report_type.as_str())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
@@ -598,7 +599,13 @@ pub async fn extract_complete_submission_filing(
 
     // Extract CIK and accession number from filepath
     let path = Path::new(filepath);
-    let parts: Vec<&str> = path.parent().unwrap().to_str().unwrap().split('/').collect();
+    let parts: Vec<&str> = path
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split('/')
+        .collect();
     let cik = parts[parts.len() - 2];
     let accession_number = parts[parts.len() - 1];
 
