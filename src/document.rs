@@ -175,6 +175,7 @@ pub async fn store_chunked_document(
     content: String,
     metadata: Metadata,
     store: &dyn VectorStore,
+    qdrant_client: &QdrantClient,  // Add QdrantClient as an argument
 ) -> anyhow::Result<()> {
     println!("Storing document with metadata: {:?}", metadata);
 
@@ -186,81 +187,93 @@ pub async fn store_chunked_document(
         .map(|c| c.iter().collect::<String>())
         .collect();
 
-    // Check if the vector store is persistent (e.g., Qdrant, SQLite) and if documents already exist
-    log::info!("Checking if document already exists in persistent vector store");
+    // Check if the document already exists in Qdrant using the search_points method
+    log::info!("Checking if document already exists in Qdrant");
 
-    // Create a proper filter to check for existing documents
     let filter = match metadata {
         Metadata::MetaEdgarFiling {
             ref filing_type,
             ref cik,
             ref accession_number,
             ..
-        } => {
-            serde_json::json!({
-                "must": [
-                    {
-                        "key": "type",
-                        "match": { "value": "edgar_filing" }
-                    },
-                    {
-                        "key": "filing_type",
-                        "match": { "value": filing_type.to_string() }
-                    },
-                    {
-                        "key": "cik",
-                        "match": { "value": cik }
-                    },
-                    {
-                        "key": "accession_number",
-                        "match": { "value": accession_number }
-                    }
-                ]
-            })
-        }
+        } => Filter {
+            must: vec![
+                Condition::Field(FieldCondition {
+                    key: "type".to_string(),
+                    r#match: Some(Match::Value("edgar_filing".into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "filing_type".to_string(),
+                    r#match: Some(Match::Value(filing_type.to_string().into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "cik".to_string(),
+                    r#match: Some(Match::Value(cik.into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "accession_number".to_string(),
+                    r#match: Some(Match::Value(accession_number.into())),
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        },
         Metadata::MetaEarningsTranscript {
             ref symbol,
             ref year,
             ref quarter,
             ..
-        } => {
-            serde_json::json!({
-                "must": [
-                    {
-                        "key": "type",
-                        "match": { "value": "earnings_transcript" }
-                    },
-                    {
-                        "key": "symbol",
-                        "match": { "value": symbol }
-                    },
-                    {
-                        "key": "quarter",
-                        "match": { "value": quarter }
-                    },
-                    {
-                        "key": "year",
-                        "match": { "value": year }
-                    }
-                ]
-            })
-        }
+        } => Filter {
+            must: vec![
+                Condition::Field(FieldCondition {
+                    key: "type".to_string(),
+                    r#match: Some(Match::Value("earnings_transcript".into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "symbol".to_string(),
+                    r#match: Some(Match::Value(symbol.into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "quarter".to_string(),
+                    r#match: Some(Match::Value(quarter.into())),
+                    ..Default::default()
+                }),
+                Condition::Field(FieldCondition {
+                    key: "year".to_string(),
+                    r#match: Some(Match::Value(year.into())),
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        },
     };
 
-    log::info!("FILTER: {}", filter);
+    let search_params = SearchParams {
+        hnsw_ef: Some(128),
+        exact: Some(true),  // Set exact to true for exact match
+        ..Default::default()
+    };
 
-    log::debug!("Checking for existing documents with filter: {}", filter);
+    let result = qdrant_client
+        .search_points(&QueryPoints {
+            collection_name: "your_collection_name".to_string(),  // Replace with your collection name
+            vector: vec![],  // Empty vector since we're only filtering by metadata
+            filter: Some(filter),
+            params: Some(search_params),
+            limit: 1,  // We only need to check if at least one document exists
+            ..Default::default()
+        })
+        .await?;
 
-    // Perform a similarity search to check if the document is already stored
-    let existing_docs = store
-        .similarity_search(&filter.to_string(), 1, &VecStoreOptions::default())
-        .await
-        .map_err(|e| anyhow!("Failed to check for existing documents: {}", e))?;
-
-    if !existing_docs.is_empty() {
+    if !result.result.is_empty() {
         log::info!(
-            "Document already exists in vector store (found {} matches), skipping embedding",
-            existing_docs.len()
+            "Document already exists in Qdrant (found {} matches), skipping embedding",
+            result.result.len()
         );
         return Ok(());
     }
