@@ -42,6 +42,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
+    let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
+
     let store = StoreBuilder::new()
         .embedder(embedder)
         .client(qdrant_client)

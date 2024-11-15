@@ -9,6 +9,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use qdrant_client::prelude::*;
+use qdrant_client::qdrant::{Condition, Filter, FieldCondition, Match, SearchParams, QueryPoints};
+
 use crate::edgar::report::ReportType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
