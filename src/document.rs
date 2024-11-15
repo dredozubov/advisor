@@ -3,14 +3,16 @@ use core::fmt;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use maplit::hashmap;
+use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use qdrant_client::prelude::*;
-use qdrant_client::qdrant::{Condition, Filter, FieldCondition, Match, SearchParams, QueryPoints};
+pub const COLLECTION_NAME: &str = "advisor";
+
+use qdrant_client::qdrant::{Condition, CountPointsBuilder, Filter};
 
 use crate::edgar::report::ReportType;
 
@@ -75,35 +77,35 @@ impl Metadata {
         self
     }
 
-    fn symbol(&self) -> &String {
+    pub fn symbol(&self) -> &String {
         match self {
             Metadata::MetaEarningsTranscript { symbol, .. } => symbol,
             Metadata::MetaEdgarFiling { symbol, .. } => symbol,
         }
     }
 
-    fn filepath(&self) -> &PathBuf {
+    pub fn filepath(&self) -> &PathBuf {
         match self {
             Metadata::MetaEarningsTranscript { filepath, .. } => filepath,
             Metadata::MetaEdgarFiling { filepath, .. } => filepath,
         }
     }
 
-    fn doc_type(&self) -> DocType {
+    pub fn doc_type(&self) -> DocType {
         match self {
             Metadata::MetaEarningsTranscript { doc_type, .. } => doc_type.clone(),
             Metadata::MetaEdgarFiling { doc_type, .. } => doc_type.clone(),
         }
     }
 
-    fn chunk_index(&self) -> usize {
+    pub fn chunk_index(&self) -> usize {
         match self {
             Metadata::MetaEarningsTranscript { chunk_index, .. } => *chunk_index,
             Metadata::MetaEdgarFiling { chunk_index, .. } => *chunk_index,
         }
     }
 
-    fn total_chunks(&self) -> usize {
+    pub fn total_chunks(&self) -> usize {
         match self {
             Metadata::MetaEarningsTranscript { total_chunks, .. } => *total_chunks,
             Metadata::MetaEdgarFiling { total_chunks, .. } => *total_chunks,
@@ -125,9 +127,9 @@ pub struct MetadataJson {
     pub total_chunks: usize,
 }
 
-impl Into<HashMap<String, Value>> for Metadata {
-    fn into(self: Metadata) -> HashMap<String, Value> {
-        match self {
+impl From<Metadata> for HashMap<String, Value> {
+    fn from(val: Metadata) -> Self {
+        match val {
             Metadata::MetaEdgarFiling {
                 filepath,
                 filing_type,
@@ -178,7 +180,7 @@ pub async fn store_chunked_document(
     content: String,
     metadata: Metadata,
     store: &dyn VectorStore,
-    qdrant_client: &QdrantClient,  // Add QdrantClient as an argument
+    qdrant_client: &Qdrant, // Add QdrantClient as an argument
 ) -> anyhow::Result<()> {
     println!("Storing document with metadata: {:?}", metadata);
 
@@ -190,7 +192,6 @@ pub async fn store_chunked_document(
         .map(|c| c.iter().collect::<String>())
         .collect();
 
-    // Check if the document already exists in Qdrant using the search_points method
     log::info!("Checking if document already exists in Qdrant");
 
     let filter = match metadata {
@@ -199,85 +200,51 @@ pub async fn store_chunked_document(
             ref cik,
             ref accession_number,
             ..
-        } => Filter {
-            must: vec![
-                Condition::Field(FieldCondition {
-                    key: "type".to_string(),
-                    r#match: Some(Match::Value("edgar_filing".into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "filing_type".to_string(),
-                    r#match: Some(Match::Value(filing_type.to_string().into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "cik".to_string(),
-                    r#match: Some(Match::Value(cik.into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "accession_number".to_string(),
-                    r#match: Some(Match::Value(accession_number.into())),
-                    ..Default::default()
-                }),
-            ],
-            ..Default::default()
-        },
+        } => Filter::all([
+            Condition::matches("doc_type", "filing".to_string()),
+            Condition::matches("filing_type", filing_type.to_string()),
+            Condition::matches("cik", cik.clone()),
+            Condition::matches("accession_number", accession_number.clone()),
+        ]),
         Metadata::MetaEarningsTranscript {
             ref symbol,
             ref year,
             ref quarter,
             ..
-        } => Filter {
-            must: vec![
-                Condition::Field(FieldCondition {
-                    key: "type".to_string(),
-                    r#match: Some(Match::Value("earnings_transcript".into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "symbol".to_string(),
-                    r#match: Some(Match::Value(symbol.into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "quarter".to_string(),
-                    r#match: Some(Match::Value(quarter.into())),
-                    ..Default::default()
-                }),
-                Condition::Field(FieldCondition {
-                    key: "year".to_string(),
-                    r#match: Some(Match::Value(year.into())),
-                    ..Default::default()
-                }),
-            ],
-            ..Default::default()
-        },
+        } => Filter::all([
+            Condition::matches("doc_type", "earnings_transcript".to_string()),
+            Condition::matches("symbol", symbol.clone()),
+            Condition::matches("quarter", quarter.to_string()),
+            Condition::matches("year", year.to_string()),
+        ]),
     };
 
-    let search_params = SearchParams {
-        hnsw_ef: Some(128),
-        exact: Some(true),  // Set exact to true for exact match
-        ..Default::default()
-    };
+    log::info!("FILTER: {:#?}", filter);
 
     let result = qdrant_client
-        .search_points(&QueryPoints {
-            collection_name: "your_collection_name".to_string(),  // Replace with your collection name
-            vector: vec![],  // Empty vector since we're only filtering by metadata
-            filter: Some(filter),
-            params: Some(search_params),
-            limit: 1,  // We only need to check if at least one document exists
-            ..Default::default()
-        })
+        .count(
+            CountPointsBuilder::new(COLLECTION_NAME)
+                .filter(filter)
+                .exact(false), // WTF: it fails miserably with exact: true, or without it (since it default to true, without it returns 0
+        )
         .await?;
 
-    if !result.result.is_empty() {
+    let count = match result.result {
+        Some(r) => {
+            log::info!("RESULTS: {:#?}", result);
+            r.count
+        }
+        None => {
+            panic!("Qdrant Count returned an empty result");
+        }
+    };
+
+    if count > 0 {
         log::info!(
             "Document already exists in Qdrant (found {} matches), skipping embedding",
-            result.result.len()
+            count
         );
+
         return Ok(());
     }
 

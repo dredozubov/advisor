@@ -1,3 +1,4 @@
+use advisor::document::COLLECTION_NAME;
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
@@ -17,10 +18,6 @@ struct Opt {
     /// Qdrant server URI (only used if storage=qdrant)
     #[structopt(long, default_value = "http://localhost:6334")]
     qdrant_uri: String,
-
-    /// Qdrant collection name (only used if storage=qdrant)
-    #[structopt(long, default_value = "advisor")]
-    qdrant_collection: String,
 }
 
 #[tokio::main]
@@ -36,18 +33,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
 
-    let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
-
     // Create separate memory buffers for each chain
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
+    let qdrant_client_vector_store = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
     let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
 
     let store = StoreBuilder::new()
         .embedder(embedder)
-        .client(qdrant_client)
-        .collection_name(&opt.qdrant_collection)
+        .client(qdrant_client_vector_store)
+        .collection_name(COLLECTION_NAME)
         .build()
         .await
         .unwrap();
@@ -106,7 +102,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &stream_chain, &query_chain, &store).await {
+                match eval::eval(
+                    input,
+                    &http_client,
+                    &stream_chain,
+                    &query_chain,
+                    &store,
+                    &qdrant_client,
+                )
+                .await
+                {
                     Ok((mut stream, new_summary)) => {
                         summary = new_summary;
                         while let Some(chunk) = stream.next().await {

@@ -6,11 +6,11 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use langchain_rust::vectorstore::VectorStore;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
+use qdrant_client::Qdrant;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -567,6 +567,7 @@ pub async fn extract_complete_submission_filing(
     filepath: &str,
     report_type: ReportType,
     store: &dyn VectorStore,
+    qdrant_client: &Qdrant,
 ) -> Result<()> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",

@@ -8,15 +8,15 @@ use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
-use serde_json::Value;
+use qdrant_client::Qdrant;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::str::FromStr;
 
 async fn process_documents(
     query: &Query,
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
+    qdrant_client: &Qdrant,
 ) -> Result<()> {
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -26,7 +26,7 @@ async fn process_documents(
                 for ticker in &edgar_query.tickers {
                     log::info!("Fetching EDGAR filings for ticker: {}", ticker);
                     let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
-                    process_edgar_filings(filings, store).await?;
+                    process_edgar_filings(filings, store, qdrant_client).await?;
                 }
             }
             Err(e) => {
@@ -48,7 +48,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store).await?;
+        process_earnings_transcripts(transcripts, store, qdrant_client).await?;
     }
 
     Ok(())
@@ -375,6 +375,7 @@ pub async fn eval(
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
     store: &dyn VectorStore,
+    qdrant_client: &Qdrant,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -383,7 +384,7 @@ pub async fn eval(
     let (query, summary) = generate_query(query_chain, input).await?;
 
     // 2. Process documents based on query
-    process_documents(&query, http_client, store).await?;
+    process_documents(&query, http_client, store, qdrant_client).await?;
 
     // 3. Build context from processed documents
     let (_summary, context) = build_context(&query, input, store).await?;
@@ -397,6 +398,7 @@ pub async fn eval(
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: &(dyn VectorStore + Send + Sync),
+    qdrant_client: &Qdrant,
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
@@ -423,8 +425,13 @@ async fn process_edgar_filings(
         );
 
         log::info!("INTO EXTRACT_COMPLETE_SUBMISSION_FILING");
-        filing::extract_complete_submission_filing(input_file, filing.report_type.clone(), store)
-            .await?;
+        filing::extract_complete_submission_filing(
+            input_file,
+            filing.report_type.clone(),
+            store,
+            qdrant_client,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -432,6 +439,7 @@ async fn process_edgar_filings(
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: &(dyn VectorStore + Send + Sync),
+    qdrant_client: &Qdrant,
 ) -> Result<()> {
     for (transcript, filepath) in transcripts {
         log::info!(
@@ -453,7 +461,8 @@ async fn process_earnings_transcripts(
 
         // Store the transcript using the chunking utility with caching
         log::info!("Storing earnings transcript in vector store");
-        crate::document::store_chunked_document(transcript.content, metadata, store, qdrant_client).await?;
+        crate::document::store_chunked_document(transcript.content, metadata, store, qdrant_client)
+            .await?;
         log::info!(
             "Added earnings transcript to vector store: {} Q{}",
             transcript.symbol,
