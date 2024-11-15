@@ -293,19 +293,22 @@ fn build_metadata_summary(
     let mut doc_summaries = std::collections::HashMap::new();
     for doc in similar_docs {
         let key = match (
-            doc.metadata.get("type").and_then(|v| v.as_str()),
+            doc.metadata.get("doc_type").and_then(|v| v.as_str()),
             doc.metadata.get("filing_type").and_then(|v| v.as_str()),
-            doc.metadata.get("quarter").and_then(|v| v.as_str()),
-            doc.metadata.get("year").and_then(|v| v.as_str()),
-            doc.metadata.get("total_chunks").and_then(|v| v.as_i64()),
+            doc.metadata.get("quarter").and_then(|v| v.as_u64()),
+            doc.metadata.get("year").and_then(|v| v.as_u64()),
+            doc.metadata.get("total_chunks").and_then(|v| v.as_u64()),
         ) {
-            (Some("edgar_filing"), Some(filing_type), _, _, Some(total)) => {
+            (Some("filing"), Some(filing_type), _, _, Some(total)) => {
                 format!("SEC {} Filing ({} chunks)", filing_type, total)
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total)) => {
                 format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
             }
-            _ => "Unknown Document Type".to_string(),
+            _ => {
+                log::debug!("Unknown document type in metadata: {:?}", doc.metadata);
+                "Unknown Document Type".to_string()
+            }
         };
 
         let entry = doc_summaries.entry(key).or_insert((0, 0));
