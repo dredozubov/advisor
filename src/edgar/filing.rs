@@ -51,7 +51,7 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
 
     // Zip all the vectors together and process each record
     for i in 0..entry.accession_number.len() {
-        let maybe_rt = ReportType::from_str(entry.report_type[i].clone())
+        let maybe_rt = ReportType::from_str(&entry.report_type[i])
         let filing = Filing {
             accession_number: entry.accession_number[i].clone(),
             filing_date: entry.filing_date[i],
