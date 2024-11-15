@@ -1,3 +1,4 @@
+use crate::document::{DocType, Metadata};
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::query::Query;
@@ -9,6 +10,8 @@ use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::str::FromStr;
 
 async fn process_documents(
     query: &Query,
@@ -93,7 +96,7 @@ async fn build_context(
                 ]
             })
             .to_string();
-            log::debug!("Using filter for similarity search: {}", filter);
+            log::info!("Using filter for similarity search: {}", filter);
             let docs = store
                 .similarity_search(
                     &filter,
@@ -343,7 +346,7 @@ async fn generate_response(
     log::info!("generate_response::input: {}", input);
     // Create prompt with context
     let prompt = format!(
-        "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}",
+        "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}\n\n If you don't know the answer, just say that you don't know, don't try to make up an answer. Helpful answer:\n",
         input,
         context
     );
@@ -419,6 +422,7 @@ async fn process_edgar_filings(
             output_path.parent().unwrap()
         );
 
+        log::info!("INTO EXTRACT_COMPLETE_SUBMISSION_FILING");
         filing::extract_complete_submission_filing(input_file, filing.report_type.clone(), store)
             .await?;
     }
@@ -426,10 +430,10 @@ async fn process_edgar_filings(
 }
 
 async fn process_earnings_transcripts(
-    transcripts: Vec<earnings::Transcript>,
+    transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: &(dyn VectorStore + Send + Sync),
 ) -> Result<()> {
-    for transcript in transcripts {
+    for (transcript, filepath) in transcripts {
         log::info!(
             "Processing transcript for {} on {}",
             transcript.symbol,
@@ -439,11 +443,11 @@ async fn process_earnings_transcripts(
         // Create document for vector storage
         let metadata = Metadata::MetaEarningsTranscript {
             doc_type: DocType::EarningTranscript,
-            filepath: "path/to/transcript".to_string(), // Adjust as needed
+            filepath: filepath.clone(),
             symbol: transcript.symbol.clone(),
-            year: transcript.year,
-            quarter: transcript.quarter,
-            chunk_index: 0, // Set appropriately
+            year: transcript.year as usize,
+            quarter: transcript.quarter as usize,
+            chunk_index: 0,  // Set appropriately
             total_chunks: 1, // Set appropriately
         };
 

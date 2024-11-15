@@ -10,6 +10,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -46,19 +47,23 @@ impl Filing {
     }
 }
 
-fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
+fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Result<Vec<Filing>> {
     let mut filings = Vec::new();
 
     // Zip all the vectors together and process each record
     for i in 0..entry.accession_number.len() {
-        let maybe_rt = ReportType::from_str(&entry.report_type[i])
+        let mrt = ReportType::from_str(&entry.report_type[i][..]);
+        if mrt.is_err() {
+            return Err(anyhow!(mrt.err().unwrap()));
+        }
+        let rt = mrt.unwrap();
         let filing = Filing {
             accession_number: entry.accession_number[i].clone(),
             filing_date: entry.filing_date[i],
             report_date: entry.report_date[i].clone(),
             acceptance_date_time: entry.acceptance_date_time[i].clone(),
             act: entry.act[i].clone(),
-            report_type: ,
+            report_type: rt,
             file_number: entry.file_number[i].clone(),
             film_number: entry.film_number[i].clone(),
             items: entry.items[i].clone(),
@@ -68,7 +73,6 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
             primary_document: entry.primary_document[i].clone(),
             primary_doc_description: entry.primary_doc_description[i].clone(),
         };
-
         // Construct document URL
         let base = "https://www.sec.gov/Archives/edgar/data";
         let cik = format!("{:0>10}", query.tickers[0]); // Assuming the first ticker's CIK is used
@@ -89,7 +93,7 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
         }
     }
 
-    filings
+    Ok(filings)
 }
 
 // Hardcoded values
@@ -449,7 +453,7 @@ pub async fn fetch_matching_filings(
 
     // Fetch filings using the CIK
     let filings = get_company_filings(client, cik, None).await?;
-    let matching_filings = process_filing_entries(&filings.filings.recent, query);
+    let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
 
     crate::utils::dirs::ensure_edgar_dirs()?;
 
@@ -467,7 +471,7 @@ pub async fn fetch_matching_filings(
         matching_filings.len(),
         matching_filings
             .iter()
-            .map(|f| f.report_type.as_str())
+            .map(|f| f.report_type.to_string())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>()
@@ -638,6 +642,7 @@ pub async fn extract_complete_submission_filing(
     fs::write(&metadata_path, serde_json::to_string_pretty(&hashmap)?)?;
     log::info!("Saved metadata to: {}", metadata_path);
 
+    log::info!("INTO STORE_CHUNKED_DOCUMENT");
     // Store the markdown content using the chunking utility with caching
     crate::document::store_chunked_document(markdown_content, metadata, store).await?;
 

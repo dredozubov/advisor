@@ -36,7 +36,7 @@ pub async fn fetch_transcript(
     client: &Client,
     ticker: &str,
     date: NaiveDate,
-) -> Result<Transcript> {
+) -> Result<(Transcript, PathBuf)> {
     crate::utils::dirs::ensure_earnings_dirs()?;
 
     // Calculate the most recently completed quarter
@@ -123,7 +123,7 @@ pub async fn fetch_transcript(
         ));
     }
 
-    Ok(transcript)
+    Ok((transcript, filepath))
 }
 
 pub async fn fetch_transcripts(
@@ -131,7 +131,7 @@ pub async fn fetch_transcripts(
     ticker: &str,
     start_date: NaiveDate,
     end_date: NaiveDate,
-) -> Result<Vec<Transcript>> {
+) -> Result<Vec<(Transcript, PathBuf)>> {
     let mut transcripts = Vec::new();
 
     // Create a bounded channel
