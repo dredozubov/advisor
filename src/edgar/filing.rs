@@ -624,6 +624,8 @@ pub async fn extract_complete_submission_filing(
     fs::write(&markdown_path, &markdown_content)?;
     log::info!("Saved markdown version to: {}", markdown_path);
 
+    let symbol = crate::edgar::tickers::get_ticker_for_cik(cik).await?;
+
     // Create metadata for the document
     log::debug!("Creating metadata with report_type: {}", report_type);
     let metadata = Metadata::MetaEdgarFiling {
@@ -632,9 +634,9 @@ pub async fn extract_complete_submission_filing(
         filing_type: report_type,
         cik: cik.to_string(),
         accession_number: accession_number.to_string(),
-        symbol: "unknown".to_string(), // Adjust as needed
-        chunk_index: 0,                // Set appropriately
-        total_chunks: 1,               // Set appropriately
+        symbol,
+        chunk_index: 0,  // Set appropriately
+        total_chunks: 1, // Set appropriately
     };
 
     // Save metadata alongside markdown
@@ -643,7 +645,6 @@ pub async fn extract_complete_submission_filing(
     fs::write(&metadata_path, serde_json::to_string_pretty(&hashmap)?)?;
     log::info!("Saved metadata to: {}", metadata_path);
 
-    log::info!("INTO STORE_CHUNKED_DOCUMENT");
     // Store the markdown content using the chunking utility with caching
     crate::document::store_chunked_document(markdown_content, metadata, store, qdrant_client)
         .await?;
