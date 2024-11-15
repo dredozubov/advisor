@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use core::fmt;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
-use maplit::hashmap;
 use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -142,14 +141,26 @@ impl From<Metadata> for HashMap<String, Value> {
                 ..
             } => {
                 map.insert("doc_type".to_string(), Value::String("filing".to_string()));
-                map.insert("filepath".to_string(), Value::String(filepath.to_str().unwrap_or("unknown").to_string()));
-                map.insert("filing_type".to_string(), Value::String(filing_type.to_string()));
+                map.insert(
+                    "filepath".to_string(),
+                    Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
+                );
+                map.insert(
+                    "filing_type".to_string(),
+                    Value::String(filing_type.to_string()),
+                );
                 map.insert("cik".to_string(), Value::String(cik));
-                map.insert("accession_number".to_string(), Value::String(accession_number));
+                map.insert(
+                    "accession_number".to_string(),
+                    Value::String(accession_number),
+                );
                 map.insert("symbol".to_string(), Value::String(symbol));
                 map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
-                map.insert("total_chunks".to_string(), Value::Number(total_chunks.into()));
-            },
+                map.insert(
+                    "total_chunks".to_string(),
+                    Value::Number(total_chunks.into()),
+                );
+            }
             Metadata::MetaEarningsTranscript {
                 filepath,
                 symbol,
@@ -159,13 +170,22 @@ impl From<Metadata> for HashMap<String, Value> {
                 total_chunks,
                 ..
             } => {
-                map.insert("doc_type".to_string(), Value::String("earnings_transcript".to_string()));
-                map.insert("filepath".to_string(), Value::String(filepath.to_str().unwrap_or("unknown").to_string()));
+                map.insert(
+                    "doc_type".to_string(),
+                    Value::String("earnings_transcript".to_string()),
+                );
+                map.insert(
+                    "filepath".to_string(),
+                    Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
+                );
                 map.insert("symbol".to_string(), Value::String(symbol));
                 map.insert("quarter".to_string(), Value::Number(quarter.into()));
                 map.insert("year".to_string(), Value::Number(year.into()));
                 map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
-                map.insert("total_chunks".to_string(), Value::Number(total_chunks.into()));
+                map.insert(
+                    "total_chunks".to_string(),
+                    Value::Number(total_chunks.into()),
+                );
             }
         }
         map
