@@ -129,6 +129,7 @@ pub struct MetadataJson {
 
 impl From<Metadata> for HashMap<String, Value> {
     fn from(val: Metadata) -> Self {
+        let mut map = HashMap::new();
         match val {
             Metadata::MetaEdgarFiling {
                 filepath,
@@ -139,17 +140,15 @@ impl From<Metadata> for HashMap<String, Value> {
                 chunk_index,
                 total_chunks,
                 ..
-            } => hashmap! {
-                "doc_type".to_string() => Value::String("filing".to_string()),
-                "filepath".to_string() => Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
-                "filing_type".to_string() => Value::String(filing_type.to_string()),
-                "cik".to_string() => Value::String(cik),
-                "accession_number".to_string() => Value::String(accession_number),
-                "symbol".to_string() => Value::String(symbol),
-                "quarter".to_string() => Value::Null,
-                "year".to_string() => Value::Null,
-                "chunk_index".to_string() => Value::Number(chunk_index.into()),
-                "total_chunks".to_string() => Value::Number(total_chunks.into())
+            } => {
+                map.insert("doc_type".to_string(), Value::String("filing".to_string()));
+                map.insert("filepath".to_string(), Value::String(filepath.to_str().unwrap_or("unknown").to_string()));
+                map.insert("filing_type".to_string(), Value::String(filing_type.to_string()));
+                map.insert("cik".to_string(), Value::String(cik));
+                map.insert("accession_number".to_string(), Value::String(accession_number));
+                map.insert("symbol".to_string(), Value::String(symbol));
+                map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
+                map.insert("total_chunks".to_string(), Value::Number(total_chunks.into()));
             },
             Metadata::MetaEarningsTranscript {
                 filepath,
@@ -159,18 +158,17 @@ impl From<Metadata> for HashMap<String, Value> {
                 chunk_index,
                 total_chunks,
                 ..
-            } => hashmap! {
-                "doc_type".to_string() => Value::String("filing".to_string()),
-                "filepath".to_string() => Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
-                "quarter".to_string() => Value::Number(quarter.into()),
-                "year".to_string() => Value::Number(year.into()),
-                "symbol".to_string() => Value::String(symbol),
-                "quarter".to_string() => Value::Null,
-                "year".to_string() => Value::Null,
-                "chunk_index".to_string() => Value::Number(chunk_index.into()),
-                "total_chunks".to_string() => Value::Number(total_chunks.into())
-            },
+            } => {
+                map.insert("doc_type".to_string(), Value::String("earnings_transcript".to_string()));
+                map.insert("filepath".to_string(), Value::String(filepath.to_str().unwrap_or("unknown").to_string()));
+                map.insert("symbol".to_string(), Value::String(symbol));
+                map.insert("quarter".to_string(), Value::Number(quarter.into()));
+                map.insert("year".to_string(), Value::Number(year.into()));
+                map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
+                map.insert("total_chunks".to_string(), Value::Number(total_chunks.into()));
+            }
         }
+        map
     }
 }
 
