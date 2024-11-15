@@ -8,12 +8,15 @@ use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use url::Url;
 
+use crate::document::{DocType, Metadata};
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
@@ -26,26 +29,20 @@ pub struct Filing {
     pub report_date: Option<String>,
     pub acceptance_date_time: String,
     pub act: String,
-    pub report_type: String,
+    pub report_type: ReportType,
     pub file_number: String,
     pub film_number: String,
     pub items: String,
     pub size: i32,
-    pub is_xbrl: i32,
-    pub is_inline_xbrl: i32,
+    pub is_xbrl: bool,
+    pub is_inline_xbrl: bool,
     pub primary_document: String,
     pub primary_doc_description: String,
 }
 
 impl Filing {
     fn matches_report_type(&self, report_types: &[ReportType]) -> bool {
-        // self - from Filing
-        report_types.iter().any(|rt| {
-            let report_type = &self.report_type;
-            let amendment_type = format!("{}/A", report_type); // Handle amendments
-
-            report_type == &rt.to_string() || report_type == &amendment_type
-        })
+        report_types.iter().any(|rt| &self.report_type == rt)
     }
 }
 
@@ -54,19 +51,20 @@ fn process_filing_entries(entry: &FilingEntry, query: &Query) -> Vec<Filing> {
 
     // Zip all the vectors together and process each record
     for i in 0..entry.accession_number.len() {
+        let maybe_rt = ReportType::from_str(entry.report_type[i].clone())
         let filing = Filing {
             accession_number: entry.accession_number[i].clone(),
             filing_date: entry.filing_date[i],
             report_date: entry.report_date[i].clone(),
             acceptance_date_time: entry.acceptance_date_time[i].clone(),
             act: entry.act[i].clone(),
-            report_type: entry.report_type[i].clone(),
+            report_type: ,
             file_number: entry.file_number[i].clone(),
             film_number: entry.film_number[i].clone(),
             items: entry.items[i].clone(),
             size: entry.size[i],
-            is_xbrl: entry.is_xbrl[i],
-            is_inline_xbrl: entry.is_inline_xbrl[i],
+            is_xbrl: entry.is_xbrl[i] == 1,
+            is_inline_xbrl: entry.is_inline_xbrl[i] == 1,
             primary_document: entry.primary_document[i].clone(),
             primary_doc_description: entry.primary_doc_description[i].clone(),
         };
@@ -563,7 +561,7 @@ pub async fn fetch_matching_filings(
 
 pub async fn extract_complete_submission_filing(
     filepath: &str,
-    report_type: String,
+    report_type: ReportType,
     store: &dyn VectorStore,
 ) -> Result<()> {
     log::info!(
@@ -625,29 +623,23 @@ pub async fn extract_complete_submission_filing(
     log::debug!("Creating metadata with report_type: {}", report_type);
     let metadata = Metadata::MetaEdgarFiling {
         doc_type: DocType::EdgarFiling,
-        filepath: filepath.to_string(),
+        filepath: filepath.into(),
         filing_type: report_type,
         cik: cik.to_string(),
         accession_number: accession_number.to_string(),
         symbol: "unknown".to_string(), // Adjust as needed
-        chunk_index: 0, // Set appropriately
-        total_chunks: 1, // Set appropriately
+        chunk_index: 0,                // Set appropriately
+        total_chunks: 1,               // Set appropriately
     };
 
     // Save metadata alongside markdown
-    let metadata_json = to_hashmap(metadata.clone());
     let metadata_path = format!("{}/filing.json", markdown_dir);
-    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata_json)?)?;
+    let hashmap: HashMap<String, Value> = metadata.clone().into();
+    fs::write(&metadata_path, serde_json::to_string_pretty(&hashmap)?)?;
     log::info!("Saved metadata to: {}", metadata_path);
 
-    // Convert the metadata to the required HashMap format
-    let metadata_map: HashMap<String, serde_json::Value> = metadata
-        .as_object()
-        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-        .unwrap_or_default();
-
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(markdown_content, metadata_map, store).await?;
+    crate::document::store_chunked_document(markdown_content, metadata, store).await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 
