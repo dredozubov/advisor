@@ -1,14 +1,25 @@
 use anyhow::{anyhow, Result};
 use mime::APPLICATION_JSON;
+use once_cell::sync::Lazy;
 use reqwest::{Client, Url};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 const TICKER_URL: &str = "https://www.sec.gov/files/company_tickers.json";
 
 pub type TickerData = (Ticker, String, String); // (ticker, company name, CIK)
+
+#[derive(Debug, Clone)]
+pub struct TickerMaps {
+    ticker_to_cik: HashMap<String, (String, String)>,  // Ticker -> (CIK, Name)
+    cik_to_ticker: HashMap<String, (String, String)>,  // CIK -> (Ticker, Name)
+}
+
+static TICKER_MAPS: Lazy<RwLock<Option<Arc<TickerMaps>>>> = Lazy::new(|| RwLock::new(None));
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Ticker(String);
@@ -49,6 +60,49 @@ impl std::fmt::Display for Ticker {
 }
 
 static USER_AGENT: &str = "software@example.com";
+
+pub async fn get_ticker_maps() -> Result<Arc<TickerMaps>> {
+    // First try to read from cache
+    if let Some(cache) = TICKER_MAPS.read().await.as_ref() {
+        return Ok(cache.clone());
+    }
+
+    // If not in cache, load it
+    let mut write_guard = TICKER_MAPS.write().await;
+    if write_guard.is_none() {
+        let tickers = load_tickers()?;
+        let mut maps = TickerMaps {
+            ticker_to_cik: HashMap::new(),
+            cik_to_ticker: HashMap::new(),
+        };
+
+        for (ticker, name, cik) in tickers {
+            let ticker_str = ticker.as_str().to_string();
+            maps.ticker_to_cik.insert(ticker_str.clone(), (cik.clone(), name.clone()));
+            maps.cik_to_ticker.insert(cik, (ticker_str, name));
+        }
+        
+        *write_guard = Some(Arc::new(maps));
+    }
+    
+    Ok(write_guard.as_ref().unwrap().clone())
+}
+
+pub async fn get_cik_for_ticker(ticker: &str) -> Result<String> {
+    let mapping = get_ticker_maps().await?;
+    mapping.ticker_to_cik
+        .get(ticker)
+        .map(|(cik, _)| cik.clone())
+        .ok_or_else(|| anyhow!("No CIK found for ticker: {}", ticker))
+}
+
+pub async fn get_ticker_for_cik(cik: &str) -> Result<String> {
+    let mapping = get_ticker_maps().await?;
+    mapping.cik_to_ticker
+        .get(cik)
+        .map(|(ticker, _)| ticker.clone())
+        .ok_or_else(|| anyhow!("No ticker found for CIK: {}", cik))
+}
 
 pub async fn fetch_tickers() -> Result<Vec<TickerData>> {
     log::debug!("Fetching tickers from SEC");
