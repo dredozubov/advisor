@@ -67,7 +67,13 @@ If you prefer to set up the environment manually, follow these steps:
    createdb advisor
    ```
 
-5. **Set up the database URL**:
+5. **Create the `advisor` database**:
+   Before running the program, ensure that the `advisor` database exists in PostgreSQL. You can create it with the following command:
+   ```bash
+   createdb advisor
+   ```
+
+6. **Set up the database URL**:
    Update your `.env` or environment variables with the following:
    ```bash
    DATABASE_URL=postgres://localhost/advisor
