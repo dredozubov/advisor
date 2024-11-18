@@ -208,62 +208,16 @@ pub async fn store_chunked_document(
         .map(|c| c.iter().collect::<String>())
         .collect();
 
-    log::info!("Checking if document already exists in Qdrant");
+    log::info!("Checking if document already exists in the database");
 
     let fp = metadata.filepath().to_str().unwrap();
-    let filter = match metadata {
-        Metadata::MetaEdgarFiling {
-            ref filing_type,
-            ref cik,
-            ref accession_number,
-            ref doc_type,
-            ref filepath,
-            ..
-        } => Filter::all([
-            Condition::matches("filepath", fp.to_string()), // Condition::matches("doc_type", doc_type.to_string()),
-                                                            // Condition::matches("filing_type", filing_type.to_string()),
-                                                            // Condition::matches("cik", cik.clone()),
-                                                            // Condition::matches("accession_number", accession_number.clone()),
-        ]),
-        Metadata::MetaEarningsTranscript {
-            ref symbol,
-            ref year,
-            ref quarter,
-            ref doc_type,
-            ref filepath,
-            ..
-        } => Filter::all([
-            Condition::matches("filepath", fp.to_string()), // Condition::matches("doc_type", doc_type.to_string()),
-                                                            // Condition::matches("symbol", symbol.clone()),
-                                                            // Condition::matches("quarter", quarter.to_string()),
-                                                            // Condition::matches("year", year.to_string()),
-        ]),
-    };
-
-    log::info!("FILTER: {:#?}", filter);
-
-    let result = qdrant_client
-        .count(
-            CountPointsBuilder::new(COLLECTION_NAME).filter(filter), // .exact(false), // WTF: it returns 0 with exact: true, or without explicitly calling exact (since it defaults to true)
-        )
-        .await?;
-
-    let count = match result.result {
-        Some(r) => {
-            log::info!("RESULTS: {:#?}", result);
-            r.count
-        }
-        None => {
-            panic!("Qdrant Count returned an empty result");
-        }
-    };
+    let count = crate::db::count_vectors_with_filepath(pg_pool, fp).await?;
 
     if count > 0 {
         log::info!(
-            "Document already exists in Qdrant (found {} matches), skipping embedding",
+            "Document already exists in the database (found {} matches), skipping embedding",
             count
         );
-
         return Ok(());
     }
 
