@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: ..
+      dockerfile: .docker/Dockerfile.dev
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - OPENAI_KEY=${OPENAI_KEY}
+      - QDRANT_URI=http://qdrant:6334
+    depends_on:
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/var/lib/postgresql/data
+
+volumes:
+  qdrant_data:
