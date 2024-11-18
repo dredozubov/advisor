@@ -2,20 +2,49 @@
 
 An AI-powered financial document analysis tool that helps analyze SEC filings and earnings transcripts.
 
-## Prerequisites
+## Installation
 
-- Docker and Docker Compose
+### Prerequisites
+
+- Rust toolchain (install via [rustup](https://rustup.rs/))
+- Docker (optional, for running Qdrant)
 - OpenAI API key
+
+### Local Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/financial-document-advisor.git
+cd financial-document-advisor
+```
+
+2. Build the project:
+```bash
+cargo build --release
+```
+
+### Running
+
+1. Start Qdrant (choose one option):
+
+   a. Using Docker:
+   ```bash
+   docker run -p 6334:6334 qdrant/qdrant
+   ```
+   
+   b. Or using Docker Compose:
+   ```bash
+   docker-compose up -d qdrant
+   ```
+
+2. Run the advisor with your OpenAI key:
+```bash
+OPENAI_KEY=your_openai_api_key_here cargo run --release
+```
 
 ## Quick Start with Docker Compose
 
-1. Create a `.env` file in the project root:
-
-```env
-OPENAI_KEY=your_openai_api_key_here
-```
-
-2. Start the services using Docker Compose:
+1. Start all services using Docker Compose:
 
 ```bash
 docker-compose up -d
