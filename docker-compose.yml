@@ -12,19 +12,17 @@ services:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
       - OPENAI_KEY=${OPENAI_KEY}
-      - QDRANT_URI=http://qdrant:6334
-    depends_on:
-      - qdrant
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
 
-  qdrant:
+  db:
     image: pgvector/pgvector:pg17
     ports:
-      - "6334:6334"
       - "5432:5432"
     environment:
       - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=advisor
     volumes:
-      - qdrant_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  qdrant_data:
+  postgres_data:
