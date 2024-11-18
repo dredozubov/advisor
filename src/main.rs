@@ -34,26 +34,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
-    let mut cfg = deadpool_postgres::Config::new();
-    let number_of_connections = 16;
-    cfg.host = Some("localhost".to_string());
-    cfg.port = Some(5432);
-    cfg.dbname = Some("advisor".to_string());
-    cfg.user = None;
-    cfg.password = None;
-    cfg.pool = Some(deadpool_postgres::PoolConfig::new(number_of_connections));
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(16)
+        .connect(&env::var("DATABASE_URL")?)
+        .await?;
 
-    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls)?;
-
-    let store = StoreBuilder::new()
+    let store = langchain_rust::vectorstore::qdrant::StoreBuilder::new()
         .embedder(embedder)
-        .connection_url("postgresql://username:password@localhost:5432/advisor")
+        .connection_url(&env::var("DATABASE_URL")?)
         .collection_table_name("collections")
         .embedder_table_name("embeddings")
         .vector_dimensions(1536)
         .build()
-        .await
-        .unwrap();
+        .await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
@@ -116,7 +109,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     &stream_chain,
                     &query_chain,
                     &store,
-                    &qdrant_client,
                 )
                 .await
                 {

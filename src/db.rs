@@ -1,6 +1,5 @@
 use anyhow::Result;
-use serde_json::Value;
-use sqlx::{query, query_as, Pool, Postgres};
+use sqlx::{query_as, Pool, Postgres};
 
 pub const COLLECTIONS_TABLE: &str = "vs_collections";
 pub const EMBEDDER_TABLE: &str = "vs_embeddings";
