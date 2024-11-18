@@ -7,7 +7,7 @@ services:
       dockerfile: .docker/Dockerfile.dev
     volumes:
       - .:/workspace:cached
-    command: sleep infinity
+    command: cargo run
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
