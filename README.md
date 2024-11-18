@@ -4,6 +4,50 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 
 ## Installation
 
+### Setting up PostgreSQL with pgvector on macOS
+
+To set up PostgreSQL with the `pgvector` extension on macOS, follow these steps:
+
+1. **Install PostgreSQL**:
+   If you don't have PostgreSQL installed, you can install it using Homebrew:
+   ```bash
+   brew install postgresql
+   ```
+
+2. **Start PostgreSQL**:
+   After installation, start the PostgreSQL service:
+   ```bash
+   brew services start postgresql
+   ```
+
+3. **Install pgvector**:
+   Install the `pgvector` extension by running the following command:
+   ```bash
+   psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS vector;"
+   ```
+
+4. **Create a new database**:
+   Create a new database for your project:
+   ```bash
+   createdb advisor
+   ```
+
+5. **Verify pgvector installation**:
+   Connect to the database and verify that `pgvector` is installed:
+   ```bash
+   psql -d advisor -c "\dx"
+   ```
+
+   You should see `pgvector` listed in the output.
+
+6. **Set up the database URL**:
+   Update your `.env` or environment variables with the following:
+   ```bash
+   DATABASE_URL=postgres://localhost/advisor
+   ```
+
+Now you're ready to use PostgreSQL with pgvector on macOS!
+
 ### Prerequisites
 
 - Rust toolchain (install via [rustup](https://rustup.rs/))
