@@ -27,3 +27,25 @@ services:
 
 volumes:
   postgres_data:
+version: '3.8'
+
+services:
+  advisor:
+    build: .
+    environment:
+      - OPENAI_KEY=${OPENAI_KEY}
+      - QDRANT_URI=http://qdrant:6334
+    depends_on:
+      - qdrant
+    volumes:
+      - ./data:/app/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:
