@@ -11,11 +11,16 @@
                 "rust-lang.rust-analyzer",
                 "serayuzgur.crates",
                 "tamasfe.even-better-toml",
-                "vadimcn.vscode-lldb"
+                "vadimcn.vscode-lldb",
+                "eamodio.gitlens",
+                "github.copilot",
+                "github.vscode-github-actions"
             ],
             "settings": {
                 "rust-analyzer.checkOnSave.command": "clippy",
-                "editor.formatOnSave": true
+                "editor.formatOnSave": true,
+                "editor.rulers": [100],
+                "files.trimTrailingWhitespace": true
             }
         }
     },
@@ -25,6 +30,9 @@
             "installZsh": true,
             "configureZshAsDefaultShell": true,
             "username": "vscode"
-        }
-    }
+        },
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "postCreateCommand": "cargo build"
 }
