@@ -19,7 +19,9 @@
             "settings": {
                 "rust-analyzer.checkOnSave.command": "clippy",
                 "editor.formatOnSave": true,
-                "editor.rulers": [100],
+                "editor.rulers": [
+                    100
+                ],
                 "files.trimTrailingWhitespace": true
             }
         }
@@ -34,5 +36,5 @@
         "ghcr.io/devcontainers/features/git:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {}
     },
-    "postCreateCommand": "cargo build"
+    "postCreateCommand": "sudo chown -R vscode:vscode /usr/local/cargo && cargo build"
 }

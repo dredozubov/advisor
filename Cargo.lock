@@ -36,6 +36,7 @@ dependencies = [
  "log",
  "mime",
  "once_cell",
+ "pgvector",
  "qdrant-client",
  "quick-xml",
  "regex",
@@ -2393,6 +2394,12 @@ name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
+
+[[package]]
+name = "pgvector"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0e8871b6d7ca78348c6cd29b911b94851f3429f0cd403130ca17f26c1fb91a6"
 
 [[package]]
 name = "phf"

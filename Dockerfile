@@ -1,31 +1,20 @@
 FROM rust:1.75-slim-bookworm
 
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Create non-root user
-ARG USERNAME=app
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+RUN useradd -m -s /bin/bash vscode \
+    && mkdir -p /workspace \
+    && chown -R vscode:vscode /workspace
 
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && chown -R $USERNAME:$USERNAME /app
+# Set up cargo permissions
+RUN mkdir -p /usr/local/cargo \
+    && chown -R vscode:vscode /usr/local/cargo \
+    && chmod -R 775 /usr/local/cargo
 
-USER $USERNAME
+# Set cargo env vars
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH=/usr/local/cargo/bin:$PATH
 
-# Copy source code
-COPY --chown=$USERNAME:$USERNAME . .
-
-# Build the application
-RUN cargo build --release
-
-# Run the application
-CMD ["./target/release/advisor"]
+# Switch to non-root user
+USER vscode
+WORKDIR /workspace

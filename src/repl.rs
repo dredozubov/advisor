@@ -136,7 +136,7 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
 
     log::debug!("Getting home directory for history file");
     let home_dir = env::var("HOME").expect("HOME environment variable not set");
-    let history_path = format!("{}/.ask-edgar.history", home_dir);
+    let history_path = format!("{}/.advisor.history", home_dir);
     log::debug!("History file path: {}", history_path);
 
     log::debug!("Creating editor with config");
