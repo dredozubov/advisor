@@ -14,7 +14,8 @@ services:
       - OPENAI_KEY=${OPENAI_KEY}
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: pgvector/pgvector:pg17
@@ -25,6 +26,11 @@ services:
       - POSTGRES_DB=advisor
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

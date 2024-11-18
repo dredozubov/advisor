@@ -75,3 +75,22 @@ USER $USERNAME
 
 # Pre-install dependencies
 RUN cargo install cargo-watch cargo-edit cargo-audit
+FROM rust:1.75-slim-bookworm
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Pre-build dependencies
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build \
+    && rm -rf src
+
+CMD ["cargo", "run"]

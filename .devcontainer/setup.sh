@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-# Create data directories if they don't exist
-mkdir -p data
+# Create required data directories
+mkdir -p data/edgar
+mkdir -p data/transcripts
+mkdir -p data/vectors
 
 # Install additional cargo tools if needed
 cargo install --list | grep -q "^cargo-watch" || cargo install cargo-watch
