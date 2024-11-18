@@ -212,28 +212,33 @@ pub async fn store_chunked_document(
 
     log::info!("Checking if document already exists in Qdrant");
 
+    let fp = metadata.filepath().to_str().unwrap();
     let filter = match metadata {
         Metadata::MetaEdgarFiling {
             ref filing_type,
             ref cik,
             ref accession_number,
+            ref doc_type,
+            ref filepath,
             ..
         } => Filter::all([
-            Condition::matches("doc_type", "filing".to_string()),
-            Condition::matches("filing_type", filing_type.to_string()),
-            Condition::matches("cik", cik.clone()),
-            Condition::matches("accession_number", accession_number.clone()),
+            Condition::matches("filepath", fp.to_string()), // Condition::matches("doc_type", doc_type.to_string()),
+                                                            // Condition::matches("filing_type", filing_type.to_string()),
+                                                            // Condition::matches("cik", cik.clone()),
+                                                            // Condition::matches("accession_number", accession_number.clone()),
         ]),
         Metadata::MetaEarningsTranscript {
             ref symbol,
             ref year,
             ref quarter,
+            ref doc_type,
+            ref filepath,
             ..
         } => Filter::all([
-            Condition::matches("doc_type", "earnings_transcript".to_string()),
-            Condition::matches("symbol", symbol.clone()),
-            Condition::matches("quarter", quarter.to_string()),
-            Condition::matches("year", year.to_string()),
+            Condition::matches("filepath", fp.to_string()), // Condition::matches("doc_type", doc_type.to_string()),
+                                                            // Condition::matches("symbol", symbol.clone()),
+                                                            // Condition::matches("quarter", quarter.to_string()),
+                                                            // Condition::matches("year", year.to_string()),
         ]),
     };
 
@@ -241,9 +246,7 @@ pub async fn store_chunked_document(
 
     let result = qdrant_client
         .count(
-            CountPointsBuilder::new(COLLECTION_NAME)
-                .filter(filter)
-                .exact(false), // WTF: it fails miserably with exact: true, or without it (since it default to true, without it returns 0
+            CountPointsBuilder::new(COLLECTION_NAME).filter(filter), // .exact(false), // WTF: it returns 0 with exact: true, or without explicitly calling exact (since it defaults to true)
         )
         .await?;
 
@@ -282,9 +285,8 @@ pub async fn store_chunked_document(
     }
 
     log::info!(
-        "Attempting to store {} documents in vector store with metadata:\n{:#?}",
+        "Attempting to store {} documents in vector store.",
         documents.len(),
-        documents.iter().map(|d| &d.metadata).collect::<Vec<_>>()
     );
 
     match store

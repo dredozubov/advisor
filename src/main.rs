@@ -7,6 +7,7 @@ use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::memory::WindowBufferMemory;
 use langchain_rust::vectorstore::qdrant::{Qdrant, StoreBuilder};
 use qdrant_client::config::QdrantConfig;
+use qdrant_client::qdrant::{Condition, CountPointsBuilder, Filter};
 use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, io::Write};
@@ -40,6 +41,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let qdrant_client_vector_store = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
     let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
 
+    let count = qdrant_client.count(CountPointsBuilder::new(COLLECTION_NAME).filter(Filter::all(
+        [
+            // Condition::matches("doc_type", doc_type.to_string()),
+            // Condition::matches("filing_type", filing_type.to_string()),
+            // Condition::matches("cik", cik.clone()),
+            // Condition::matches("accession_number", accession_number.clone()),
+        ],
+    )));
+
     let store = StoreBuilder::new()
         .embedder(embedder)
         .client(qdrant_client_vector_store)
@@ -61,6 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("OpenAI client initialized successfully");
 
     // Create two separate chains - one for streaming responses and one for query generation
+    // TODO: create the chain within at the invoke point.
     let stream_chain = ConversationalChainBuilder::new()
         .llm(llm.clone())
         .memory(stream_memory.into())

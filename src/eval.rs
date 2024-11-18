@@ -54,11 +54,7 @@ async fn process_documents(
     Ok(())
 }
 
-async fn build_context(
-    query: &Query,
-    input: &str,
-    store: &dyn VectorStore,
-) -> Result<(String, String)> {
+async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
     log::debug!("Building context for query: {:?}", query);
 
     // 1. Get all documents specified by the query
@@ -135,7 +131,7 @@ async fn build_context(
             ]
         })
         .to_string();
-        log::debug!("Using filter for similarity search: {}", filter);
+        log::info!("Using filter for similarity search: {}", filter);
         let docs = store
             .similarity_search(
                 &filter,
@@ -179,7 +175,7 @@ async fn build_context(
         store
             .similarity_search(
                 input,
-                MAX_TOKENS / 500, // Rough estimate of docs that will fit
+                MAX_TOKENS / 500, // Rough estimate of docs that will fit. TODO: fix me
                 &langchain_rust::vectorstore::VecStoreOptions::default(),
             )
             .await
@@ -261,7 +257,7 @@ async fn build_context(
         summary
     );
 
-    Ok((summary, context))
+    Ok(context)
 }
 
 fn build_metadata_summary(
@@ -390,7 +386,7 @@ pub async fn eval(
     process_documents(&query, http_client, store, qdrant_client).await?;
 
     // 3. Build context from processed documents
-    let (_summary, context) = build_context(&query, input, store).await?;
+    let context = build_context(&query, input, store).await?;
 
     // 4. Generate streaming response
     let stream = generate_response(stream_chain, input, &context).await?;
@@ -427,7 +423,6 @@ async fn process_edgar_filings(
             output_path.parent().unwrap()
         );
 
-        log::info!("INTO EXTRACT_COMPLETE_SUBMISSION_FILING");
         filing::extract_complete_submission_filing(
             input_file,
             filing.report_type.clone(),
