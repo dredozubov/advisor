@@ -15,7 +15,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
 
   db:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg14
     ports:
       - "5432:5432"
     environment:
