@@ -17,9 +17,12 @@ services:
       - qdrant
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: pgvector/pgvector:pg17
     ports:
       - "6334:6334"
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
     volumes:
       - qdrant_data:/var/lib/postgresql/data
 
