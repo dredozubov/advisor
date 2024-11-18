@@ -15,16 +15,21 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
 
   db:
-    image: pgvector/pgvector:pg14
+    image: postgres:14
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=advisor
-    command: >
-      bash -c "psql -U postgres -d advisor -c 'CREATE EXTENSION IF NOT EXISTS vector;' && postgres"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: >
+      bash -c "psql -U postgres -d advisor -c 'CREATE EXTENSION IF NOT EXISTS vector;' && postgres"
 
 volumes:
   postgres_data:
