@@ -5,19 +5,10 @@ use langchain_rust::chain::builder::ConversationalChainBuilder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::memory::WindowBufferMemory;
-use langchain_rust::vectorstore::
 use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, io::Write};
 use structopt::StructOpt;
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "advisor", about = "AI-powered financial document analysis")]
-struct Opt {
-    /// Qdrant server URI (only used if storage=qdrant)
-    #[structopt(long, default_value = "http://localhost:6334")]
-    qdrant_uri: String,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -25,7 +16,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    let opt = Opt::from_args();
     let openai_key = match env::var("OPENAI_KEY") {
         Ok(key) => key,
         Err(_) => {
@@ -44,13 +34,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
-    let qdrant_client_vector_store = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
-    let qdrant_client = Qdrant::new(QdrantConfig::from_url(&opt.qdrant_uri[..]))?;
+    let mut cfg = deadpool_postgres::Config::new();
+    let number_of_connections = 16;
+    cfg.host = Some("localhost".to_string());
+    cfg.port = Some(5432);
+    cfg.dbname = Some("advisor".to_string());
+    cfg.user = None;
+    cfg.password = None;
+    cfg.pool = Some(deadpool_postgres::PoolConfig::new(number_of_connections));
+
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls)?;
 
     let store = StoreBuilder::new()
         .embedder(embedder)
-        .client(qdrant_client_vector_store)
-        .collection_name(COLLECTION_NAME)
+        .connection_url("postgresql://username:password@localhost:5432/advisor")
+        .collection_table_name("collections")
+        .embedder_table_name("embeddings")
+        .vector_dimensions(1536)
         .build()
         .await
         .unwrap();
