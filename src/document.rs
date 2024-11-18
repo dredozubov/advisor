@@ -2,16 +2,14 @@ use anyhow::anyhow;
 use core::fmt;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
-use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
 pub const COLLECTION_NAME: &str = "advisor";
-
-use qdrant_client::qdrant::{Condition, CountPointsBuilder, Filter};
 
 use crate::edgar::report::ReportType;
 
@@ -198,7 +196,7 @@ pub async fn store_chunked_document(
     content: String,
     metadata: Metadata,
     store: &dyn VectorStore,
-    qdrant_client: &Qdrant, // Add QdrantClient as an argument
+    pg_pool: &Pool<Postgres>, // Add QdrantClient as an argument
 ) -> anyhow::Result<()> {
     println!("Storing document with metadata: {:?}", metadata);
 
