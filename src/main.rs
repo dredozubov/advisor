@@ -103,15 +103,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(
-                    input,
-                    &http_client,
-                    &stream_chain,
-                    &query_chain,
-                    &store,
-                )
-                .await
-                {
+                match eval::eval(input, &http_client, &stream_chain, &query_chain, &store).await {
                     Ok((mut stream, new_summary)) => {
                         summary = new_summary;
                         while let Some(chunk) = stream.next().await {
