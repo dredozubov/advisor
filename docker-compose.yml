@@ -10,15 +10,20 @@ services:
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
-    network_mode: service:qdrant
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
+    depends_on:
+      - db
 
-  qdrant:
-    image: qdrant/qdrant
+  db:
+    image: postgres:15
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=advisor
     volumes:
-      - qdrant_storage:/qdrant/storage
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  qdrant_storage:
+  postgres_data:
