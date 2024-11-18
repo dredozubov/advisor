@@ -1,4 +1,3 @@
-use advisor::document::COLLECTION_NAME;
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
