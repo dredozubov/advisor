@@ -37,6 +37,14 @@ ENV RUST_LOG=debug
 ENV RUST_BACKTRACE=1
 
 WORKDIR /workspace
+
+# Pre-build dependencies
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build \
+    && rm -rf src
+
+CMD ["cargo", "run"]
 FROM rust:1.74-slim-bookworm
 
 # Install system dependencies
