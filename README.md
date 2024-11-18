@@ -8,8 +8,8 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/financial-document-advisor.git
-   cd financial-document-advisor
+   git clone https://github.com/yourusername/advisor.git
+   cd advisor
    ```
 
 2. **Start all services using Docker Compose**:
@@ -67,15 +67,7 @@ If you prefer to set up the environment manually, follow these steps:
    createdb advisor
    ```
 
-5. **Verify pgvector installation**:
-   Connect to the database and verify that `pgvector` is installed:
-   ```bash
-   psql -d advisor -c "\dx"
-   ```
-
-   You should see `pgvector` listed in the output.
-
-6. **Set up the database URL**:
+5. **Set up the database URL**:
    Update your `.env` or environment variables with the following:
    ```bash
    DATABASE_URL=postgres://localhost/advisor
