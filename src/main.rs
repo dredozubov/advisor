@@ -28,7 +28,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Logger initialized");
 
     let opt = Opt::from_args();
-    let openai_key = env::var("OPENAI_KEY").expect("OPENAI_KEY environment variable must be set");
+    let openai_key = match env::var("OPENAI_KEY") {
+        Ok(key) => key,
+        Err(_) => {
+            eprintln!("OPENAI_KEY environment variable not set");
+            eprintln!("Please run the program with:");
+            eprintln!("OPENAI_KEY=your-key-here cargo run");
+            std::process::exit(1);
+        }
+    };
 
     // Initialize OpenAI embedder
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
