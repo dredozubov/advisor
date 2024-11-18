@@ -4,9 +4,44 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 
 ## Installation
 
-### Setting up PostgreSQL with pgvector on macOS
+### Dockerized Setup (Recommended)
 
-To set up PostgreSQL with the `pgvector` extension on macOS, follow these steps:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/financial-document-advisor.git
+   cd financial-document-advisor
+   ```
+
+2. **Start all services using Docker Compose**:
+   ```bash
+   docker-compose up -d
+   ```
+
+   This will start:
+   - The Advisor application
+   - PostgreSQL with pgvector
+   - Qdrant vector database
+
+3. **Check the status of the services**:
+   ```bash
+   docker-compose ps
+   ```
+
+4. **View the logs**:
+   ```bash
+   docker-compose logs -f
+   ```
+
+5. **Stop the services**:
+   ```bash
+   docker-compose down
+   ```
+
+### Non-Dockerized Setup (Manual)
+
+If you prefer to set up the environment manually, follow these steps:
+
+#### Setting up PostgreSQL with pgvector on macOS
 
 1. **Install PostgreSQL**:
    If you don't have PostgreSQL installed, you can install it using Homebrew:
@@ -46,75 +81,17 @@ To set up PostgreSQL with the `pgvector` extension on macOS, follow these steps:
    DATABASE_URL=postgres://localhost/advisor
    ```
 
-Now you're ready to use PostgreSQL with pgvector on macOS!
+#### Running the Application
 
-### Prerequisites
-
-- Rust toolchain (install via [rustup](https://rustup.rs/))
-- Docker (optional, for running Qdrant)
-- OpenAI API key
-
-### Local Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/financial-document-advisor.git
-cd financial-document-advisor
-```
-
-2. Build the project:
-```bash
-cargo build --release
-```
-
-### Running
-
-1. Start Qdrant (choose one option):
-
-   a. Using Docker:
+1. **Build the project**:
    ```bash
-   docker run -p 6334:6334 qdrant/qdrant
-   ```
-   
-   b. Or using Docker Compose:
-   ```bash
-   docker-compose up -d qdrant
+   cargo build --release
    ```
 
-2. Run the advisor with your OpenAI key:
-```bash
-OPENAI_KEY=your_openai_api_key_here cargo run --release
-```
-
-## Quick Start with Docker Compose
-
-1. Start all services using Docker Compose:
-
-```bash
-docker-compose up -d
-```
-
-This will start:
-- The Advisor application
-- Qdrant vector database
-
-3. Check the status of the services:
-
-```bash
-docker-compose ps
-```
-
-4. View the logs:
-
-```bash
-docker-compose logs -f
-```
-
-5. Stop the services:
-
-```bash
-docker-compose down
-```
+2. **Run the advisor with your OpenAI key**:
+   ```bash
+   OPENAI_KEY=your_openai_api_key_here cargo run --release
+   ```
 
 ## Configuration
 
