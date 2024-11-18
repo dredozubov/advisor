@@ -10,6 +10,6 @@ pub async fn count_vectors_with_filepath(pool: &Pool<Postgres>, filepath: &str) 
         "SELECT COUNT(*) FROM {} WHERE cmetadata->> 'filepath' = $1",
         COLLECTIONS_TABLE
     );
-    let count = query(&query_str).bind(filepath).fetch_one(pool).await?;
-    Ok(count)
+    let row: (i64,) = query(&query_str).bind(filepath).fetch_one(pool).await?;
+    Ok(row.0)
 }
