@@ -445,7 +445,7 @@ pub async fn eval(
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
-    
+
     // Create a new stream that forwards chunks and collects them
     let stream = Box::pin(futures::stream::unfold(
         (stream, tx.clone()),
@@ -469,7 +469,8 @@ pub async fn eval(
     let query = query.clone();
     let summary = summary.clone();
     let conversation_manager = conversation_manager.to_owned();
-    
+
+    let summary_clone = summary.clone();
     tokio::spawn(async move {
         let mut response_content = String::new();
         while let Some(chunk) = rx.recv().await {
@@ -483,7 +484,7 @@ pub async fn eval(
                 serde_json::json!({
                     "type": "answer",
                     "query": query,
-                    "summary": summary
+                    "summary": summary_clone
                 }),
             )
             .await;
