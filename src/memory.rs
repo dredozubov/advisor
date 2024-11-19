@@ -2,9 +2,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use langchain_rust::memory::{BaseMemory, ChatMessage, ChatMessageRole};
-use serde::{Deserialize, Serialize}; 
-use sqlx::{postgres::PgPool, types::Uuid};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::{postgres::PgPool, types::Uuid};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,7 +125,10 @@ impl DatabaseMemory {
 
 #[async_trait]
 impl BaseMemory for DatabaseMemory {
-    async fn load_memory_variables(&self, _inputs: &HashMap<String, String>) -> Result<HashMap<String, String>> {
+    async fn load_memory_variables(
+        &self,
+        _inputs: &HashMap<String, String>,
+    ) -> Result<HashMap<String, String>> {
         let messages = sqlx::query!(
             r#"
             SELECT role as "role: MessageRole", content
@@ -264,13 +267,14 @@ impl ConversationManager {
              Focus on providing accurate financial analysis and insights.",
             tickers.join(", ")
         );
-        
+
         self.add_message(
             &id,
             MessageRole::System,
             &system_prompt,
             serde_json::json!({}),
-        ).await?;
+        )
+        .await?;
 
         self.current_conversation = Some(id.clone());
         Ok(id)
@@ -371,7 +375,7 @@ impl ConversationManager {
             )
             .execute(&self.pool)
             .await?;
-            
+
             self.current_conversation = Some(id);
             Ok(())
         } else {
