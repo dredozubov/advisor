@@ -1,7 +1,11 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use langchain_rust::memory::{BaseMemory, ChatMessage, ChatMessageRole};
+use langchain_rust::{
+    chain::{builder::ConversationalChainBuilder, ConversationalChain},
+    llm::{OpenAI, OpenAIConfig},
+    schemas::BaseMemory,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPool, types::Uuid};
@@ -42,7 +46,7 @@ impl ConversationChainManager {
     pub async fn get_or_create_chain(
         &mut self,
         conversation_id: &str,
-        llm: OpenAI,
+        llm: OpenAI<OpenAIConfig>,
     ) -> Result<&ConversationalChain> {
         if !self.chains.contains_key(conversation_id) {
             // Create database-backed memory
@@ -56,36 +60,6 @@ impl ConversationChainManager {
             let chain = ConversationalChainBuilder::new()
                 .llm(llm.clone())
                 .memory(Box::new(memory) as Box<dyn BaseMemory>)
-                .build()?;
-
-            self.chains.insert(conversation_id.to_string(), chain);
-        }
-
-        Ok(&self.chains[conversation_id])
-    }
-}
-                WHERE conversation_id = $1 
-                ORDER BY created_at ASC
-                "#,
-                conversation_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
-
-            // Create memory buffer with existing messages
-            let mut memory = WindowBufferMemory::new(10);
-            for msg in messages {
-                memory.add_message(match msg.role {
-                    MessageRole::User => ChatMessage::user(&msg.content),
-                    MessageRole::Assistant => ChatMessage::assistant(&msg.content),
-                    MessageRole::System => ChatMessage::system(&msg.content),
-                });
-            }
-
-            // Create new chain with populated memory
-            let chain = ConversationalChainBuilder::new()
-                .llm(llm.clone())
-                .memory(memory.into())
                 .build()?;
 
             self.chains.insert(conversation_id.to_string(), chain);
@@ -119,19 +93,19 @@ impl DatabaseMemory {
         }
     }
 
-    fn convert_role(role: MessageRole) -> ChatMessageRole {
+    fn convert_role(role: MessageRole) -> MessageRole {
         match role {
-            MessageRole::User => ChatMessageRole::User,
-            MessageRole::Assistant => ChatMessageRole::Assistant,
-            MessageRole::System => ChatMessageRole::System,
+            MessageRole::User => MessageRole::User,
+            MessageRole::Assistant => MessageRole::Assistant,
+            MessageRole::System => MessageRole::System,
         }
     }
 
-    fn convert_chat_role(role: ChatMessageRole) -> MessageRole {
+    fn convert_chat_role(role: MessageRole) -> MessageRole {
         match role {
-            ChatMessageRole::User => MessageRole::User,
-            ChatMessageRole::Assistant => MessageRole::Assistant,
-            ChatMessageRole::System => MessageRole::System,
+            MessageRole::User => MessageRole::User,
+            MessageRole::Assistant => MessageRole::Assistant,
+            MessageRole::System => MessageRole::System,
             _ => MessageRole::User, // Default to user for unknown roles
         }
     }
@@ -285,7 +259,7 @@ impl ConversationManager {
         self.add_message(
             &id,
             MessageRole::System,
-            &system_prompt,
+            system_prompt.to_string(),
             serde_json::json!({}),
         )
         .await?;
@@ -298,7 +272,7 @@ impl ConversationManager {
         &self,
         conversation_id: &str,
         role: MessageRole,
-        content: &str,
+        content: String,
         metadata: Value,
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();

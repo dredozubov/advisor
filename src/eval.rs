@@ -1,11 +1,11 @@
 use crate::document::{DocType, Metadata};
 use crate::earnings;
 use crate::edgar::{self, filing};
-use crate::memory::Conversation;
+use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
@@ -426,14 +426,16 @@ pub async fn eval(
     String,
 )> {
     // Store user message
-    conversation_manager.add_message(
-        &conversation.id,
-        MessageRole::User,
-        input,
-        serde_json::json!({
-            "type": "question"
-        }),
-    ).await?;
+    conversation_manager
+        .add_message(
+            &conversation.id,
+            MessageRole::User,
+            input.to_string(),
+            serde_json::json!({
+                "type": "question"
+            }),
+        )
+        .await?;
 
     // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
@@ -443,7 +445,7 @@ pub async fn eval(
 
     // Clone stream for storing complete response while still returning stream
     let stream_clone = Box::pin(stream.clone());
-    
+
     // Spawn task to store assistant message after stream completes
     tokio::spawn({
         let conversation_id = conversation.id.clone();
@@ -452,16 +454,18 @@ pub async fn eval(
         let summary_clone = summary.clone();
         async move {
             if let Ok(response_content) = collect_stream(stream_clone).await {
-                let _ = conversation_manager.add_message(
-                    &conversation_id,
-                    MessageRole::Assistant,
-                    &response_content,
-                    serde_json::json!({
-                        "type": "answer",
-                        "query": query_clone,
-                        "summary": summary_clone
-                    }),
-                ).await;
+                let _ = conversation_manager
+                    .add_message(
+                        &conversation_id,
+                        MessageRole::Assistant,
+                        &response_content.to_string(),
+                        serde_json::json!({
+                            "type": "answer",
+                            "query": query_clone,
+                            "summary": summary_clone
+                        }),
+                    )
+                    .await;
             }
         }
     });
