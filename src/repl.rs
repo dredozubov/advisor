@@ -14,9 +14,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
-type TickerMap = Arc<RwLock<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>>;
+type TickerMap = Arc<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>;
 
 static HISTORY_PATH: Lazy<String> = Lazy::new(|| {
     let home_dir = env::var("HOME").expect("HOME environment variable not set");
@@ -38,7 +37,7 @@ impl ReplHelper {
                 (ticker.clone(), company.clone(), cik.clone()),
             );
         }
-        let ticker_map = Arc::new(RwLock::new(map));
+        let ticker_map = Arc::new(map);
         // print_all_tickers(&ticker_map).await;
         Ok(ReplHelper { ticker_map })
     }
@@ -51,7 +50,7 @@ impl Completer for ReplHelper {
         if let Some(at_pos) = line[..pos].rfind('@') {
             let prefix = &line[at_pos + 1..pos].to_lowercase();
 
-            let ticker_map = futures::executor::block_on(self.ticker_map.read());
+            let ticker_map = &self.ticker_map;
             let candidates: Vec<Pair> = ticker_map
                 .iter()
                 .filter(|(key, _)| key.to_lowercase().starts_with(prefix))
@@ -101,14 +100,17 @@ impl Validator for ReplHelper {
         let input = ctx.input();
         let words: Vec<&str> = input.split_whitespace().collect();
 
-        let ticker_map = futures::executor::block_on(self.ticker_map.read());
         for word in words {
             if word.starts_with('@') {
                 let ticker_with_punctuation = word.strip_prefix("@").unwrap(); // Remove the '@' prefix
                 let ticker = ticker_with_punctuation
                     .trim_end_matches(|c: char| !c.is_alphanumeric() && c != '-');
                 let ticker = ticker.to_uppercase();
-                if !ticker_map.values().any(|(t, _, _)| t.as_str() == ticker) {
+                if !&self
+                    .ticker_map
+                    .values()
+                    .any(|(t, _, _)| t.as_str() == ticker)
+                {
                     return Ok(ValidationResult::Invalid(Some(format!(
                         "Invalid ticker: {}",
                         ticker
