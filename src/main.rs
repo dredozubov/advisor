@@ -1,5 +1,4 @@
-use advisor::db;
-use advisor::{edgar::filing, eval, repl, utils::dirs};
+use advisor::{db, edgar::filing, eval, memory::ConversationManager, repl, utils::dirs};
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
@@ -93,30 +92,72 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::debug!("Starting REPL loop");
     println!("Enter 'quit' to exit");
-    let mut summary = String::new();
+    let mut conversation_manager = ConversationManager::new(pg_pool.clone());
+    
     loop {
-        let prompt = get_prompt(&summary[..]);
+        let current_conv = conversation_manager.get_current_conversation_details().await?;
+        
+        let prompt = match &current_conv {
+            Some(conv) => {
+                format!(
+                    "[{}] {} {}",
+                    conv.title.blue().bold(),
+                    conv.summary.yellow(),
+                    ">".green().bold()
+                )
+            }
+            None => format!("{}", "[No conversation] >".green().bold()),
+        };
         let readline = rl.readline(&prompt);
         match readline {
             Ok(line) => {
                 let input = line.trim();
-                if input.eq_ignore_ascii_case("quit") {
-                    break;
-                }
-
-                // Process the input using the eval function
-                match eval::eval(
-                    input,
-                    &http_client,
-                    &stream_chain,
-                    &query_chain,
-                    &store,
-                    &pg_pool,
-                )
-                .await
+                match input {
+                    "/new" => {
+                        let title = rl.readline("Enter conversation title: ")?;
+                        let tickers = rl.readline("Enter tickers (comma-separated): ")?;
+                        let tickers: Vec<String> = tickers
+                            .split(',')
+                            .map(|s| s.trim().to_uppercase())
+                            .collect();
+                        conversation_manager
+                            .create_conversation(title, tickers)
+                            .await?;
+                    }
+                    "/list" => {
+                        let conversations = conversation_manager.list_conversations().await?;
+                        for conv in conversations {
+                            println!(
+                                "{}: {} [{}]\n  Context: {}\n",
+                                conv.id,
+                                conv.title.blue().bold(),
+                                conv.tickers.join(", ").yellow(),
+                                conv.summary
+                            );
+                        }
+                    }
+                    "/switch" => {
+                        let id = rl.readline("Enter conversation ID: ")?;
+                        conversation_manager.switch_conversation(id).await?;
+                    }
+                    "quit" => break,
+                    _ => {
+                        if let Some(conv) = current_conv {
+                            match eval::eval(
+                                input,
+                                &conv,
+                                &http_client,
+                                &stream_chain,
+                                &query_chain,
+                                &store,
+                                &pg_pool,
+                            )
+                            .await
                 {
                     Ok((mut stream, new_summary)) => {
-                        summary = new_summary;
+                        conversation_manager
+                            .update_summary(&conv.id, new_summary)
+                            .await?;
                         while let Some(chunk) = stream.next().await {
                             match chunk {
                                 Ok(c) => {
