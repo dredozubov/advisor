@@ -85,7 +85,7 @@ pub struct DatabaseMemory {
 }
 
 impl DatabaseMemory {
-    pub fn new(pool: PgPool, conversation_id: String, window_size: i64) -> Self {
+    pub fn new(pool: PgPool, conversation_id: Uuid, window_size: i64) -> Self {
         Self {
             pool,
             conversation_id,
@@ -146,7 +146,7 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn clear(&mut self) {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
@@ -215,7 +215,7 @@ impl ConversationManager {
         .await?;
 
         self.current_conversation = Some(id.clone());
-        Ok(id)
+        Ok(id.clone())
     }
 
     pub async fn add_message(
