@@ -45,11 +45,25 @@ impl ConversationChainManager {
         llm: OpenAI,
     ) -> Result<&ConversationalChain> {
         if !self.chains.contains_key(conversation_id) {
-            // Get conversation messages to initialize memory
-            let messages = sqlx::query!(
-                r#"
-                SELECT role as "role: MessageRole", content
-                FROM conversation_messages 
+            // Create database-backed memory
+            let memory = DatabaseMemory::new(
+                self.pool.clone(),
+                conversation_id.to_string(),
+                10, // window size
+            );
+
+            // Create new chain with database memory
+            let chain = ConversationalChainBuilder::new()
+                .llm(llm.clone())
+                .memory(Box::new(memory) as Box<dyn BaseMemory>)
+                .build()?;
+
+            self.chains.insert(conversation_id.to_string(), chain);
+        }
+
+        Ok(&self.chains[conversation_id])
+    }
+}
                 WHERE conversation_id = $1 
                 ORDER BY created_at ASC
                 "#,
