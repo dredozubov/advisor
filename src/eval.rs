@@ -54,9 +54,31 @@ async fn process_documents(
     Ok(())
 }
 
-async fn build_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
+async fn build_context(
+    query: &Query,
+    input: &str,
+    conversation: &memory::Conversation,
+    store: &dyn VectorStore,
+) -> Result<String> {
     log::debug!("Building context for query: {:?}", query);
 
+    // Get document context
+    let doc_context = build_document_context(query, input, store).await?;
+
+    // Combine with conversation context
+    let full_context = format!(
+        "Conversation Summary: {}\n\
+         Focus Companies: {}\n\n\
+         Document Context:\n{}",
+        conversation.summary,
+        conversation.tickers.join(", "),
+        doc_context
+    );
+
+    Ok(full_context)
+}
+
+async fn build_document_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
 
@@ -325,8 +347,19 @@ fn build_metadata_summary(
     summary
 }
 
-async fn generate_query(chain: &ConversationalChain, input: &str) -> Result<(Query, String)> {
-    let summary = get_conversation_summary(chain, input).await?;
+async fn generate_query(
+    chain: &ConversationalChain,
+    input: &str,
+    conversation: &memory::Conversation,
+) -> Result<(Query, String)> {
+    let context = format!(
+        "Current conversation context: {}\nFocus companies: {}\n\nUser question: {}",
+        conversation.summary,
+        conversation.tickers.join(", "),
+        input
+    );
+    
+    let summary = get_conversation_summary(chain, &context).await?;
     log::info!("Summary done: {}", summary);
 
     let query = extract_query_params(chain, input).await?;
@@ -345,7 +378,11 @@ async fn generate_response(
     log::info!("generate_response::input: {}", input);
     // Create prompt with context
     let prompt = format!(
-        "Based on the following SEC filings and financial documents, answer this question: {}\n\nContext:\n{}\n\n If you don't know the answer, just say that you don't know, don't try to make up an answer. Helpful answer:\n",
+        "Based on the conversation context and available documents, answer this question: {}\n\n\
+         Context:\n{}\n\n\
+         If you don't know the answer, just say that you don't know, don't try to make up an answer. \
+         Use the conversation history to provide more relevant and contextual answers. \
+         Helpful answer:\n",
         input,
         context
     );
@@ -354,7 +391,9 @@ async fn generate_response(
     // Return streaming response
     let prompt_args = prompt_args![
         "input" => [
-            "You are a helpful financial analyst assistant. Provide clear, quantitative, and informative answers for the analyst based on the provided context.",
+            "You are a helpful financial analyst assistant. Provide clear, quantitative, \
+             and informative answers based on the conversation context and provided documents. \
+             Maintain continuity with previous discussion points when relevant.",
             &prompt
         ]
     ];
@@ -370,6 +409,7 @@ async fn generate_response(
 
 pub async fn eval(
     input: &str,
+    conversation: &memory::Conversation,
     http_client: &reqwest::Client,
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
@@ -380,13 +420,13 @@ pub async fn eval(
     String,
 )> {
     // 1. Generate query and get summary
-    let (query, summary) = generate_query(query_chain, input).await?;
+    let (query, summary) = generate_query(query_chain, input, conversation).await?;
 
     // 2. Process documents based on query
     process_documents(&query, http_client, store, pg_pool).await?;
 
     // 3. Build context from processed documents
-    let context = build_context(&query, input, store).await?;
+    let context = build_context(&query, input, conversation, store).await?;
 
     // 4. Generate streaming response
     let stream = generate_response(stream_chain, input, &context).await?;
