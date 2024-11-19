@@ -151,6 +151,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 &query_chain,
                                 &store,
                                 &pg_pool,
+                                &conversation_manager,
                             )
                             .await
                 {

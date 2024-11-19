@@ -420,6 +420,7 @@ pub async fn eval(
     query_chain: &ConversationalChain,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
+    conversation_manager: &ConversationManager,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -434,24 +435,36 @@ pub async fn eval(
         }),
     ).await?;
 
-    // Generate response as before
+    // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
     process_documents(&query, http_client, store, pg_pool).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
-    // Store assistant message
-    let response_content = collect_stream(stream.clone()).await?;
-    conversation_manager.add_message(
-        &conversation.id,
-        MessageRole::Assistant,
-        &response_content,
-        serde_json::json!({
-            "type": "answer",
-            "query": query,
-            "summary": summary
-        }),
-    ).await?;
+    // Clone stream for storing complete response while still returning stream
+    let stream_clone = Box::pin(stream.clone());
+    
+    // Spawn task to store assistant message after stream completes
+    tokio::spawn({
+        let conversation_id = conversation.id.clone();
+        let conversation_manager = conversation_manager.clone();
+        let query_clone = query.clone();
+        let summary_clone = summary.clone();
+        async move {
+            if let Ok(response_content) = collect_stream(stream_clone).await {
+                let _ = conversation_manager.add_message(
+                    &conversation_id,
+                    MessageRole::Assistant,
+                    &response_content,
+                    serde_json::json!({
+                        "type": "answer",
+                        "query": query_clone,
+                        "summary": summary_clone
+                    }),
+                ).await;
+            }
+        }
+    });
 
     Ok((stream, summary))
 }
