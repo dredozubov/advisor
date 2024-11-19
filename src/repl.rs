@@ -1,5 +1,6 @@
 use crate::edgar::tickers::fetch_tickers;
 use anyhow::Result as AnyhowResult;
+use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
@@ -16,6 +17,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 type TickerMap = Arc<RwLock<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>>;
+
+static HISTORY_PATH: Lazy<String> = Lazy::new(|| {
+    let home_dir = env::var("HOME").expect("HOME environment variable not set");
+    format!("{}/.advisor.history", home_dir)
+});
 
 pub struct ReplHelper {
     ticker_map: TickerMap,
@@ -134,18 +140,12 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
         .edit_mode(EditMode::Emacs)
         .build();
 
-    log::debug!("Getting home directory for history file");
-    let home_dir = env::var("HOME").expect("HOME environment variable not set");
-    let history_path = format!("{}/.advisor.history", home_dir);
-    log::debug!("History file path: {}", history_path);
-
     log::debug!("Creating editor with config");
     let mut rl = Editor::<ReplHelper, FileHistory>::with_config(rustyline_config)?;
 
     log::debug!("Loading editor history");
-    if rl.load_history(&history_path).is_err() {
+    if rl.load_history(&**HISTORY_PATH).is_err() {
         log::debug!("No previous history file found");
-        println!("No previous history.");
     } else {
         log::debug!("History loaded successfully");
     }
@@ -197,7 +197,5 @@ impl std::ops::DerefMut for EditorWithHistory {
 }
 
 pub fn save_history(rl: &mut Editor<ReplHelper, FileHistory>) -> Result<()> {
-    let home_dir = env::var("HOME").expect("HOME environment variable not set");
-    let history_path = format!("{}/.ask-edgar.history", home_dir);
-    rl.save_history(&history_path)
+    rl.save_history(&**HISTORY_PATH)
 }

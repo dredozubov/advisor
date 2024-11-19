@@ -1,13 +1,14 @@
+use advisor::db;
 use advisor::{edgar::filing, eval, repl, utils::dirs};
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::memory::WindowBufferMemory;
+use langchain_rust::vectorstore::pgvector::StoreBuilder;
 use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, io::Write};
-use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -33,16 +34,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
-    let pool = sqlx::postgres::PgPoolOptions::new()
+    let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
+
+    let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
-        .connect(&env::var("DATABASE_URL")?)
+        .connect(pg_connection_string)
         .await?;
 
-    let store = langchain_rust::vectorstore::qdrant::StoreBuilder::new()
+    let store = StoreBuilder::new()
         .embedder(embedder)
-        .connection_url(&env::var("DATABASE_URL")?)
-        .collection_table_name("collections")
-        .embedder_table_name("embeddings")
+        .connection_url(pg_connection_string)
+        .collection_table_name(db::COLLECTIONS_TABLE)
+        .embedder_table_name(db::EMBEDDER_TABLE)
         .vector_dimensions(1536)
         .build()
         .await?;
@@ -102,7 +105,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 // Process the input using the eval function
-                match eval::eval(input, &http_client, &stream_chain, &query_chain, &store).await {
+                match eval::eval(
+                    input,
+                    &http_client,
+                    &stream_chain,
+                    &query_chain,
+                    &store,
+                    &pg_pool,
+                )
+                .await
+                {
                     Ok((mut stream, new_summary)) => {
                         summary = new_summary;
                         while let Some(chunk) = stream.next().await {

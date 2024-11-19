@@ -6,10 +6,10 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use langchain_rust::vectorstore::VectorStore;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
-use qdrant_client::Qdrant;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
@@ -567,7 +567,7 @@ pub async fn extract_complete_submission_filing(
     filepath: &str,
     report_type: ReportType,
     store: &dyn VectorStore,
-    qdrant_client: &Qdrant,
+    pg_pool: &Pool<Postgres>,
 ) -> Result<()> {
     log::info!(
         "Starting extract_complete_submission_filing for file: {}",
@@ -646,8 +646,7 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(markdown_content, metadata, store, qdrant_client)
-        .await?;
+    crate::document::store_chunked_document(markdown_content, metadata, store, pg_pool).await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 

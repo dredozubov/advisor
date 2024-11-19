@@ -1,88 +1,3 @@
-FROM rust:latest
-
-# Install clippy
-RUN rustup component add clippy
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
-
-# Install development tools
-RUN cargo install cargo-watch cargo-edit cargo-audit
-
-# Create data directories with proper permissions
-RUN mkdir -p /workspace/data/edgar/filings \
-    /workspace/data/edgar/parsed \
-    /workspace/data/earnings/parsed \
-    && chown -R $USERNAME:$USERNAME /workspace
-
-USER $USERNAME
-
-# Set environment variables
-ENV RUST_LOG=debug
-ENV RUST_BACKTRACE=1
-
-WORKDIR /workspace
-
-# Pre-build dependencies
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs \
-    && cargo build \
-    && rm -rf src
-
-CMD ["cargo", "run"]
-FROM rust:1.74-slim-bookworm
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    pkg-config \
-    libssl-dev \
-    postgresql-server-dev-all \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pgvector
-RUN cd /tmp && \
-    git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && \
-    cd pgvector && \
-    make && \
-    make install
-
-# Create non-root user
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
-
-# Set up working directory
-WORKDIR /workspace
-
-USER $USERNAME
-
-# Pre-install dependencies
-RUN cargo install cargo-watch cargo-edit cargo-audit
 FROM rust:1.75-slim-bookworm
 
 # Install system dependencies
@@ -90,15 +5,35 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     build-essential \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Set up cargo environment and fix permissions
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+# Create user and set permissions
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && mkdir -p /usr/local/cargo /workspace/src \
+    && chown -R $USERNAME:$USERNAME /usr/local/cargo /workspace \
+    && chmod -R 777 /usr/local/cargo
+
+USER $USERNAME
 WORKDIR /workspace
 
-# Pre-build dependencies
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs \
+# Copy project files with correct ownership
+COPY --chown=$USERNAME:$USERNAME Cargo.toml Cargo.lock ./
+
+# Create minimal project structure and build dependencies
+RUN mkdir -p src && echo 'fn main() { println!("Hello, world!"); }' > src/main.rs \
     && cargo build \
-    && rm -rf src
+    && rm -rf src \
+    && cargo install cargo-watch cargo-edit cargo-audit
 
 CMD ["cargo", "run"]

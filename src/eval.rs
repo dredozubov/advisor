@@ -8,7 +8,7 @@ use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
-use qdrant_client::Qdrant;
+use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -16,7 +16,7 @@ async fn process_documents(
     query: &Query,
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
-    qdrant_client: &Qdrant,
+    pg_pool: &Pool<Postgres>,
 ) -> Result<()> {
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -26,7 +26,7 @@ async fn process_documents(
                 for ticker in &edgar_query.tickers {
                     log::info!("Fetching EDGAR filings for ticker: {}", ticker);
                     let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
-                    process_edgar_filings(filings, store, qdrant_client).await?;
+                    process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }
             Err(e) => {
@@ -48,7 +48,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, qdrant_client).await?;
+        process_earnings_transcripts(transcripts, store, pg_pool).await?;
     }
 
     Ok(())
@@ -374,7 +374,7 @@ pub async fn eval(
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
     store: &dyn VectorStore,
-    qdrant_client: &Qdrant,
+    pg_pool: &Pool<Postgres>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -383,7 +383,7 @@ pub async fn eval(
     let (query, summary) = generate_query(query_chain, input).await?;
 
     // 2. Process documents based on query
-    process_documents(&query, http_client, store, qdrant_client).await?;
+    process_documents(&query, http_client, store, pg_pool).await?;
 
     // 3. Build context from processed documents
     let context = build_context(&query, input, store).await?;
@@ -397,7 +397,7 @@ pub async fn eval(
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: &(dyn VectorStore + Send + Sync),
-    qdrant_client: &Qdrant,
+    pg_pool: &Pool<Postgres>,
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
@@ -427,7 +427,7 @@ async fn process_edgar_filings(
             input_file,
             filing.report_type.clone(),
             store,
-            qdrant_client,
+            pg_pool,
         )
         .await?;
     }
@@ -437,7 +437,7 @@ async fn process_edgar_filings(
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: &(dyn VectorStore + Send + Sync),
-    qdrant_client: &Qdrant,
+    qdrant_client: &Pool<Postgres>,
 ) -> Result<()> {
     for (transcript, filepath) in transcripts {
         log::info!(
@@ -472,7 +472,7 @@ async fn process_earnings_transcripts(
 
 async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> Result<String> {
     let summary_task = format!(
-        "Provide a 2-3 word summary of this query, mentioning any ticker symbols if present. Examples:\n\
+        "Provide a 2-3 word summary of thiass query, mentioning any ticker symbols if present. Examples:\n\
          Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
          Input: What were the key risks mentioned in the latest 10-K of TSLA? -> TSLA Risk Factors\n\
          Input: Compare Microsoft and Google cloud revenue growth -> MSFT GOOGL comparison\n\n\

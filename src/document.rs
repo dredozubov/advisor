@@ -196,7 +196,7 @@ pub async fn store_chunked_document(
     content: String,
     metadata: Metadata,
     store: &dyn VectorStore,
-    pg_pool: &Pool<Postgres>, // Add QdrantClient as an argument
+    pg_pool: &Pool<Postgres>,
 ) -> anyhow::Result<()> {
     println!("Storing document with metadata: {:?}", metadata);
 

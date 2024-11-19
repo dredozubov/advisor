@@ -38,18 +38,16 @@ rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.21.0"
 tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
-langchain-rust = { version = "4.6.0", features = ["qdrant", "sqlite"] }
+langchain-rust = { version = "4.6.0", features = ["postgres"] }
 strum = { version = "0.26.3", features = ["derive"] }
 quick-xml = "0.37.0"
 unicode-normalization = "0.1.24"
 roxmltree = "0.20.0"
 mime = "0.3.17"
-qdrant-client = "1.12.1"
 tonic = "0.12.3"
 async-trait = "0.1.77"
 sqlx = { version = "0.8.2", features = [
     "runtime-tokio-native-tls",
-    "sqlite",
     "json",
 ] }
 pgvector = "0.4.0"
