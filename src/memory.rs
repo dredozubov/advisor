@@ -9,14 +9,11 @@ use langchain_rust::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPool, types::Uuid};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
-    pub id: String,
+    pub id: Uuid,
     pub summary: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -83,7 +80,7 @@ pub enum MessageRole {
 // Database-backed memory implementation
 pub struct DatabaseMemory {
     pool: PgPool,
-    conversation_id: String,
+    conversation_id: Uuid,
     window_size: i64,
 }
 
@@ -125,12 +122,11 @@ impl BaseMemory for DatabaseMemory {
         // Store message in database
         tokio::spawn({
             let pool = self.pool.clone();
-            let conversation_id = self.conversation_id.clone();
             let content = message.content;
             let role = match message.message_type {
-                langchain_rust::schemas::MessageType::Human => MessageRole::User,
-                langchain_rust::schemas::MessageType::Ai => MessageRole::Assistant,
-                langchain_rust::schemas::MessageType::System => MessageRole::System,
+                langchain_rust::schemas::MessageType::HumanMessage => MessageRole::User,
+                langchain_rust::schemas::MessageType::AIMessage => MessageRole::Assistant,
+                langchain_rust::schemas::MessageType::SystemMessage => MessageRole::System,
                 _ => MessageRole::User,
             };
 
@@ -138,8 +134,8 @@ impl BaseMemory for DatabaseMemory {
                 let _ = sqlx::query!(
                     "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
                      VALUES ($1, $2, $3, $4, $5)",
-                    Uuid::new_v4().to_string(),
-                    conversation_id,
+                    Uuid::new_v4(),
+                    self.conversation_id,
                     role.to_string().to_lowercase(),
                     content,
                     serde_json::json!({})
@@ -163,7 +159,7 @@ impl BaseMemory for DatabaseMemory {
 
 pub struct ConversationManager {
     pool: PgPool,
-    current_conversation: Option<String>,
+    current_conversation: Option<Uuid>,
 }
 
 impl ConversationManager {
@@ -177,7 +173,7 @@ impl ConversationManager {
     pub async fn get_most_recent_conversation(&self) -> Result<Option<Conversation>> {
         sqlx::query_as!(
             Conversation,
-            "SELECT id, title, summary, created_at, updated_at, tickers 
+            "SELECT id, summary, created_at, updated_at, tickers 
              FROM conversations 
              ORDER BY updated_at DESC 
              LIMIT 1"
@@ -191,8 +187,8 @@ impl ConversationManager {
         &mut self,
         summary: String,
         tickers: Vec<String>,
-    ) -> Result<String> {
-        let id = Uuid::new_v4().to_string();
+    ) -> Result<Uuid> {
+        let id = Uuid::new_v4();
         sqlx::query!(
             "INSERT INTO conversations (id, summary, tickers, created_at, updated_at) 
              VALUES ($1, $2, $3, NOW(), NOW())",
@@ -224,12 +220,12 @@ impl ConversationManager {
 
     pub async fn add_message(
         &self,
-        conversation_id: &str,
+        conversation_id: &Uuid,
         role: MessageRole,
         content: String,
         metadata: Value,
     ) -> Result<String> {
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::new_v4();
         sqlx::query!(
             "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
              VALUES ($1, $2, $3, $4, $5)",
@@ -247,7 +243,7 @@ impl ConversationManager {
 
     pub async fn get_conversation_messages(
         &self,
-        conversation_id: &str,
+        conversation_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<Message>> {
         sqlx::query_as!(
@@ -273,7 +269,7 @@ impl ConversationManager {
         .map_err(Into::into)
     }
 
-    pub async fn update_summary(&mut self, id: &str, summary: String) -> Result<()> {
+    pub async fn update_summary(&mut self, id: &Uuid, summary: String) -> Result<()> {
         sqlx::query!(
             "UPDATE conversations SET summary = $1, updated_at = NOW() WHERE id = $2",
             summary,
@@ -284,7 +280,7 @@ impl ConversationManager {
         Ok(())
     }
 
-    pub async fn get_conversation(&self, id: &str) -> Result<Option<Conversation>> {
+    pub async fn get_conversation(&self, id: &Uuid) -> Result<Option<Conversation>> {
         sqlx::query_as!(
             Conversation,
             "SELECT id, title, summary, created_at, updated_at, tickers 
@@ -299,7 +295,7 @@ impl ConversationManager {
     pub async fn list_conversations(&self) -> Result<Vec<Conversation>> {
         sqlx::query_as!(
             Conversation,
-            "SELECT id, title, summary, created_at, updated_at, tickers 
+            "SELECT id, summary, created_at, updated_at, tickers 
              FROM conversations 
              ORDER BY updated_at DESC"
         )
@@ -308,8 +304,8 @@ impl ConversationManager {
         .map_err(Into::into)
     }
 
-    pub async fn switch_conversation(&mut self, id: String) -> Result<()> {
-        if self.get_conversation(&id).await?.is_some() {
+    pub async fn switch_conversation(&mut self, id: &Uuid) -> Result<()> {
+        if self.get_conversation(id).await?.is_some() {
             // Update the updated_at timestamp when switching
             sqlx::query!(
                 "UPDATE conversations SET updated_at = NOW() WHERE id = $1",
@@ -318,7 +314,7 @@ impl ConversationManager {
             .execute(&self.pool)
             .await?;
 
-            self.current_conversation = Some(id);
+            self.current_conversation = Some(*id);
             Ok(())
         } else {
             Err(anyhow::anyhow!("Conversation not found"))

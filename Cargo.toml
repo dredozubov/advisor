@@ -49,9 +49,11 @@ async-trait = "0.1.77"
 sqlx = { version = "0.8.2", features = [
     "runtime-tokio-native-tls",
     "json",
+    "time"
 ] }
 pgvector = "0.4.0"
 itertools = "0.13.0"
+dotenv = "0.15.0"
 
 
 [dev-dependencies]
