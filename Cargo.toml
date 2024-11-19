@@ -51,6 +51,7 @@ sqlx = { version = "0.8.2", features = [
     "json",
 ] }
 pgvector = "0.4.0"
+itertools = "0.13.0"
 
 
 [dev-dependencies]

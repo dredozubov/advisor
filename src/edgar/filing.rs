@@ -3,6 +3,7 @@ use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use itertools::Itertools;
 use langchain_rust::vectorstore::VectorStore;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
@@ -424,12 +425,14 @@ pub async fn get_company_filings(
     // Update the initial response with merged filings
     initial_response.filings.recent = merged.clone();
 
+    let unique_report_types: std::collections::HashSet<_> = merged.report_type.iter().collect();
     // Log summary of fetched data
     info!(
-        "Fetched filings summary for CIK {}: {} total filings, {} unique report types, date range: {} to {}",
+        "Fetched filings summary for CIK {}: {} total filings, {} unique report types ({}), date range: {} to {}",
         padded_cik,
         merged.accession_number.len(),
-        merged.report_type.iter().collect::<std::collections::HashSet<_>>().len(),
+        unique_report_types.len(),
+        unique_report_types.into_iter().join(", "),
         merged.filing_date.iter().min().map_or("N/A".to_string(), |d| d.to_string()),
         merged.filing_date.iter().max().map_or("N/A".to_string(), |d| d.to_string())
     );

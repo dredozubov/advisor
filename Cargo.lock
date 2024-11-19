@@ -32,6 +32,7 @@ dependencies = [
  "env_logger",
  "futures",
  "html-escape",
+ "itertools 0.13.0",
  "langchain-rust",
  "log",
  "mime",
