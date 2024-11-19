@@ -443,30 +443,47 @@ pub async fn eval(
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
-    // Clone stream for storing complete response while still returning stream
-    let stream_clone = Box::pin(stream.clone());
+    // Create a new stream for collecting the complete response
+    let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+    
+    // Clone sender for the forwarding task
+    let tx2 = tx.clone();
+    
+    // Forward stream chunks to channel
+    tokio::spawn({
+        let mut stream = stream;
+        async move {
+            while let Some(result) = stream.next().await {
+                if let Ok(chunk) = result {
+                    let _ = tx2.send(chunk).await;
+                }
+            }
+        }
+    });
 
-    // Spawn task to store assistant message after stream completes
+    // Spawn task to collect and store complete response
     tokio::spawn({
         let conversation_id = conversation.id.clone();
         let conversation_manager = conversation_manager.clone();
-        let query_clone = query.clone();
-        let summary_clone = summary.clone();
+        let query = query.clone();
+        let summary = summary.clone();
         async move {
-            if let Ok(response_content) = collect_stream(stream_clone).await {
-                let _ = conversation_manager
-                    .add_message(
-                        &conversation_id,
-                        MessageRole::Assistant,
-                        &response_content.to_string(),
-                        serde_json::json!({
-                            "type": "answer",
-                            "query": query_clone,
-                            "summary": summary_clone
-                        }),
-                    )
-                    .await;
+            let mut response_content = String::new();
+            while let Some(chunk) = rx.recv().await {
+                response_content.push_str(&chunk);
             }
+            let _ = conversation_manager
+                .add_message(
+                    &conversation_id,
+                    MessageRole::Assistant,
+                    &response_content,
+                    serde_json::json!({
+                        "type": "answer",
+                        "query": query,
+                        "summary": summary
+                    }),
+                )
+                .await;
         }
     });
 

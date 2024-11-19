@@ -59,7 +59,7 @@ impl ConversationChainManager {
             // Create new chain with database memory
             let chain = ConversationalChainBuilder::new()
                 .llm(llm.clone())
-                .memory(Box::new(memory) as Box<dyn BaseMemory>)
+                .memory(Arc::new(Mutex::new(memory)))
                 .build()?;
 
             self.chains.insert(conversation_id.to_string(), chain);
@@ -113,83 +113,32 @@ impl DatabaseMemory {
 
 #[async_trait]
 impl BaseMemory for DatabaseMemory {
-    async fn load_memory_variables(
-        &self,
-        _inputs: &HashMap<String, String>,
-    ) -> Result<HashMap<String, String>> {
-        let messages = sqlx::query!(
-            r#"
-            SELECT role as "role: MessageRole", content
-            FROM conversation_messages 
-            WHERE conversation_id = $1 
-            ORDER BY created_at DESC
-            LIMIT $2
-            "#,
-            self.conversation_id,
-            self.window_size
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        // Convert messages to chat history format
-        let chat_history = messages
-            .into_iter()
-            .rev() // Reverse to get chronological order
-            .map(|msg| {
-                format!(
-                    "{}: {}",
-                    match msg.role {
-                        MessageRole::User => "Human",
-                        MessageRole::Assistant => "Assistant",
-                        MessageRole::System => "System",
-                    },
-                    msg.content
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        let mut memory_variables = HashMap::new();
-        memory_variables.insert("chat_history".to_string(), chat_history);
-        Ok(memory_variables)
+    fn messages(&self) -> Vec<ChatMessage> {
+        vec![] // Implement actual message retrieval if needed
     }
 
-    async fn save_context(
-        &mut self,
-        inputs: &HashMap<String, String>,
-        outputs: &HashMap<String, String>,
-    ) -> Result<()> {
-        // Save user input
-        if let Some(input) = inputs.get("input") {
-            sqlx::query!(
-                "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
-                 VALUES ($1, $2, $3, $4, $5)",
-                Uuid::new_v4().to_string(),
-                self.conversation_id,
-                MessageRole::User.to_string().to_lowercase(),
-                input,
-                serde_json::json!({})
-            )
-            .execute(&self.pool)
-            .await?;
-        }
-
-        // Save assistant output
-        if let Some(output) = outputs.get("output") {
-            sqlx::query!(
-                "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
-                 VALUES ($1, $2, $3, $4, $5)",
-                Uuid::new_v4().to_string(),
-                self.conversation_id,
-                MessageRole::Assistant.to_string().to_lowercase(),
-                output,
-                serde_json::json!({})
-            )
-            .execute(&self.pool)
-            .await?;
-        }
-
-        Ok(())
+    fn add_message(&mut self, message: ChatMessage) {
+        // Store message in database
+        tokio::spawn({
+            let pool = self.pool.clone();
+            let conversation_id = self.conversation_id.clone();
+            let role = Self::convert_chat_role(message.role);
+            let content = message.content;
+            
+            async move {
+                let _ = sqlx::query!(
+                    "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
+                     VALUES ($1, $2, $3, $4, $5)",
+                    Uuid::new_v4().to_string(),
+                    conversation_id,
+                    role.to_string().to_lowercase(),
+                    content,
+                    serde_json::json!({})
+                )
+                .execute(&pool)
+                .await;
+            }
+        });
     }
 
     async fn clear(&mut self) -> Result<()> {
@@ -200,10 +149,6 @@ impl BaseMemory for DatabaseMemory {
         .execute(&self.pool)
         .await?;
         Ok(())
-    }
-
-    fn memory_variables(&self) -> Vec<String> {
-        vec!["chat_history".to_string()]
     }
 }
 
