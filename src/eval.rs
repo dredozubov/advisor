@@ -424,19 +424,70 @@ pub async fn eval(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
 )> {
-    // 1. Generate query and get summary
+    // Store user message
+    conversation_manager.add_message(
+        &conversation.id,
+        MessageRole::User,
+        input,
+        serde_json::json!({
+            "type": "question"
+        }),
+    ).await?;
+
+    // Generate response as before
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
-
-    // 2. Process documents based on query
     process_documents(&query, http_client, store, pg_pool).await?;
-
-    // 3. Build context from processed documents
     let context = build_context(&query, input, conversation, store).await?;
-
-    // 4. Generate streaming response
     let stream = generate_response(stream_chain, input, &context).await?;
 
+    // Store assistant message
+    let response_content = collect_stream(stream.clone()).await?;
+    conversation_manager.add_message(
+        &conversation.id,
+        MessageRole::Assistant,
+        &response_content,
+        serde_json::json!({
+            "type": "answer",
+            "query": query,
+            "summary": summary
+        }),
+    ).await?;
+
     Ok((stream, summary))
+}
+
+async fn collect_stream(
+    mut stream: impl Stream<Item = Result<String, Box<dyn std::error::Error + Send + Sync>>> + Unpin,
+) -> Result<String> {
+    let mut content = String::new();
+    while let Some(chunk) = stream.next().await {
+        content.push_str(&chunk?);
+    }
+    Ok(content)
+}
+
+async fn build_conversation_context(
+    conversation: &Conversation,
+    conversation_manager: &ConversationManager,
+) -> Result<String> {
+    let messages = conversation_manager
+        .get_conversation_messages(&conversation.id, 10)
+        .await?;
+
+    let context = messages
+        .into_iter()
+        .map(|msg| match msg.role {
+            MessageRole::User => format!("User: {}", msg.content),
+            MessageRole::Assistant => format!("Assistant: {}", msg.content),
+            MessageRole::System => format!("System: {}", msg.content),
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    Ok(format!(
+        "Conversation History:\n{}\n\nCurrent Summary: {}",
+        context, conversation.summary
+    ))
 }
 
 async fn process_edgar_filings(

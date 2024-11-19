@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPool, types::Uuid};
+use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -11,6 +12,24 @@ pub struct Conversation {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub tickers: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Message {
+    pub id: String,
+    pub conversation_id: String,
+    pub role: MessageRole,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
+    pub metadata: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MessageRole {
+    User,
+    Assistant,
+    System,
 }
 
 pub struct ConversationManager {
