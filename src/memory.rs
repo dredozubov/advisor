@@ -1,8 +1,11 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use langchain_rust::memory::{BaseMemory, ChatMessage, ChatMessageRole};
+use serde::{Deserialize, Serialize}; 
 use sqlx::{postgres::PgPool, types::Uuid};
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -84,6 +87,133 @@ pub enum MessageRole {
     User,
     Assistant,
     System,
+}
+
+// Database-backed memory implementation
+pub struct DatabaseMemory {
+    pool: PgPool,
+    conversation_id: String,
+    window_size: i64,
+}
+
+impl DatabaseMemory {
+    pub fn new(pool: PgPool, conversation_id: String, window_size: i64) -> Self {
+        Self {
+            pool,
+            conversation_id,
+            window_size,
+        }
+    }
+
+    fn convert_role(role: MessageRole) -> ChatMessageRole {
+        match role {
+            MessageRole::User => ChatMessageRole::User,
+            MessageRole::Assistant => ChatMessageRole::Assistant,
+            MessageRole::System => ChatMessageRole::System,
+        }
+    }
+
+    fn convert_chat_role(role: ChatMessageRole) -> MessageRole {
+        match role {
+            ChatMessageRole::User => MessageRole::User,
+            ChatMessageRole::Assistant => MessageRole::Assistant,
+            ChatMessageRole::System => MessageRole::System,
+            _ => MessageRole::User, // Default to user for unknown roles
+        }
+    }
+}
+
+#[async_trait]
+impl BaseMemory for DatabaseMemory {
+    async fn load_memory_variables(&self, _inputs: &HashMap<String, String>) -> Result<HashMap<String, String>> {
+        let messages = sqlx::query!(
+            r#"
+            SELECT role as "role: MessageRole", content
+            FROM conversation_messages 
+            WHERE conversation_id = $1 
+            ORDER BY created_at DESC
+            LIMIT $2
+            "#,
+            self.conversation_id,
+            self.window_size
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Convert messages to chat history format
+        let chat_history = messages
+            .into_iter()
+            .rev() // Reverse to get chronological order
+            .map(|msg| {
+                format!(
+                    "{}: {}",
+                    match msg.role {
+                        MessageRole::User => "Human",
+                        MessageRole::Assistant => "Assistant",
+                        MessageRole::System => "System",
+                    },
+                    msg.content
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let mut memory_variables = HashMap::new();
+        memory_variables.insert("chat_history".to_string(), chat_history);
+        Ok(memory_variables)
+    }
+
+    async fn save_context(
+        &mut self,
+        inputs: &HashMap<String, String>,
+        outputs: &HashMap<String, String>,
+    ) -> Result<()> {
+        // Save user input
+        if let Some(input) = inputs.get("input") {
+            sqlx::query!(
+                "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
+                 VALUES ($1, $2, $3, $4, $5)",
+                Uuid::new_v4().to_string(),
+                self.conversation_id,
+                MessageRole::User.to_string().to_lowercase(),
+                input,
+                serde_json::json!({})
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+
+        // Save assistant output
+        if let Some(output) = outputs.get("output") {
+            sqlx::query!(
+                "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
+                 VALUES ($1, $2, $3, $4, $5)",
+                Uuid::new_v4().to_string(),
+                self.conversation_id,
+                MessageRole::Assistant.to_string().to_lowercase(),
+                output,
+                serde_json::json!({})
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn clear(&mut self) -> Result<()> {
+        sqlx::query!(
+            "DELETE FROM conversation_messages WHERE conversation_id = $1",
+            self.conversation_id
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    fn memory_variables(&self) -> Vec<String> {
+        vec!["chat_history".to_string()]
+    }
 }
 
 pub struct ConversationManager {
