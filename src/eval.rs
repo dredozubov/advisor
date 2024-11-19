@@ -1,6 +1,7 @@
 use crate::document::{DocType, Metadata};
 use crate::earnings;
 use crate::edgar::{self, filing};
+use crate::memory::Conversation;
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
@@ -57,7 +58,7 @@ async fn process_documents(
 async fn build_context(
     query: &Query,
     input: &str,
-    conversation: &memory::Conversation,
+    conversation: &Conversation,
     store: &dyn VectorStore,
 ) -> Result<String> {
     log::debug!("Building context for query: {:?}", query);
@@ -78,7 +79,11 @@ async fn build_context(
     Ok(full_context)
 }
 
-async fn build_document_context(query: &Query, input: &str, store: &dyn VectorStore) -> Result<String> {
+async fn build_document_context(
+    query: &Query,
+    input: &str,
+    store: &dyn VectorStore,
+) -> Result<String> {
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
 
@@ -350,7 +355,7 @@ fn build_metadata_summary(
 async fn generate_query(
     chain: &ConversationalChain,
     input: &str,
-    conversation: &memory::Conversation,
+    conversation: &Conversation,
 ) -> Result<(Query, String)> {
     let context = format!(
         "Current conversation context: {}\nFocus companies: {}\n\nUser question: {}",
@@ -358,7 +363,7 @@ async fn generate_query(
         conversation.tickers.join(", "),
         input
     );
-    
+
     let summary = get_conversation_summary(chain, &context).await?;
     log::info!("Summary done: {}", summary);
 
@@ -409,7 +414,7 @@ async fn generate_response(
 
 pub async fn eval(
     input: &str,
-    conversation: &memory::Conversation,
+    conversation: &Conversation,
     http_client: &reqwest::Client,
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,

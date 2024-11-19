@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::PgPool;
+use sqlx::{postgres::PgPool, types::Uuid};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -31,7 +31,7 @@ impl ConversationManager {
         title: String,
         tickers: Vec<String>,
     ) -> Result<String> {
-        let id = uuid::Uuid::new_v4().to_string();
+        let id = Uuid::new_v4().to_string();
         sqlx::query!(
             "INSERT INTO conversations (id, title, tickers, created_at, updated_at) 
              VALUES ($1, $2, $3, NOW(), NOW())",
