@@ -61,8 +61,73 @@ impl ConversationManager {
         .execute(&self.pool)
         .await?;
 
+        // Add initial system message
+        let system_prompt = format!(
+            "This is a conversation about the following companies: {}. \
+             Focus on providing accurate financial analysis and insights.",
+            tickers.join(", ")
+        );
+        
+        self.add_message(
+            &id,
+            MessageRole::System,
+            &system_prompt,
+            serde_json::json!({}),
+        ).await?;
+
         self.current_conversation = Some(id.clone());
         Ok(id)
+    }
+
+    pub async fn add_message(
+        &self,
+        conversation_id: &str,
+        role: MessageRole,
+        content: &str,
+        metadata: Value,
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        sqlx::query!(
+            "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
+             VALUES ($1, $2, $3, $4, $5)",
+            id,
+            conversation_id,
+            role.to_string().to_lowercase(),
+            content,
+            metadata
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(id)
+    }
+
+    pub async fn get_conversation_messages(
+        &self,
+        conversation_id: &str,
+        limit: i64,
+    ) -> Result<Vec<Message>> {
+        sqlx::query_as!(
+            Message,
+            r#"
+            SELECT 
+                id,
+                conversation_id,
+                role as "role: MessageRole",
+                content,
+                created_at,
+                metadata
+            FROM conversation_messages 
+            WHERE conversation_id = $1 
+            ORDER BY created_at DESC 
+            LIMIT $2
+            "#,
+            conversation_id,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn update_summary(&mut self, id: &str, summary: String) -> Result<()> {
