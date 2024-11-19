@@ -62,7 +62,7 @@ impl ConversationChainManager {
             // Create new chain with database memory
             let chain = ConversationalChainBuilder::new()
                 .llm(llm.clone())
-                .memory(Arc::new(Mutex::new(memory)))
+                .memory(Arc::new(tokio::sync::Mutex::new(memory)))
                 .build()?;
 
             self.chains.insert(conversation_id.to_string(), chain);
@@ -117,7 +117,8 @@ impl DatabaseMemory {
 #[async_trait]
 impl BaseMemory for DatabaseMemory {
     fn messages(&self) -> Vec<langchain_rust::schemas::Message> {
-        vec![] // Implement actual message retrieval if needed
+        // Return empty for now since we handle history differently
+        vec![]
     }
 
     fn add_message(&mut self, message: langchain_rust::schemas::Message) {
@@ -125,8 +126,13 @@ impl BaseMemory for DatabaseMemory {
         tokio::spawn({
             let pool = self.pool.clone();
             let conversation_id = self.conversation_id.clone();
-            let role = Self::convert_chat_role(message.role);
             let content = message.content;
+            let role = match message.message_type {
+                langchain_rust::schemas::MessageType::Human => MessageRole::User,
+                langchain_rust::schemas::MessageType::Ai => MessageRole::Assistant,
+                langchain_rust::schemas::MessageType::System => MessageRole::System,
+                _ => MessageRole::User,
+            };
 
             async move {
                 let _ = sqlx::query!(
@@ -144,13 +150,14 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) {
+    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
         )
         .execute(&self.pool)
-        .await;
+        .await?;
+        Ok(())
     }
 }
 

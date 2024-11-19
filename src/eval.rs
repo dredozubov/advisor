@@ -445,46 +445,48 @@ pub async fn eval(
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
-
-    // Clone sender for the forwarding task
-    let tx2 = tx.clone();
-
-    // Forward stream chunks to channel
-    tokio::spawn({
-        let mut stream = stream;
-        async move {
-            while let Some(result) = stream.next().await {
-                if let Ok(chunk) = result {
-                    let _ = tx2.send(chunk).await;
+    
+    // Create a new stream that forwards chunks and collects them
+    let stream = Box::pin(futures::stream::unfold(
+        (stream, tx.clone()),
+        |(mut stream, tx)| async move {
+            if let Some(result) = stream.next().await {
+                match result {
+                    Ok(chunk) => {
+                        let _ = tx.send(chunk.clone()).await;
+                        Some((Ok(chunk), (stream, tx)))
+                    }
+                    Err(e) => Some((Err(e), (stream, tx))),
                 }
+            } else {
+                None
             }
-        }
-    });
+        },
+    ));
 
     // Spawn task to collect and store complete response
-    tokio::spawn({
-        let conversation_id = conversation.id.clone();
-        let conversation_manager = conversation_manager.clone();
-        let query = query.clone();
-        let summary = summary.clone();
-        async move {
-            let mut response_content = String::new();
-            while let Some(chunk) = rx.recv().await {
-                response_content.push_str(&chunk);
-            }
-            let _ = conversation_manager
-                .add_message(
-                    &conversation_id,
-                    MessageRole::Assistant,
-                    response_content,
-                    serde_json::json!({
-                        "type": "answer",
-                        "query": query,
-                        "summary": summary
-                    }),
-                )
-                .await;
+    let conversation_id = conversation.id.clone();
+    let query = query.clone();
+    let summary = summary.clone();
+    let conversation_manager = conversation_manager.to_owned();
+    
+    tokio::spawn(async move {
+        let mut response_content = String::new();
+        while let Some(chunk) = rx.recv().await {
+            response_content.push_str(&chunk);
         }
+        let _ = conversation_manager
+            .add_message(
+                &conversation_id,
+                MessageRole::Assistant,
+                response_content,
+                serde_json::json!({
+                    "type": "answer",
+                    "query": query,
+                    "summary": summary
+                }),
+            )
+            .await;
     });
 
     Ok((stream, summary))
@@ -495,7 +497,7 @@ async fn collect_stream(
 ) -> Result<String> {
     let mut content = String::new();
     while let Some(chunk) = stream.next().await {
-        content.push_str(&chunk?);
+        content.push_str(&chunk.map_err(|e| anyhow!(e.to_string()))?);
     }
     Ok(content)
 }
