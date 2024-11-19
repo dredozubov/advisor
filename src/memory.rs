@@ -9,7 +9,10 @@ use langchain_rust::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPool, types::Uuid};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -113,18 +116,18 @@ impl DatabaseMemory {
 
 #[async_trait]
 impl BaseMemory for DatabaseMemory {
-    fn messages(&self) -> Vec<ChatMessage> {
+    fn messages(&self) -> Vec<langchain_rust::schemas::Message> {
         vec![] // Implement actual message retrieval if needed
     }
 
-    fn add_message(&mut self, message: ChatMessage) {
+    fn add_message(&mut self, message: langchain_rust::schemas::Message) {
         // Store message in database
         tokio::spawn({
             let pool = self.pool.clone();
             let conversation_id = self.conversation_id.clone();
             let role = Self::convert_chat_role(message.role);
             let content = message.content;
-            
+
             async move {
                 let _ = sqlx::query!(
                     "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
@@ -141,14 +144,13 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) -> Result<()> {
+    async fn clear(&mut self) {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
         )
         .execute(&self.pool)
-        .await?;
-        Ok(())
+        .await;
     }
 }
 

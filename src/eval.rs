@@ -445,10 +445,10 @@ pub async fn eval(
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
-    
+
     // Clone sender for the forwarding task
     let tx2 = tx.clone();
-    
+
     // Forward stream chunks to channel
     tokio::spawn({
         let mut stream = stream;
@@ -476,7 +476,7 @@ pub async fn eval(
                 .add_message(
                     &conversation_id,
                     MessageRole::Assistant,
-                    &response_content,
+                    response_content,
                     serde_json::json!({
                         "type": "answer",
                         "query": query,
