@@ -24,6 +24,61 @@ pub struct Message {
     pub metadata: Value,
 }
 
+pub struct ConversationChainManager {
+    pool: PgPool,
+    chains: HashMap<String, ConversationalChain>,
+}
+
+impl ConversationChainManager {
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            pool,
+            chains: HashMap::new(),
+        }
+    }
+
+    pub async fn get_or_create_chain(
+        &mut self,
+        conversation_id: &str,
+        llm: OpenAI,
+    ) -> Result<&ConversationalChain> {
+        if !self.chains.contains_key(conversation_id) {
+            // Get conversation messages to initialize memory
+            let messages = sqlx::query!(
+                r#"
+                SELECT role as "role: MessageRole", content
+                FROM conversation_messages 
+                WHERE conversation_id = $1 
+                ORDER BY created_at ASC
+                "#,
+                conversation_id
+            )
+            .fetch_all(&self.pool)
+            .await?;
+
+            // Create memory buffer with existing messages
+            let mut memory = WindowBufferMemory::new(10);
+            for msg in messages {
+                memory.add_message(match msg.role {
+                    MessageRole::User => ChatMessage::user(&msg.content),
+                    MessageRole::Assistant => ChatMessage::assistant(&msg.content),
+                    MessageRole::System => ChatMessage::system(&msg.content),
+                });
+            }
+
+            // Create new chain with populated memory
+            let chain = ConversationalChainBuilder::new()
+                .llm(llm.clone())
+                .memory(memory.into())
+                .build()?;
+
+            self.chains.insert(conversation_id.to_string(), chain);
+        }
+
+        Ok(&self.chains[conversation_id])
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
@@ -43,6 +98,19 @@ impl ConversationManager {
             pool,
             current_conversation: None,
         }
+    }
+
+    pub async fn get_most_recent_conversation(&self) -> Result<Option<Conversation>> {
+        sqlx::query_as!(
+            Conversation,
+            "SELECT id, title, summary, created_at, updated_at, tickers 
+             FROM conversations 
+             ORDER BY updated_at DESC 
+             LIMIT 1"
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn create_conversation(
@@ -167,6 +235,14 @@ impl ConversationManager {
 
     pub async fn switch_conversation(&mut self, id: String) -> Result<()> {
         if self.get_conversation(&id).await?.is_some() {
+            // Update the updated_at timestamp when switching
+            sqlx::query!(
+                "UPDATE conversations SET updated_at = NOW() WHERE id = $1",
+                id
+            )
+            .execute(&self.pool)
+            .await?;
+            
             self.current_conversation = Some(id);
             Ok(())
         } else {

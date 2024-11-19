@@ -93,6 +93,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Starting REPL loop");
     println!("Enter 'quit' to exit");
     let mut conversation_manager = ConversationManager::new(pg_pool.clone());
+    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
+
+    // Load most recent conversation on startup
+    if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
+        conversation_manager.switch_conversation(recent_conv.id).await?;
+        println!(
+            "Loaded most recent conversation: {} ({})",
+            recent_conv.title.blue().bold(),
+            recent_conv.summary.yellow()
+        );
+    }
     
     loop {
         let current_conv = conversation_manager.get_current_conversation_details().await?;
@@ -120,8 +131,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             .split(',')
                             .map(|s| s.trim().to_uppercase())
                             .collect();
-                        conversation_manager
+                        let conv_id = conversation_manager
                             .create_conversation(title, tickers)
+                            .await?;
+            
+                        // Initialize chain for new conversation
+                        chain_manager
+                            .get_or_create_chain(&conv_id, llm.clone())
                             .await?;
                     }
                     "/list" => {
@@ -143,12 +159,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "quit" => break,
                     _ => {
                         if let Some(conv) = current_conv {
+                            // Get or create chain for current conversation
+                            let chain = chain_manager
+                                .get_or_create_chain(&conv.id, llm.clone())
+                                .await?;
+
                             match eval::eval(
                                 input,
                                 &conv,
                                 &http_client,
-                                &stream_chain,
-                                &query_chain,
+                                chain,
+                                chain,
                                 &store,
                                 &pg_pool,
                                 &conversation_manager,
