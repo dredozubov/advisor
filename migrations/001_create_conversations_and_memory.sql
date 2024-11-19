@@ -1,8 +1,7 @@
 -- Create conversations table
 CREATE TABLE conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    summary TEXT NOT NULL DEFAULT '',
+    summary VARCHAR(255) NOT NULL,
     tickers TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

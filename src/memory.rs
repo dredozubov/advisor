@@ -7,7 +7,6 @@ use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
     pub id: String,
-    pub title: String,
     pub summary: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -115,15 +114,15 @@ impl ConversationManager {
 
     pub async fn create_conversation(
         &mut self,
-        title: String,
+        summary: String,
         tickers: Vec<String>,
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         sqlx::query!(
-            "INSERT INTO conversations (id, title, tickers, created_at, updated_at) 
+            "INSERT INTO conversations (id, summary, tickers, created_at, updated_at) 
              VALUES ($1, $2, $3, NOW(), NOW())",
             id,
-            title,
+            summary,
             &tickers
         )
         .execute(&self.pool)

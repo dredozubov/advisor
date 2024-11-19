@@ -99,9 +99,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager.switch_conversation(recent_conv.id).await?;
         println!(
-            "Loaded most recent conversation: {} ({})",
-            recent_conv.title.blue().bold(),
-            recent_conv.summary.yellow()
+            "Loaded most recent conversation: {}",
+            recent_conv.summary.blue().bold()
         );
     }
     
@@ -111,9 +110,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let prompt = match &current_conv {
             Some(conv) => {
                 format!(
-                    "[{}] {} {}",
-                    conv.title.blue().bold(),
-                    conv.summary.yellow(),
+                    "[{}] {}",
+                    conv.summary.blue().bold(),
                     ">".green().bold()
                 )
             }
@@ -125,14 +123,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let input = line.trim();
                 match input {
                     "/new" => {
-                        let title = rl.readline("Enter conversation title: ")?;
                         let tickers = rl.readline("Enter tickers (comma-separated): ")?;
                         let tickers: Vec<String> = tickers
                             .split(',')
                             .map(|s| s.trim().to_uppercase())
                             .collect();
+                        let summary = format!("New conversation about: {}", tickers.join(", "));
                         let conv_id = conversation_manager
-                            .create_conversation(title, tickers)
+                            .create_conversation(summary, tickers)
                             .await?;
             
                         // Initialize chain for new conversation
@@ -144,11 +142,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let conversations = conversation_manager.list_conversations().await?;
                         for conv in conversations {
                             println!(
-                                "{}: {} [{}]\n  Context: {}\n",
+                                "{}: {} [{}]\n",
                                 conv.id,
-                                conv.title.blue().bold(),
-                                conv.tickers.join(", ").yellow(),
-                                conv.summary
+                                conv.summary.blue().bold(),
+                                conv.tickers.join(", ").yellow()
                             );
                         }
                     }
