@@ -1,6 +1,5 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use time::OffsetDateTime;
 use core::fmt;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
@@ -15,6 +14,7 @@ use std::{
     fmt::{Display, Formatter},
     sync::Arc,
 };
+use time::OffsetDateTime;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -56,11 +56,7 @@ impl ConversationChainManager {
         let id_str = conversation_id.to_string();
         if !self.chains.contains_key(&id_str) {
             // Create database-backed memory
-            let memory = DatabaseMemory::new(
-                self.pool.clone(),
-                *conversation_id,
-                10, // window size
-            );
+            let memory = DatabaseMemory::new(self.pool.clone(), *conversation_id);
 
             // Create new chain with database memory
             let chain = ConversationalChainBuilder::new()
@@ -104,18 +100,15 @@ impl Display for MessageRole {
 pub struct DatabaseMemory {
     pool: PgPool,
     conversation_id: Uuid,
-    window_size: i64,
 }
 
 impl DatabaseMemory {
-    pub fn new(pool: PgPool, conversation_id: Uuid, window_size: i64) -> Self {
+    pub fn new(pool: PgPool, conversation_id: Uuid) -> Self {
         Self {
             pool,
             conversation_id,
-            window_size,
         }
     }
-
 }
 
 #[async_trait]
@@ -127,7 +120,7 @@ impl BaseMemory for DatabaseMemory {
 
     fn add_message(&mut self, message: langchain_rust::schemas::Message) {
         let pool = self.pool.clone();
-        let conversation_id = self.conversation_id.clone();
+        let conversation_id = self.conversation_id;
         // Store message in database
         tokio::spawn({
             let content = message.content;
@@ -226,8 +219,8 @@ impl ConversationManager {
         )
         .await?;
 
-        self.current_conversation = Some(id.clone());
-        Ok(id.clone())
+        self.current_conversation = Some(id);
+        Ok(id)
     }
 
     pub async fn add_message(
