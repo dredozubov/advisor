@@ -131,6 +131,7 @@ impl BaseMemory for DatabaseMemory {
 
     fn add_message(&mut self, message: langchain_rust::schemas::Message) {
         let pool = self.pool.clone();
+        let conversation_id = self.conversation_id.clone();
         // Store message in database
         tokio::spawn({
             let content = message.content;
@@ -146,7 +147,7 @@ impl BaseMemory for DatabaseMemory {
                     "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
                      VALUES ($1, $2, $3, $4, $5)",
                     Uuid::new_v4(),
-                    self.conversation_id,
+                    conversation_id,
                     role.to_string().to_lowercase(),
                     content,
                     serde_json::json!({})
@@ -157,14 +158,18 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        sqlx::query!(
-            "DELETE FROM conversation_messages WHERE conversation_id = $1",
-            self.conversation_id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+    fn clear(&mut self) {
+        tokio::task::block_in_place(|| {
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(async {
+                let _ = sqlx::query!(
+                    "DELETE FROM conversation_messages WHERE conversation_id = $1",
+                    self.conversation_id
+                )
+                .execute(&self.pool)
+                .await;
+            });
+        });
     }
 }
 
@@ -294,7 +299,7 @@ impl ConversationManager {
     pub async fn get_conversation(&self, id: &Uuid) -> Result<Option<Conversation>> {
         sqlx::query_as!(
             Conversation,
-            "SELECT id, title, summary, created_at, updated_at, tickers 
+            "SELECT id, summary, created_at, updated_at, tickers 
              FROM conversations WHERE id = $1",
             id
         )
