@@ -104,6 +104,7 @@ impl Display for MessageRole {
 pub struct DatabaseMemory {
     pool: PgPool,
     conversation_id: Uuid,
+    window_size: i64,
 }
 
 impl DatabaseMemory {

@@ -39,7 +39,7 @@ async fn initialize_vector_store(
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
-    let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
+    let pg_connection_string = "postgres://postgres:password@localhost:5432/advisor";
 
     let store = StoreBuilder::new()
         .embedder(embedder)
