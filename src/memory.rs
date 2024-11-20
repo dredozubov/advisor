@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use core::fmt;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
@@ -20,8 +20,8 @@ use std::{
 pub struct Conversation {
     pub id: Uuid,
     pub summary: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
     pub tickers: Vec<String>,
 }
 
@@ -31,7 +31,7 @@ pub struct Message {
     pub conversation_id: String,
     pub role: MessageRole,
     pub content: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
     pub metadata: Value,
 }
 
@@ -81,6 +81,17 @@ pub enum MessageRole {
     User,
     Assistant,
     System,
+}
+
+impl From<String> for MessageRole {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "user" => MessageRole::User,
+            "assistant" => MessageRole::Assistant,
+            "system" => MessageRole::System,
+            _ => MessageRole::User,
+        }
+    }
 }
 
 impl Display for MessageRole {
