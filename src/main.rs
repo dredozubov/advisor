@@ -15,12 +15,9 @@ use langchain_rust::memory::WindowBufferMemory;
 use langchain_rust::vectorstore::pgvector::StoreBuilder;
 use langchain_rust::{chain::ConversationalChain, vectorstore::VectorStore};
 use rustyline::error::ReadlineError;
-use std::{
-    env, fs,
-    str::FromStr,
-    sync::{Arc, RwLock},
-};
+use std::{env, fs, str::FromStr, sync::Arc};
 use std::{error::Error, io::Write};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
@@ -93,7 +90,7 @@ async fn handle_command(
             let summary = format!("New conversation about: {}", tickers.join(", "));
             let conv_id = conversation_manager
                 .write()
-                .unwrap()
+                .await
                 .create_conversation(summary, tickers)
                 .await?;
 
@@ -102,7 +99,7 @@ async fn handle_command(
         "/list" => {
             let conversations = conversation_manager
                 .read()
-                .unwrap()
+                .await
                 .list_conversations()
                 .await?;
             for conv in conversations {
@@ -119,7 +116,7 @@ async fn handle_command(
             let uuid = Uuid::from_str(&id)?;
             conversation_manager
                 .write()
-                .unwrap()
+                .await
                 .switch_conversation(&uuid)
                 .await?;
         }
@@ -180,7 +177,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let current_conv = conversation_manager
             .read()
-            .unwrap()
+            .await
             .get_current_conversation_details()
             .await?;
         let prompt = get_prompt(
@@ -225,7 +222,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Ok((mut stream, new_summary)) => {
                             conversation_manager
                                 .write()
-                                .unwrap()
+                                .await
                                 .update_summary(&conv.id, new_summary)
                                 .await?;
 
