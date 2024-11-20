@@ -469,7 +469,7 @@ pub async fn eval(
     let conversation_id = conversation.id.clone();
     let query = query.clone();
     let summary = summary.clone();
-    let conversation_manager = Arc::new(conversation_manager.clone());
+    let conversation_manager = Arc::new(conversation_manager.to_owned());
     let conversation_manager_clone = Arc::clone(&conversation_manager);
 
     let summary_clone = summary.clone();

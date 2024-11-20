@@ -30,13 +30,11 @@ pub struct Message {
     pub metadata: Value,
 }
 
+#[derive(Debug)]
 pub struct ConversationChainManager {
     pool: PgPool,
     chains: HashMap<String, ConversationalChain>,
 }
-
-#[derive(Debug, Clone)]
-pub struct ConversationChainManagerRef(Arc<ConversationChainManager>);
 
 impl ConversationChainManager {
     pub fn new(pool: PgPool) -> Self {
@@ -56,7 +54,7 @@ impl ConversationChainManager {
             // Create database-backed memory
             let memory = DatabaseMemory::new(
                 self.pool.clone(),
-                conversation_id,
+                *conversation_id,
                 10, // window size
             );
 
@@ -150,7 +148,7 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) {
+    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
