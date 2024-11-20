@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use core::fmt;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     llm::{OpenAI, OpenAIConfig},
@@ -9,7 +10,11 @@ use langchain_rust::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPool, types::Uuid};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conversation {
@@ -30,7 +35,6 @@ pub struct Message {
     pub metadata: Value,
 }
 
-#[derive(Debug)]
 pub struct ConversationChainManager {
     pool: PgPool,
     chains: HashMap<String, ConversationalChain>,
@@ -79,6 +83,12 @@ pub enum MessageRole {
     System,
 }
 
+impl Display for MessageRole {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 // Database-backed memory implementation
 pub struct DatabaseMemory {
     pool: PgPool,
@@ -121,9 +131,9 @@ impl BaseMemory for DatabaseMemory {
     }
 
     fn add_message(&mut self, message: langchain_rust::schemas::Message) {
+        let pool = self.pool.clone();
         // Store message in database
         tokio::spawn({
-            let pool = self.pool.clone();
             let content = message.content;
             let role = match message.message_type {
                 langchain_rust::schemas::MessageType::HumanMessage => MessageRole::User,
@@ -254,7 +264,7 @@ impl ConversationManager {
             SELECT 
                 id,
                 conversation_id,
-                role as "role: MessageRole",
+                role,
                 content,
                 created_at,
                 metadata
