@@ -118,7 +118,6 @@ impl DatabaseMemory {
             MessageRole::User => MessageRole::User,
             MessageRole::Assistant => MessageRole::Assistant,
             MessageRole::System => MessageRole::System,
-            _ => MessageRole::User, // Default to user for unknown roles
         }
     }
 }
@@ -158,7 +157,7 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
