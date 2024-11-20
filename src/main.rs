@@ -173,7 +173,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    let conversation_manager = Arc::new(RwLock::new(conversation_manager));
+    let conversation_manager = Arc::new(conversation_manager);
+    let conversation_manager = Arc::new(RwLock::new(Arc::clone(&conversation_manager)));
 
     loop {
         let current_conv = conversation_manager
@@ -211,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &query_chain,
                         store.as_ref(),
                         &pg_pool,
-                        conversation_manager.clone(),
+                        Arc::clone(&conversation_manager),
                     )
                     .await
                     {
