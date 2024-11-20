@@ -162,6 +162,7 @@ impl BaseMemory for DatabaseMemory {
     }
 }
 
+#[derive(Clone)]
 pub struct ConversationManager {
     pool: PgPool,
     current_conversation: Option<Uuid>,
