@@ -1,4 +1,12 @@
-use advisor::{db, edgar::filing, eval, memory::ConversationManager, repl, utils::dirs};
+use advisor::{
+    db, edgar::filing, eval, memory::{ConversationManager, ConversationChainManager}, 
+    repl::{self, EditorWithHistory}, utils::dirs
+};
+use dotenv::dotenv;
+use langchain_rust::{
+    chain::ConversationalChain,
+    vectorstore::VectorStore,
+};
 use colored::*;
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
@@ -11,11 +19,11 @@ use std::{env, fs};
 use std::{error::Error, io::Write};
 
 async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
-    let openai_key = env::var("OPENAI_KEY").map_err(|_| {
-        eprintln!("OPENAI_KEY environment variable not set");
-        eprintln!("Please run the program with:");
-        eprintln!("OPENAI_KEY=your-key-here cargo run");
-        std::process::exit(1);
+    let openai_key = env::var("OPENAI_KEY").map_err(|_| -> Box<dyn Error> {
+        Box::new(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "OPENAI_KEY environment variable not set. Please run with: OPENAI_KEY=your-key-here cargo run"
+        ))
     })?;
 
     let llm = OpenAI::default()

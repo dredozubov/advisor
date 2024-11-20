@@ -495,39 +495,6 @@ pub async fn eval(
     Ok((stream, summary))
 }
 
-async fn collect_stream(
-    mut stream: impl Stream<Item = Result<String, Box<dyn std::error::Error + Send + Sync>>> + Unpin,
-) -> Result<String> {
-    let mut content = String::new();
-    while let Some(chunk) = stream.next().await {
-        content.push_str(&chunk.map_err(|e| anyhow!(e.to_string()))?);
-    }
-    Ok(content)
-}
-
-async fn build_conversation_context(
-    conversation: &Conversation,
-    conversation_manager: &ConversationManager,
-) -> Result<String> {
-    let messages = conversation_manager
-        .get_conversation_messages(&conversation.id, 10)
-        .await?;
-
-    let context = messages
-        .into_iter()
-        .map(|msg| match msg.role {
-            MessageRole::User => format!("User: {}", msg.content),
-            MessageRole::Assistant => format!("Assistant: {}", msg.content),
-            MessageRole::System => format!("System: {}", msg.content),
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    Ok(format!(
-        "Conversation History:\n{}\n\nCurrent Summary: {}",
-        context, conversation.summary
-    ))
-}
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,

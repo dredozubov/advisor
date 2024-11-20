@@ -104,7 +104,6 @@ impl Display for MessageRole {
 pub struct DatabaseMemory {
     pool: PgPool,
     conversation_id: Uuid,
-    window_size: i64,
 }
 
 impl DatabaseMemory {
@@ -116,21 +115,6 @@ impl DatabaseMemory {
         }
     }
 
-    fn convert_role(role: MessageRole) -> MessageRole {
-        match role {
-            MessageRole::User => MessageRole::User,
-            MessageRole::Assistant => MessageRole::Assistant,
-            MessageRole::System => MessageRole::System,
-        }
-    }
-
-    fn convert_chat_role(role: MessageRole) -> MessageRole {
-        match role {
-            MessageRole::User => MessageRole::User,
-            MessageRole::Assistant => MessageRole::Assistant,
-            MessageRole::System => MessageRole::System,
-        }
-    }
 }
 
 #[async_trait]
