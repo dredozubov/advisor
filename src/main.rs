@@ -1,11 +1,10 @@
 use advisor::{
-    db, edgar::filing, eval, memory::{ConversationManager, ConversationChainManager}, 
-    repl::{self, EditorWithHistory}, utils::dirs
-};
-use dotenv::dotenv;
-use langchain_rust::{
-    chain::ConversationalChain,
-    vectorstore::VectorStore,
+    db,
+    edgar::filing,
+    eval,
+    memory::{ConversationChainManager, ConversationManager},
+    repl::{self, EditorWithHistory},
+    utils::dirs,
 };
 use colored::*;
 use futures::StreamExt;
@@ -14,9 +13,15 @@ use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::memory::WindowBufferMemory;
 use langchain_rust::vectorstore::pgvector::StoreBuilder;
+use langchain_rust::{chain::ConversationalChain, vectorstore::VectorStore};
 use rustyline::error::ReadlineError;
-use std::{env, fs};
+use std::{
+    env, fs,
+    str::FromStr,
+    sync::{Arc, Mutex, RwLock},
+};
 use std::{error::Error, io::Write};
+use uuid::Uuid;
 
 async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
     let openai_key = env::var("OPENAI_KEY").map_err(|_| -> Box<dyn Error> {
@@ -106,7 +111,8 @@ async fn handle_command(
         }
         "/switch" => {
             let id = rl.readline("Enter conversation ID: ")?;
-            conversation_manager.switch_conversation(id).await?;
+            let uuid = Uuid::from_str(&id)?;
+            conversation_manager.switch_conversation(&uuid).await?;
         }
         _ => {}
     }
@@ -115,7 +121,7 @@ async fn handle_command(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    dotenv().ok();
+    dotenv::dotenv().ok();
     env_logger::init();
     log::debug!("Logger initialized");
 
@@ -123,10 +129,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let store = initialize_vector_store(openai_key).await?;
 
-    let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
+    let pg_connection_string = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
     let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
-        .connect(pg_connection_string)
+        .connect(&pg_connection_string[..])
         .await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
@@ -156,6 +163,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
+    let conversation_manager = Arc::new(RwLock::new(conversation_manager));
+
     loop {
         let current_conv = conversation_manager
             .get_current_conversation_details()
@@ -182,10 +191,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 if let Some(conv) = current_conv {
-                    let chain = chain_manager
-                        .get_or_create_chain(&conv.id, llm.clone())
-                        .await?;
-
                     match eval::eval(
                         input,
                         &conv,
@@ -194,12 +199,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &query_chain,
                         store.as_ref(),
                         &pg_pool,
-                        &conversation_manager,
+                        Arc::clone(&conversation_manager),
                     )
                     .await
                     {
                         Ok((mut stream, new_summary)) => {
-                            conversation_manager
+                            Arc::clone(&conversation_manager)
+                                .lock()
+                                .await
                                 .update_summary(&conv.id, new_summary)
                                 .await?;
 
