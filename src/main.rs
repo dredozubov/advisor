@@ -11,6 +11,7 @@ use std::{error::Error, io::Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
     // Initialize the logger.
     env_logger::init();
     log::debug!("Logger initialized");
@@ -137,7 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         chain_manager
                             .get_or_create_chain(&conv_id, llm.clone())
                             .await?;
-                    }
+                    },
                     "/list" => {
                         let conversations = conversation_manager.list_conversations().await?;
                         for conv in conversations {
@@ -148,11 +149,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 conv.tickers.join(", ").yellow()
                             );
                         }
-                    }
+                    },
                     "/switch" => {
                         let id = rl.readline("Enter conversation ID: ")?;
                         conversation_manager.switch_conversation(id).await?;
-                    }
+                    },
                     "quit" => break,
                     _ => {
                         if let Some(conv) = current_conv {
@@ -161,47 +162,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 .get_or_create_chain(&conv.id, llm.clone())
                                 .await?;
 
-                            match eval::eval(
+                            let eval_result = eval::eval(
                                 input,
                                 &conv,
                                 &http_client,
-                                chain,
-                                chain,
+                                stream_chain,
+                                query_chain,
                                 &store,
                                 &pg_pool,
                                 &conversation_manager,
-                            )
-                            .await
-                {
-                    Ok((mut stream, new_summary)) => {
-                        conversation_manager
-                            .update_summary(&conv.id, new_summary)
-                            .await?;
-                        while let Some(chunk) = stream.next().await {
-                            match chunk {
-                                Ok(c) => {
-                                    print!("{}", c);
-                                    std::io::stdout().flush()?;
-                                }
-                                Err(e) => {
-                                    eprintln!("\nStream error: {}", e);
-                                    break;
-                                }
+                            );
+                            match eval_result {
+                                Ok((mut stream, new_summary)) => {
+                                    conversation_manager
+                                        .update_summary(&conv.id, new_summary)
+                                        .await?;
+                                    while let Some(chunk) = stream.next().await {
+                                        match chunk {
+                                            Ok(c) => {
+                                                print!("{}", c);
+                                                std::io::stdout().flush()?;
+                                            }
+                                            Err(e) => {
+                                                eprintln!("\nStream error: {}", e);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    println!(); // Add newline after stream ends
+                                },
+                                Err(e) => eprintln!("Error: {}", e),
                             }
                         }
-                        println!(); // Add newline after stream ends
                     }
-                    Err(e) => eprintln!("Error: {}", e),
-                }
-            }
+            },
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 break;
-            }
+            },
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 break;
-            }
+            },
             Err(err) => {
                 println!("Error: {:?}", err);
                 break;
