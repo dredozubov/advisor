@@ -93,13 +93,19 @@ async fn handle_command(
                 .collect();
             let summary = format!("New conversation about: {}", tickers.join(", "));
             let conv_id = conversation_manager
+                .write()
+                .unwrap()
                 .create_conversation(summary, tickers)
                 .await?;
 
             chain_manager.get_or_create_chain(&conv_id, llm).await?;
         }
         "/list" => {
-            let conversations = conversation_manager.list_conversations().await?;
+            let conversations = conversation_manager
+                .read()
+                .unwrap()
+                .list_conversations()
+                .await?;
             for conv in conversations {
                 println!(
                     "{}: {} [{}]\n",
@@ -112,7 +118,11 @@ async fn handle_command(
         "/switch" => {
             let id = rl.readline("Enter conversation ID: ")?;
             let uuid = Uuid::from_str(&id)?;
-            conversation_manager.switch_conversation(&uuid).await?;
+            conversation_manager
+                .write()
+                .unwrap()
+                .switch_conversation(&uuid)
+                .await?;
         }
         _ => {}
     }
@@ -168,7 +178,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let current_conv = conversation_manager
             .read()
-            .await
+            .unwrap()
             .get_current_conversation_details()
             .await?;
         let prompt = get_prompt(&current_conv.map(|c| c.summary.clone()).unwrap_or_default());
@@ -201,14 +211,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &query_chain,
                         store.as_ref(),
                         &pg_pool,
-                        Arc::clone(&conversation_manager),
+                        conversation_manager.clone(),
                     )
                     .await
                     {
                         Ok((mut stream, new_summary)) => {
                             conversation_manager
                                 .write()
-                                .await
+                                .unwrap()
                                 .update_summary(&conv.id, new_summary)
                                 .await?;
 
