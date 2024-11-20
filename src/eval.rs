@@ -12,6 +12,7 @@ use langchain_rust::{chain::Chain, prompt_args};
 use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 async fn process_documents(
     query: &Query,
@@ -468,15 +469,17 @@ pub async fn eval(
     let conversation_id = conversation.id.clone();
     let query = query.clone();
     let summary = summary.clone();
-    let conversation_manager = conversation_manager.to_owned();
+    let conversation_manager = Arc::new(conversation_manager.clone().to_owned());
+    let conversation_manager_clone = Arc::clone(&conversation_manager);
 
     let summary_clone = summary.clone();
+
     tokio::spawn(async move {
         let mut response_content = String::new();
         while let Some(chunk) = rx.recv().await {
             response_content.push_str(&chunk);
         }
-        let _ = conversation_manager
+        let _ = conversation_manager_clone
             .add_message(
                 &conversation_id,
                 MessageRole::Assistant,

@@ -45,14 +45,14 @@ impl ConversationChainManager {
 
     pub async fn get_or_create_chain(
         &mut self,
-        conversation_id: &str,
+        conversation_id: Uuid,
         llm: OpenAI<OpenAIConfig>,
     ) -> Result<&ConversationalChain> {
-        if !self.chains.contains_key(conversation_id) {
+        if !self.chains.contains_key(&conversation_id) {
             // Create database-backed memory
             let memory = DatabaseMemory::new(
                 self.pool.clone(),
-                conversation_id.to_string(),
+                &conversation_id,
                 10, // window size
             );
 
@@ -65,7 +65,7 @@ impl ConversationChainManager {
             self.chains.insert(conversation_id.to_string(), chain);
         }
 
-        Ok(&self.chains[conversation_id])
+        Ok(&self.chains[&conversation_id])
     }
 }
 
@@ -85,7 +85,7 @@ pub struct DatabaseMemory {
 }
 
 impl DatabaseMemory {
-    pub fn new(pool: PgPool, conversation_id: Uuid, window_size: i64) -> Self {
+    pub fn new(pool: PgPool, conversation_id: &Uuid, window_size: i64) -> Self {
         Self {
             pool,
             conversation_id,
