@@ -89,10 +89,10 @@ pub struct DatabaseMemory {
 }
 
 impl DatabaseMemory {
-    pub fn new(pool: PgPool, conversation_id: &Uuid, window_size: i64) -> Self {
+    pub fn new(pool: PgPool, conversation_id: Uuid, window_size: i64) -> Self {
         Self {
             pool,
-            *conversation_id,
+            conversation_id,
             window_size,
         }
     }
