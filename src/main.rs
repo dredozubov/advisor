@@ -1,4 +1,5 @@
 use advisor::{db, edgar::filing, eval, memory::ConversationManager, repl, utils::dirs};
+use colored::*;
 use futures::StreamExt;
 use langchain_rust::chain::builder::ConversationalChainBuilder;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
@@ -20,16 +21,18 @@ async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn E
     let llm = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
-    
+
     Ok((llm, openai_key))
 }
 
-async fn initialize_vector_store(openai_key: String) -> Result<Box<dyn VectorStore>, Box<dyn Error>> {
+async fn initialize_vector_store(
+    openai_key: String,
+) -> Result<Box<dyn VectorStore>, Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
     let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
-    
+
     let store = StoreBuilder::new()
         .embedder(embedder)
         .connection_url(pg_connection_string)
@@ -38,11 +41,13 @@ async fn initialize_vector_store(openai_key: String) -> Result<Box<dyn VectorSto
         .vector_dimensions(1536)
         .build()
         .await?;
-        
+
     Ok(Box::new(store))
 }
 
-async fn initialize_chains(llm: OpenAI<OpenAIConfig>) -> Result<(ConversationalChain, ConversationalChain), Box<dyn Error>> {
+async fn initialize_chains(
+    llm: OpenAI<OpenAIConfig>,
+) -> Result<(ConversationalChain, ConversationalChain), Box<dyn Error>> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
@@ -78,10 +83,8 @@ async fn handle_command(
                 .create_conversation(summary, tickers)
                 .await?;
 
-            chain_manager
-                .get_or_create_chain(&conv_id, llm)
-                .await?;
-        },
+            chain_manager.get_or_create_chain(&conv_id, llm).await?;
+        }
         "/list" => {
             let conversations = conversation_manager.list_conversations().await?;
             for conv in conversations {
@@ -92,11 +95,11 @@ async fn handle_command(
                     conv.tickers.join(", ").yellow()
                 );
             }
-        },
+        }
         "/switch" => {
             let id = rl.readline("Enter conversation ID: ")?;
             conversation_manager.switch_conversation(id).await?;
-        },
+        }
         _ => {}
     }
     Ok(())
@@ -111,7 +114,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (llm, openai_key) = initialize_openai().await?;
 
     let store = initialize_vector_store(openai_key).await?;
-    
+
     let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
     let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
@@ -120,11 +123,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
-    
+
     let (stream_chain, query_chain) = initialize_chains(llm.clone()).await?;
 
     let mut rl = repl::create_editor().await?;
-    
+
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
@@ -136,23 +139,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut chain_manager = ConversationChainManager::new(pg_pool);
 
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
-        conversation_manager.switch_conversation(recent_conv.id).await?;
-        println!("Loaded most recent conversation: {}", recent_conv.summary.blue().bold());
+        conversation_manager
+            .switch_conversation(&recent_conv.id)
+            .await?;
+        println!(
+            "Loaded most recent conversation: {}",
+            recent_conv.summary.blue().bold()
+        );
     }
-    
+
     loop {
-        let current_conv = conversation_manager.get_current_conversation_details().await?;
+        let current_conv = conversation_manager
+            .get_current_conversation_details()
+            .await?;
         let prompt = get_prompt(&current_conv.map(|c| c.summary.clone()).unwrap_or_default());
-        
+
         match rl.readline(&prompt) {
             Ok(line) => {
                 let input = line.trim();
                 if input == "quit" {
                     break;
                 }
-                
+
                 if input.starts_with('/') {
-                    handle_command(input, &mut rl, &mut conversation_manager, &mut chain_manager, llm.clone()).await?;
+                    handle_command(
+                        input,
+                        &mut rl,
+                        &mut conversation_manager,
+                        &mut chain_manager,
+                        llm.clone(),
+                    )
+                    .await?;
                     continue;
                 }
 
@@ -170,12 +187,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         store.as_ref(),
                         &pg_pool,
                         &conversation_manager,
-                    ).await {
+                    )
+                    .await
+                    {
                         Ok((mut stream, new_summary)) => {
                             conversation_manager
                                 .update_summary(&conv.id, new_summary)
                                 .await?;
-                                
+
                             while let Some(chunk) = stream.next().await {
                                 match chunk {
                                     Ok(c) => {
@@ -211,8 +230,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-use colored::*;
 
 fn get_prompt(summary: &str) -> String {
     if summary.is_empty() {

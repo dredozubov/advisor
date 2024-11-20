@@ -421,7 +421,7 @@ pub async fn eval(
     query_chain: &ConversationalChain,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    conversation_manager: &ConversationManager,
+    conversation_manager: Arc<ConversationManager>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -469,8 +469,7 @@ pub async fn eval(
     let conversation_id = conversation.id.clone();
     let query = query.clone();
     let summary = summary.clone();
-    let conversation_manager = Arc::new(conversation_manager.to_owned());
-    let conversation_manager_clone = Arc::clone(&conversation_manager);
+    let conversation_manager = Arc::clone(&conversation_manager);
 
     let summary_clone = summary.clone();
 
@@ -479,7 +478,7 @@ pub async fn eval(
         while let Some(chunk) = rx.recv().await {
             response_content.push_str(&chunk);
         }
-        let _ = conversation_manager_clone
+        let _ = conversation_manager
             .add_message(
                 &conversation_id,
                 MessageRole::Assistant,
