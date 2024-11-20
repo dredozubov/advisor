@@ -40,19 +40,21 @@ impl ConversationChainManager {
         Self {
             pool,
             chains: HashMap::new(),
+            current_conversation: None,
         }
     }
 
     pub async fn get_or_create_chain(
         &mut self,
-        conversation_id: Uuid,
+        conversation_id: &Uuid,
         llm: OpenAI<OpenAIConfig>,
     ) -> Result<&ConversationalChain> {
-        if !self.chains.contains_key(&conversation_id) {
+        let id_str = conversation_id.to_string();
+        if !self.chains.contains_key(&id_str) {
             // Create database-backed memory
             let memory = DatabaseMemory::new(
                 self.pool.clone(),
-                &conversation_id,
+                conversation_id,
                 10, // window size
             );
 
@@ -62,10 +64,10 @@ impl ConversationChainManager {
                 .memory(Arc::new(tokio::sync::Mutex::new(memory)))
                 .build()?;
 
-            self.chains.insert(conversation_id.to_string(), chain);
+            self.chains.insert(id_str.clone(), chain);
         }
 
-        Ok(&self.chains[&conversation_id])
+        Ok(&self.chains[&id_str])
     }
 }
 
@@ -146,7 +148,7 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) {
+    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
