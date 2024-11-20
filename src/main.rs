@@ -9,38 +9,27 @@ use rustyline::error::ReadlineError;
 use std::{env, fs};
 use std::{error::Error, io::Write};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    dotenv().ok();
-    // Initialize the logger.
-    env_logger::init();
-    log::debug!("Logger initialized");
+async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
+    let openai_key = env::var("OPENAI_KEY").map_err(|_| {
+        eprintln!("OPENAI_KEY environment variable not set");
+        eprintln!("Please run the program with:");
+        eprintln!("OPENAI_KEY=your-key-here cargo run");
+        std::process::exit(1);
+    })?;
 
-    let openai_key = match env::var("OPENAI_KEY") {
-        Ok(key) => key,
-        Err(_) => {
-            eprintln!("OPENAI_KEY environment variable not set");
-            eprintln!("Please run the program with:");
-            eprintln!("OPENAI_KEY=your-key-here cargo run");
-            std::process::exit(1);
-        }
-    };
+    let llm = OpenAI::default()
+        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()))
+        .with_model(OpenAIModel::Gpt4oMini.to_string());
+    
+    Ok((llm, openai_key))
+}
 
-    // Initialize OpenAI embedder
+async fn initialize_vector_store(openai_key: String) -> Result<Box<dyn VectorStore>, Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()));
-
-    // Create separate memory buffers for each chain
-    let stream_memory = WindowBufferMemory::new(10);
-    let query_memory = WindowBufferMemory::new(10);
+        .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
     let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
-
-    let pg_pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(16)
-        .connect(pg_connection_string)
-        .await?;
-
+    
     let store = StoreBuilder::new()
         .embedder(embedder)
         .connection_url(pg_connection_string)
@@ -49,163 +38,165 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .vector_dimensions(1536)
         .build()
         .await?;
+        
+    Ok(Box::new(store))
+}
 
-    log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
-    fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
-    log::debug!("Data directory created successfully");
+async fn initialize_chains(llm: OpenAI<OpenAIConfig>) -> Result<(ConversationalChain, ConversationalChain), Box<dyn Error>> {
+    let stream_memory = WindowBufferMemory::new(10);
+    let query_memory = WindowBufferMemory::new(10);
 
-    // Initialize ChatGPT executor with API key from environment
-    log::debug!("Initializing OpenAI client");
-
-    let llm = OpenAI::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key))
-        .with_model(OpenAIModel::Gpt4oMini.to_string());
-    log::debug!("OpenAI client initialized successfully");
-
-    // Create two separate chains - one for streaming responses and one for query generation
-    // TODO: create the chain within at the invoke point.
     let stream_chain = ConversationalChainBuilder::new()
         .llm(llm.clone())
         .memory(stream_memory.into())
-        .build()
-        .expect("Error building streaming ConversationalChain");
+        .build()?;
 
     let query_chain = ConversationalChainBuilder::new()
         .llm(llm)
         .memory(query_memory.into())
-        .build()
-        .expect("Error building query ConversationalChain");
+        .build()?;
 
-    // Create a rustyline Editor
-    log::debug!("Creating rustyline editor");
+    Ok((stream_chain, query_chain))
+}
+
+async fn handle_command(
+    cmd: &str,
+    rl: &mut EditorWithHistory,
+    conversation_manager: &mut ConversationManager,
+    chain_manager: &mut ConversationChainManager,
+    llm: OpenAI<OpenAIConfig>,
+) -> Result<(), Box<dyn Error>> {
+    match cmd {
+        "/new" => {
+            let tickers = rl.readline("Enter tickers (comma-separated): ")?;
+            let tickers: Vec<String> = tickers
+                .split(',')
+                .map(|s| s.trim().to_uppercase())
+                .collect();
+            let summary = format!("New conversation about: {}", tickers.join(", "));
+            let conv_id = conversation_manager
+                .create_conversation(summary, tickers)
+                .await?;
+
+            chain_manager
+                .get_or_create_chain(&conv_id, llm)
+                .await?;
+        },
+        "/list" => {
+            let conversations = conversation_manager.list_conversations().await?;
+            for conv in conversations {
+                println!(
+                    "{}: {} [{}]\n",
+                    conv.id,
+                    conv.summary.blue().bold(),
+                    conv.tickers.join(", ").yellow()
+                );
+            }
+        },
+        "/switch" => {
+            let id = rl.readline("Enter conversation ID: ")?;
+            conversation_manager.switch_conversation(id).await?;
+        },
+        _ => {}
+    }
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    dotenv().ok();
+    env_logger::init();
+    log::debug!("Logger initialized");
+
+    let (llm, openai_key) = initialize_openai().await?;
+
+    let store = initialize_vector_store(openai_key).await?;
+    
+    let pg_connection_string = "postgres://postgres:postgres@localhost:5432/advisor";
+    let pg_pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(16)
+        .connect(pg_connection_string)
+        .await?;
+
+    log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
+    fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
+    
+    let (stream_chain, query_chain) = initialize_chains(llm.clone()).await?;
+
     let mut rl = repl::create_editor().await?;
-    log::debug!("Rustyline editor created successfully");
-
-    // You can also include timeouts and other settings
-    log::debug!("Building HTTP client");
+    
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
-        .build()
-        .expect("Failed to create client");
-    log::debug!("HTTP client built successfully");
+        .build()?;
 
-    log::debug!("Starting REPL loop");
     println!("Enter 'quit' to exit");
     let mut conversation_manager = ConversationManager::new(pg_pool.clone());
-    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
+    let mut chain_manager = ConversationChainManager::new(pg_pool);
 
-    // Load most recent conversation on startup
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager.switch_conversation(recent_conv.id).await?;
-        println!(
-            "Loaded most recent conversation: {}",
-            recent_conv.summary.blue().bold()
-        );
+        println!("Loaded most recent conversation: {}", recent_conv.summary.blue().bold());
     }
     
     loop {
         let current_conv = conversation_manager.get_current_conversation_details().await?;
+        let prompt = get_prompt(&current_conv.map(|c| c.summary.clone()).unwrap_or_default());
         
-        let prompt = match &current_conv {
-            Some(conv) => {
-                format!(
-                    "[{}] {}",
-                    conv.summary.blue().bold(),
-                    ">".green().bold()
-                )
-            }
-            None => format!("{}", "[No conversation] >".green().bold()),
-        };
-        let readline = rl.readline(&prompt);
-        match readline {
+        match rl.readline(&prompt) {
             Ok(line) => {
                 let input = line.trim();
-                match input {
-                    "/new" => {
-                        let tickers = rl.readline("Enter tickers (comma-separated): ")?;
-                        let tickers: Vec<String> = tickers
-                            .split(',')
-                            .map(|s| s.trim().to_uppercase())
-                            .collect();
-                        let summary = format!("New conversation about: {}", tickers.join(", "));
-                        let conv_id = conversation_manager
-                            .create_conversation(summary, tickers)
-                            .await?;
-            
-                        // Initialize chain for new conversation
-                        chain_manager
-                            .get_or_create_chain(&conv_id, llm.clone())
-                            .await?;
-                    },
-                    "/list" => {
-                        let conversations = conversation_manager.list_conversations().await?;
-                        for conv in conversations {
-                            println!(
-                                "{}: {} [{}]\n",
-                                conv.id,
-                                conv.summary.blue().bold(),
-                                conv.tickers.join(", ").yellow()
-                            );
-                        }
-                    },
-                    "/switch" => {
-                        let id = rl.readline("Enter conversation ID: ")?;
-                        conversation_manager.switch_conversation(id).await?;
-                    },
-                    "quit" => break,
-                    _ => {
-                        if let Some(conv) = current_conv {
-                            // Get or create chain for current conversation
-                            let chain = chain_manager
-                                .get_or_create_chain(&conv.id, llm.clone())
-                                .await?;
+                if input == "quit" {
+                    break;
+                }
+                
+                if input.starts_with('/') {
+                    handle_command(input, &mut rl, &mut conversation_manager, &mut chain_manager, llm.clone()).await?;
+                    continue;
+                }
 
-                            let eval_result = eval::eval(
-                                input,
-                                &conv,
-                                &http_client,
-                                stream_chain,
-                                query_chain,
-                                &store,
-                                &pg_pool,
-                                &conversation_manager,
-                            );
-                            match eval_result {
-                                Ok((mut stream, new_summary)) => {
-                                    conversation_manager
-                                        .update_summary(&conv.id, new_summary)
-                                        .await?;
-                                    while let Some(chunk) = stream.next().await {
-                                        match chunk {
-                                            Ok(c) => {
-                                                print!("{}", c);
-                                                std::io::stdout().flush()?;
-                                            }
-                                            Err(e) => {
-                                                eprintln!("\nStream error: {}", e);
-                                                break;
-                                            }
-                                        }
+                if let Some(conv) = current_conv {
+                    let chain = chain_manager
+                        .get_or_create_chain(&conv.id, llm.clone())
+                        .await?;
+
+                    match eval::eval(
+                        input,
+                        &conv,
+                        &http_client,
+                        &stream_chain,
+                        &query_chain,
+                        store.as_ref(),
+                        &pg_pool,
+                        &conversation_manager,
+                    ).await {
+                        Ok((mut stream, new_summary)) => {
+                            conversation_manager
+                                .update_summary(&conv.id, new_summary)
+                                .await?;
+                                
+                            while let Some(chunk) = stream.next().await {
+                                match chunk {
+                                    Ok(c) => {
+                                        print!("{}", c);
+                                        std::io::stdout().flush()?;
                                     }
-                                    println!(); // Add newline after stream ends
-                                },
-                                Err(e) => eprintln!("Error: {}", e),
+                                    Err(e) => {
+                                        eprintln!("\nStream error: {}", e);
+                                        break;
+                                    }
+                                }
                             }
+                            println!();
                         }
+                        Err(e) => eprintln!("Error: {}", e),
                     }
-            },
-            Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
-            },
-            Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
-            },
+                }
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
             Err(err) => {
-                println!("Error: {:?}", err);
+                eprintln!("Error: {:?}", err);
                 break;
             }
         }
