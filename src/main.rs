@@ -173,6 +173,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
+    // Keep one Arc<ConversationManager> for eval
+    let conversation_manager_for_eval = Arc::new(conversation_manager.clone());
+    // And one Arc<RwLock<ConversationManager>> for thread-safe access
     let conversation_manager = Arc::new(RwLock::new(conversation_manager));
 
     loop {
@@ -211,7 +214,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &query_chain,
                         store.as_ref(),
                         &pg_pool,
-                        conversation_manager.clone(),
+                        conversation_manager_for_eval.clone(),
                     )
                     .await
                     {
