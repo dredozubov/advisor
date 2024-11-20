@@ -35,12 +35,14 @@ pub struct ConversationChainManager {
     chains: HashMap<String, ConversationalChain>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ConversationChainManagerRef(Arc<ConversationChainManager>);
+
 impl ConversationChainManager {
     pub fn new(pool: PgPool) -> Self {
         Self {
             pool,
             chains: HashMap::new(),
-            current_conversation: None,
         }
     }
 
@@ -90,7 +92,7 @@ impl DatabaseMemory {
     pub fn new(pool: PgPool, conversation_id: &Uuid, window_size: i64) -> Self {
         Self {
             pool,
-            conversation_id,
+            *conversation_id,
             window_size,
         }
     }
@@ -148,7 +150,7 @@ impl BaseMemory for DatabaseMemory {
         });
     }
 
-    async fn clear(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn clear(&mut self) {
         sqlx::query!(
             "DELETE FROM conversation_messages WHERE conversation_id = $1",
             self.conversation_id
@@ -240,7 +242,7 @@ impl ConversationManager {
         .execute(&self.pool)
         .await?;
 
-        Ok(id)
+        Ok(id.to_string())
     }
 
     pub async fn get_conversation_messages(
