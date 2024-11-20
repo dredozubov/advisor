@@ -40,15 +40,14 @@ async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn E
 
 async fn initialize_vector_store(
     openai_key: String,
+    pg_connection_string: String,
 ) -> Result<Box<dyn VectorStore>, Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
-    let pg_connection_string = "postgres://postgres:password@localhost:5432/advisor";
-
     let store = StoreBuilder::new()
         .embedder(embedder)
-        .connection_url(pg_connection_string)
+        .connection_url(&pg_connection_string[..])
         .collection_table_name(db::COLLECTIONS_TABLE)
         .embedder_table_name(db::EMBEDDER_TABLE)
         .vector_dimensions(1536)
@@ -137,9 +136,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let (llm, openai_key) = initialize_openai().await?;
 
-    let store = initialize_vector_store(openai_key).await?;
-
     let pg_connection_string = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+    let store = initialize_vector_store(openai_key, pg_connection_string.clone()).await?;
 
     let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
@@ -184,7 +183,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .get_current_conversation_details()
             .await?;
-        let prompt = get_prompt(&current_conv.clone().map(|c| c.summary.clone()).unwrap_or_default());
+        let prompt = get_prompt(
+            &current_conv
+                .clone()
+                .map(|c| c.summary.clone())
+                .unwrap_or_default(),
+        );
 
         match rl.readline(&prompt) {
             Ok(line) => {

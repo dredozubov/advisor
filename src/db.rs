@@ -33,10 +33,12 @@ pub async fn update_memory(pool: &Pool<Postgres>, file_path: &str, messages: &Va
 }
 
 pub async fn get_memory(pool: &Pool<Postgres>, file_path: &str) -> Result<Option<Value>> {
-    let result = query("SELECT messages FROM memory WHERE file_path = $1")
+    let result: Option<(Value,)> = query_as("SELECT messages FROM memory WHERE file_path = $1")
         .bind(file_path)
         .fetch_optional(pool)
         .await?;
-
-    Ok(result.map(|r| r.0))
+    match result {
+        Some(row) => Ok(Some(row.0)),
+        None => Ok(None),
+    }
 }

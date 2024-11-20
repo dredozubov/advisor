@@ -5,7 +5,7 @@ use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
@@ -466,7 +466,7 @@ pub async fn eval(
     ));
 
     // Spawn task to collect and store complete response
-    let conversation_id = conversation.id.clone();
+    let conversation_id = conversation.id;
     let query = query.clone();
     let summary = summary.clone();
     let conversation_manager = Arc::clone(&conversation_manager);
@@ -494,7 +494,6 @@ pub async fn eval(
 
     Ok((stream, summary))
 }
-
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
