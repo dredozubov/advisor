@@ -16,7 +16,7 @@ use std::{
 };
 use time::OffsetDateTime;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
     pub id: Uuid,
     pub summary: String,

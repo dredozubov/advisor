@@ -161,7 +161,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Enter 'quit' to exit");
     let mut conversation_manager = ConversationManager::new(pg_pool.clone());
-    let mut chain_manager = ConversationChainManager::new(pg_pool);
+    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager
@@ -184,7 +184,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .get_current_conversation_details()
             .await?;
-        let prompt = get_prompt(&current_conv.map(|c| c.summary.clone()).unwrap_or_default());
+        let prompt = get_prompt(&current_conv.clone().map(|c| c.summary.clone()).unwrap_or_default());
 
         match rl.readline(&prompt) {
             Ok(line) => {
