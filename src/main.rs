@@ -18,7 +18,7 @@ use rustyline::error::ReadlineError;
 use std::{
     env, fs,
     str::FromStr,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 use std::{error::Error, io::Write};
 use uuid::Uuid;
@@ -80,7 +80,7 @@ async fn initialize_chains(
 async fn handle_command(
     cmd: &str,
     rl: &mut EditorWithHistory,
-    conversation_manager: &mut ConversationManager,
+    conversation_manager: &Arc<RwLock<ConversationManager>>,
     chain_manager: &mut ConversationChainManager,
     llm: OpenAI<OpenAIConfig>,
 ) -> Result<(), Box<dyn Error>> {
@@ -167,6 +167,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         let current_conv = conversation_manager
+            .read()
+            .await
             .get_current_conversation_details()
             .await?;
         let prompt = get_prompt(&current_conv.map(|c| c.summary.clone()).unwrap_or_default());
@@ -182,7 +184,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     handle_command(
                         input,
                         &mut rl,
-                        &mut conversation_manager,
+                        &conversation_manager,
                         &mut chain_manager,
                         llm.clone(),
                     )
@@ -204,8 +206,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .await
                     {
                         Ok((mut stream, new_summary)) => {
-                            Arc::clone(&conversation_manager)
-                                .lock()
+                            conversation_manager
+                                .write()
                                 .await
                                 .update_summary(&conv.id, new_summary)
                                 .await?;
