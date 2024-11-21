@@ -4,6 +4,8 @@ FROM rust:1.75-slim-bookworm
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    build-essential \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
