@@ -5,22 +5,33 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-      target: production
-    image: advisor:${VERSION:-latest}
+      target: development
+    volumes:
+      - .:/workspace:cached
+      - cargo-cache:/usr/local/cargo:delegated
+      - target-cache:/workspace/target:delegated
+    command: cargo watch -x run
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor_dev
+      - CARGO_TARGET_DIR=/workspace/target
+    ports:
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
 
   db:
     image: pgvector/pgvector:pg17
-    restart: always
+    ports:
+      - "5432:5432"
     environment:
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=advisor
+      - POSTGRES_DB=advisor_dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,6 +40,5 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   cargo-cache:
-    driver: local
+  target-cache:
