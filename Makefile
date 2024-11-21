@@ -23,3 +23,16 @@ logs:
 
 clean:
 	docker-compose down -v
+.PHONY: dev build test clean
+
+dev:
+	docker-compose up
+
+build:
+	docker-compose build
+
+test:
+	docker-compose run --rm app cargo test
+
+clean:
+	docker-compose down -v

@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    volumes:
+      - .:/workspace:cached
+      - cargo-cache:/usr/local/cargo
+    command: cargo watch -x run
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+
+volumes:
+  cargo-cache:

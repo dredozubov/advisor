@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: .docker/Dockerfile.dev
     environment:
-      - RUST_LOG=debug
-      - RUST_BACKTRACE=1
       - OPENAI_KEY=${OPENAI_KEY}
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
     depends_on:
@@ -32,3 +30,4 @@ services:
 
 volumes:
   postgres_data:
+  cargo-cache:

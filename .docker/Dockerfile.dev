@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3-pip \
     python3-venv \
+    g++ \
+    git \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /usr/local/aider-venv \
     && /usr/local/aider-venv/bin/pip install aider-chat
