@@ -5,21 +5,21 @@ services:
     build: 
       context: .
       dockerfile: .docker/Dockerfile.dev
+      target: base
     environment:
-      - OPENAI_KEY=${OPENAI_KEY}
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
     depends_on:
       db:
         condition: service_healthy
+    secrets:
+      - openai_key
 
   db:
     image: pgvector/pgvector:pg17
     restart: always
-    ports:
-      - "5432:5432" 
     environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=advisor
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: advisor
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -31,3 +31,9 @@ services:
 volumes:
   postgres_data:
   cargo-cache:
+
+secrets:
+  openai_key:
+    file: .secrets/openai_key.txt
+  db_password:
+    file: .secrets/db_password.txt

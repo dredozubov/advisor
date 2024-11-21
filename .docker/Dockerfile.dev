@@ -1,13 +1,18 @@
-FROM rust:1.75-slim-bookworm
+FROM rust:1.75-slim-bookworm as base
 
-# Install system dependencies
+# Common base layer
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     build-essential \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Development layer
+FROM base as dev
+RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
-    g++ \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -19,53 +24,25 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Set up cargo environment and fix permissions
-ENV CARGO_HOME=/usr/local/cargo
-ENV RUSTUP_HOME=/usr/local/rustup
-ENV PATH=/usr/local/cargo/bin:$PATH
+ENV CARGO_HOME=/usr/local/cargo \
+    RUSTUP_HOME=/usr/local/rustup \
+    PATH=/usr/local/cargo/bin:$PATH
 
-# Create user and set permissions
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && mkdir -p /usr/local/cargo /workspace/src \
+    && mkdir -p /usr/local/cargo /workspace \
     && chown -R $USERNAME:$USERNAME /usr/local/cargo /workspace \
-    && chmod -R 777 /usr/local/cargo
+    && chmod -R g+w /usr/local/cargo
 
 USER $USERNAME
 WORKDIR /workspace
 
-# Copy project files with correct ownership
-COPY --chown=$USERNAME:$USERNAME Cargo.toml Cargo.lock ./
+# Pre-build dependencies
+COPY --chown=$USERNAME:$USERNAME Cargo.* ./
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build && \
+    rm -rf src target
 
-# Create minimal project structure and build dependencies
-RUN mkdir -p src && echo 'fn main() { println!("Hello, world!"); }' > src/main.rs \
-    && cargo build \
-    && rm -rf src \
-    && cargo install cargo-watch cargo-edit cargo-audit
-
-CMD ["cargo", "run"]FROM rust:1.75-slim-bookworm
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -m -s /bin/bash vscode \
-    && mkdir -p /workspace \
-    && chown -R vscode:vscode /workspace
-
-# Set up cargo permissions
-RUN mkdir -p /usr/local/cargo \
-    && chown -R vscode:vscode /usr/local/cargo \
-    && chmod -R 775 /usr/local/cargo
-
-# Set cargo env vars
-ENV CARGO_HOME=/usr/local/cargo
-ENV RUSTUP_HOME=/usr/local/rustup
-ENV PATH=/usr/local/cargo/bin:$PATH
-
-# Switch to non-root user
-USER vscode
-WORKDIR /workspace
+# Install development tools
+RUN cargo install cargo-watch cargo-edit cargo-audit
