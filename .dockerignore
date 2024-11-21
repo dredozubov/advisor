@@ -1,9 +1,53 @@
-target/
-.git/
+# Version control
+.git
 .gitignore
-.env
-*.md
+.gitattributes
+
+# Build artifacts
+target/
+**/target/
+**/*.rs.bk
+
+# Development environment
+.env*
 .vscode/
 .idea/
+*.iml
 .devcontainer/
+
+# Documentation
+README.md
+CHANGELOG.md
+docs/
+*.md
+
+# Test files
+tests/
+**/tests/
+**/*_test.rs
+**/*.test.rs
+
+# Temporary files
+**/*.swp
+**/*.swo
+*~
+
+# Docker files
+Dockerfile*
 docker-compose*.yml
+.docker/
+
+# Secrets and credentials
+.secrets/
+*.pem
+*.key
+*.cert
+
+# Debug files
+*.log
+*.prof
+*.trace
+
+# OS specific
+.DS_Store
+Thumbs.db

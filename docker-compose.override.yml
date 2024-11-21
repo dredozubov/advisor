@@ -2,17 +2,38 @@ version: '3.8'
 
 services:
   app:
+    build:
+      target: development
     volumes:
       - .:/workspace:cached
-      - cargo-cache:/usr/local/cargo
+      - cargo-cache:/usr/local/cargo:delegated
+      - target-cache:/workspace/target:delegated
     command: cargo watch -x run
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
-      - RUST_BACKTRACE=1
+      - CARGO_TARGET_DIR=/workspace/target
     ports:
       - "3000:3000"
-    working_dir: /workspace
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_PTRACE
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  db:
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=advisor_dev
 
 volumes:
-  cargo-cache:
+  target-cache:
+    driver: local

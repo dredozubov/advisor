@@ -4,8 +4,9 @@ services:
   app:
     build: 
       context: .
-      dockerfile: .docker/Dockerfile.dev
-      target: base
+      dockerfile: Dockerfile
+      target: production
+    image: advisor:${VERSION:-latest}
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
     depends_on:
@@ -13,6 +14,12 @@ services:
         condition: service_healthy
     secrets:
       - openai_key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 40s
 
   db:
     image: pgvector/pgvector:pg17
@@ -22,15 +29,20 @@ services:
       POSTGRES_DB: advisor
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+    secrets:
+      - db_password
 
 volumes:
   postgres_data:
+    driver: local
   cargo-cache:
+    driver: local
 
 secrets:
   openai_key:
