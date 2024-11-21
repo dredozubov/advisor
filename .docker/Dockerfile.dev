@@ -45,4 +45,4 @@ RUN mkdir src && \
     rm -rf src target
 
 # Install development tools
-RUN cargo install cargo-watch cargo-edit cargo-audit
+RUN rustup component add clippy && cargo install cargo-watch cargo-edit cargo-audit

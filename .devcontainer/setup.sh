@@ -11,4 +11,7 @@ cargo install --list | grep -q "^cargo-watch" || cargo install cargo-watch
 cargo install --list | grep -q "^cargo-edit" || cargo install cargo-edit
 cargo install --list | grep -q "^cargo-audit" || cargo install cargo-audit
 
+# Fix permissions for target directory
+sudo chown -R vscode:vscode /workspace/target
+
 echo "Development environment setup complete!"
