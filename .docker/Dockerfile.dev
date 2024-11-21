@@ -6,8 +6,10 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     build-essential \
     python3-pip \
-    && pip3 install aider-chat \
-    && rm -rf /var/lib/apt/lists/*
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /usr/local/aider-venv \
+    && /usr/local/aider-venv/bin/pip install aider-chat
 
 # Create non-root user
 ARG USERNAME=vscode
