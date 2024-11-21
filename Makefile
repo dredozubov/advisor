@@ -1,4 +1,4 @@
-.PHONY: up down build shell test watch
+.PHONY: up down build shell test watch logs clean dev
 
 up:
 	docker-compose up -d
@@ -21,18 +21,8 @@ watch:
 logs:
 	docker-compose logs -f
 
-clean:
-	docker-compose down -v
-.PHONY: dev build test clean
-
 dev:
 	docker-compose up
-
-build:
-	docker-compose build
-
-test:
-	docker-compose run --rm app cargo test
 
 clean:
 	docker-compose down -v

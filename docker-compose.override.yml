@@ -9,6 +9,10 @@ services:
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
+      - RUST_BACKTRACE=1
+    ports:
+      - "3000:3000"
+    working_dir: /workspace
 
 volumes:
   cargo-cache:
