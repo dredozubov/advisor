@@ -34,5 +34,5 @@
         "ghcr.io/devcontainers/features/git:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {}
     },
-    "postCreateCommand": "sudo chown -R vscode:vscode /usr/local/cargo && cargo build --release && echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.bashrc"
+    "postCreateCommand": "sudo chown -R vscode:vscode /usr/local/cargo && cargo build --release && if [ -n \"$SHELL\" ]; then case \"$SHELL\" in */bash) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.bashrc ;; */zsh) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.zshrc ;; esac; fi"
 }
