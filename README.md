@@ -1,6 +1,9 @@
-# Financial Document Advisor
+# (Not an) Advisor
 
 An AI-powered financial document analysis tool that helps analyze SEC filings and earnings transcripts.
+
+**Full disclaimer: ** this software is a tool to help you assess the documents and access Large Language Models (LLMs). It's not qualified to give you a financial advise, may produce mistakes, and it's not a financial advisor. Neither this software, nor its developers are not liable for your financial decisions and analysis.
+
 
 ## Development Setup
 
