@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
       target: development
@@ -14,7 +14,7 @@ services:
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor_dev
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/advisor
       - CARGO_TARGET_DIR=/workspace/target
     ports:
       - "3000:3000"
@@ -28,7 +28,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=advisor_dev
+      - POSTGRES_DB=advisor
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db:/docker-entrypoint-initdb.d:ro

@@ -40,5 +40,5 @@
         "ghcr.io/devcontainers/features/git:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {}
     },
-    "postCreateCommand": "sudo chown -R vscode:vscode /usr/local/cargo && cargo build --release && if [ -n \"$SHELL\" ]; then case \"$SHELL\" in */bash) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.bashrc ;; */zsh) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.zshrc ;; esac; fi && sudo chsh -s /bin/zsh vscode"
+    "postCreateCommand": "sudo chown -R vscode:vscode /workspace /usr/local/cargo && cargo check && if -n \"$SHELL\" ]; then case \"$SHELL\" in */bash) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.bashrc ;; */zsh) echo 'source /workspace/.devcontainer/aliases.sh' >> ~/.zshrc ;; esac; fi && sudo chsh - /bin/zsh vscode"
 }

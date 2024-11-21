@@ -36,7 +36,7 @@ services:
       - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=advisor_dev
+      - POSTGRES_DB=advisor
 
 volumes:
   target-cache:
