@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 
 # 1. Base stage - Common dependencies
-FROM rust:1.75-slim-bookworm as base
+FROM rust:1.81-slim-bookworm as base
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -56,7 +56,7 @@ USER $USERNAME
 WORKDIR /workspace
 
 # Install development tools
-RUN cargo install cargo-watch cargo-edit cargo-audit cargo-deny cargo-outdated
+RUN cargo install cargo-watch cargo-edit cargo-audit cargo-deny cargo-outdated sqlx
 
 # 5. Production stage
 FROM debian:bookworm-slim as production
