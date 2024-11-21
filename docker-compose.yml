@@ -12,40 +12,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    secrets:
-      - openai_key
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 30s
-      retries: 3
-      start_period: 40s
 
   db:
     image: pgvector/pgvector:pg17
     restart: always
     environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      POSTGRES_DB: advisor
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=advisor
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-    secrets:
-      - db_password
 
 volumes:
   postgres_data:
     driver: local
   cargo-cache:
     driver: local
-
-secrets:
-  openai_key:
-    file: .secrets/openai_key.txt
-  db_password:
-    file: .secrets/db_password.txt
