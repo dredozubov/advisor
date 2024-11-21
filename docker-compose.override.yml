@@ -13,6 +13,10 @@ services:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
       - CARGO_TARGET_DIR=/workspace/target
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_KEY=${OPENAI_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     ports:
       - "3000:3000"
     security_opt:
