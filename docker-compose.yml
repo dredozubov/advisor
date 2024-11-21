@@ -4,7 +4,7 @@ services:
   app:
     build: 
       context: .
-      dockerfile: .docker/Dockerfile.prod
+      dockerfile: .docker/Dockerfile.dev
     environment:
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
