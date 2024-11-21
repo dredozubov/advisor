@@ -151,12 +151,7 @@ impl BaseMemory for DatabaseMemory {
         tokio::task::block_in_place(|| {
             let rt = tokio::runtime::Handle::current();
             rt.block_on(async {
-                let _ = sqlx::query!(
-                    "DELETE FROM conversation_messages WHERE conversation_id = $1",
-                    self.conversation_id
-                )
-                .execute(&self.pool)
-                .await;
+                let _ = crate::db::clear_conversation_messages(&self.pool, &self.conversation_id).await;
             });
         });
     }
@@ -177,16 +172,7 @@ impl ConversationManager {
     }
 
     pub async fn get_most_recent_conversation(&self) -> Result<Option<Conversation>> {
-        sqlx::query_as!(
-            Conversation,
-            "SELECT id, summary, created_at, updated_at, tickers 
-             FROM conversations 
-             ORDER BY updated_at DESC 
-             LIMIT 1"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(Into::into)
+        crate::db::get_most_recent_conversation(&self.pool).await
     }
 
     pub async fn create_conversation(
@@ -194,16 +180,7 @@ impl ConversationManager {
         summary: String,
         tickers: Vec<String>,
     ) -> Result<Uuid> {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO conversations (id, summary, tickers, created_at, updated_at) 
-             VALUES ($1, $2, $3, NOW(), NOW())",
-            id,
-            summary,
-            &tickers
-        )
-        .execute(&self.pool)
-        .await?;
+        let id = crate::db::create_conversation(&self.pool, summary, tickers.clone()).await?;
 
         // Add initial system message
         let system_prompt = format!(
@@ -231,20 +208,7 @@ impl ConversationManager {
         content: String,
         metadata: Value,
     ) -> Result<String> {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO conversation_messages (id, conversation_id, role, content, metadata) 
-             VALUES ($1, $2, $3, $4, $5)",
-            id,
-            conversation_id,
-            role.to_string().to_lowercase(),
-            content,
-            metadata
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(id.to_string())
+        crate::db::add_message(&self.pool, conversation_id, role, content, metadata).await
     }
 
     pub async fn get_conversation_messages(
@@ -252,74 +216,24 @@ impl ConversationManager {
         conversation_id: &Uuid,
         limit: i64,
     ) -> Result<Vec<Message>> {
-        sqlx::query_as!(
-            Message,
-            r#"
-            SELECT 
-                id,
-                conversation_id,
-                role,
-                content,
-                created_at,
-                metadata
-            FROM conversation_messages 
-            WHERE conversation_id = $1 
-            ORDER BY created_at DESC 
-            LIMIT $2
-            "#,
-            conversation_id,
-            limit
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(Into::into)
+        crate::db::get_conversation_messages(&self.pool, conversation_id, limit).await
     }
 
     pub async fn update_summary(&mut self, id: &Uuid, summary: String) -> Result<()> {
-        sqlx::query!(
-            "UPDATE conversations SET summary = $1, updated_at = NOW() WHERE id = $2",
-            summary,
-            id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+        crate::db::update_conversation_summary(&self.pool, id, summary).await
     }
 
     pub async fn get_conversation(&self, id: &Uuid) -> Result<Option<Conversation>> {
-        sqlx::query_as!(
-            Conversation,
-            "SELECT id, summary, created_at, updated_at, tickers 
-             FROM conversations WHERE id = $1",
-            id
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(Into::into)
+        crate::db::get_conversation(&self.pool, id).await
     }
 
     pub async fn list_conversations(&self) -> Result<Vec<Conversation>> {
-        sqlx::query_as!(
-            Conversation,
-            "SELECT id, summary, created_at, updated_at, tickers 
-             FROM conversations 
-             ORDER BY updated_at DESC"
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(Into::into)
+        crate::db::list_conversations(&self.pool).await
     }
 
     pub async fn switch_conversation(&mut self, id: &Uuid) -> Result<()> {
         if self.get_conversation(id).await?.is_some() {
-            // Update the updated_at timestamp when switching
-            sqlx::query!(
-                "UPDATE conversations SET updated_at = NOW() WHERE id = $1",
-                id
-            )
-            .execute(&self.pool)
-            .await?;
-
+            crate::db::update_conversation_timestamp(&self.pool, id).await?;
             self.current_conversation = Some(*id);
             Ok(())
         } else {
