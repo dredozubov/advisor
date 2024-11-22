@@ -256,7 +256,115 @@ pub struct CompanyFilings {
     pub filings: FilingsData,
 }
 
-pub async fn get_company_filings(
+async fn fetch_filing_page(
+    client: &Client,
+    url: &str,
+    filepath: &Path,
+) -> Result<()> {
+    match fetch_and_save(
+        client,
+        &Url::parse(url)?,
+        filepath,
+        USER_AGENT,
+        APPLICATION_JSON,
+        crate::edgar::rate_limiter(),
+    )
+    .await
+    {
+        Ok(()) => {
+            log::debug!(
+                "Successfully fetched and saved {} filing to {}",
+                url,
+                filepath.to_str().unwrap()
+            );
+            Ok(())
+        }
+        Err(e) => {
+            // If the file exists despite an error, try to use it anyway
+            if !filepath.exists() {
+                error!(
+                    "Failed to fetch filings from {} and no local file exists: {}",
+                    url, e
+                );
+                return Err(anyhow!("Failed to fetch filings: {}", e));
+            }
+            log::warn!("Error fetching from {} but local file exists, attempting to use cached version: {}", url, e);
+            Ok(())
+        }
+    }
+}
+
+async fn process_filing_page(
+    filepath: &Path,
+    fetched_count: usize,
+    all_filings: &mut Vec<FilingEntry>,
+    additional_files: &mut Vec<FilingFile>,
+) -> Result<()> {
+    let content = fs::read_to_string(filepath).map_err(|e| {
+        error!("Failed to read filing file {:?}: {}", filepath, e);
+        anyhow!("Failed to read filing file: {}", e)
+    })?;
+
+    log::debug!(
+        "Read file content from {:?}, length: {}",
+        filepath,
+        content.len()
+    );
+
+    log::debug!("fetched_count: {}", fetched_count);
+    // Handle first page differently than subsequent pages
+    if fetched_count == 0 {
+        log::debug!("Parsing initial response JSON");
+
+        // Now try to parse into our structure
+        let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
+            error!("Failed to parse into CompanyFilings: {}", e);
+            // Log the problematic content for debugging
+            error!("Content length: {}", content.len());
+            if content.len() > 1000 {
+                error!("Content preview (first 1000 chars): {}", &content[..1000]);
+                error!(
+                    "Content preview (last 1000 chars): {}",
+                    &content[content.len() - 1000..]
+                );
+            } else {
+                error!("Full content: {}", &content);
+            }
+            anyhow!("Failed to parse initial filings JSON: {}", e)
+        })?;
+        log::debug!("Successfully parsed initial response");
+
+        all_filings.push(response.filings.recent.clone());
+        *additional_files = response.filings.files.clone();
+    } else {
+        log::debug!("Parsing subsequent page JSON");
+        let page_filings: FilingEntry = serde_json::from_str(&content).map_err(|e| {
+            log::error!("JSON parse error on subsequent page: {}", e);
+            log::debug!("Problematic JSON content: {}", content);
+            anyhow!("Failed to parse page filings JSON: {}", e)
+        })?;
+        log::debug!("Successfully parsed subsequent page");
+        all_filings.push(page_filings);
+    }
+
+    Ok(())
+}
+
+async fn process_adr_company_filings(
+    client: &Client,
+    cik: &str,
+    limit: Option<usize>,
+) -> Result<CompanyFilings> {
+    // For ADRs, we use the same processing logic but may want to add special handling in the future
+    // TODO: Implement ADR-specific processing if needed:
+    // - Different rate limiting
+    // - Special handling of certain filing types
+    // - Additional metadata processing
+    // For now, we use the same logic as regular filings
+    get_company_filings_internal(client, cik, limit).await
+}
+
+async fn get_company_filings_internal(
     client: &Client,
     cik: &str,
     limit: Option<usize>,
@@ -281,83 +389,10 @@ pub async fn get_company_filings(
             .join(format!("CIK{}_{}.json", padded_cik, fetched_count));
 
         if !filepath.exists() {
-            match fetch_and_save(
-                client,
-                &Url::parse(&current_url)?,
-                &filepath,
-                USER_AGENT,
-                APPLICATION_JSON,
-                crate::edgar::rate_limiter(),
-            )
-            .await
-            {
-                Ok(()) => {
-                    log::debug!(
-                        "Successfully fetched and saved {} filing to {}",
-                        current_url,
-                        filepath.to_str().unwrap()
-                    );
-                }
-                Err(e) => {
-                    // If the file exists despite an error, try to use it anyway
-                    if !filepath.exists() {
-                        error!(
-                            "Failed to fetch filings from {} and no local file exists: {}",
-                            current_url, e
-                        );
-                        return Err(anyhow!("Failed to fetch filings: {}", e));
-                    }
-                    log::warn!("Error fetching from {} but local file exists, attempting to use cached version: {}", current_url, e);
-                }
-            }
+            fetch_filing_page(client, &current_url, &filepath).await?;
         }
 
-        let content = fs::read_to_string(&filepath).map_err(|e| {
-            error!("Failed to read filing file {:?}: {}", filepath, e);
-            anyhow!("Failed to read filing file: {}", e)
-        })?;
-
-        log::debug!(
-            "Read file content from {:?}, length: {}",
-            filepath,
-            content.len()
-        );
-
-        log::debug!("fetched_count: {}", fetched_count);
-        // Handle first page differently than subsequent pages
-        if fetched_count == 0 {
-            log::debug!("Parsing initial response JSON");
-
-            // Now try to parse into our structure
-            let response: CompanyFilings = serde_json::from_str(&content).map_err(|e| {
-                error!("Failed to parse into CompanyFilings: {}", e);
-                // Log the problematic content for debugging
-                error!("Content length: {}", content.len());
-                if content.len() > 1000 {
-                    error!("Content preview (first 1000 chars): {}", &content[..1000]);
-                    error!(
-                        "Content preview (last 1000 chars): {}",
-                        &content[content.len() - 1000..]
-                    );
-                } else {
-                    error!("Full content: {}", &content);
-                }
-                anyhow!("Failed to parse initial filings JSON: {}", e)
-            })?;
-            log::debug!("Successfully parsed initial response");
-
-            all_filings.push(response.filings.recent.clone());
-            additional_files = response.filings.files.clone();
-        } else {
-            log::debug!("Parsing subsequent page JSON");
-            let page_filings: FilingEntry = serde_json::from_str(&content).map_err(|e| {
-                log::error!("JSON parse error on subsequent page: {}", e);
-                log::debug!("Problematic JSON content: {}", content);
-                anyhow!("Failed to parse page filings JSON: {}", e)
-            })?;
-            log::debug!("Successfully parsed subsequent page");
-            all_filings.push(page_filings);
-        }
+        process_filing_page(&filepath, fetched_count, &mut all_filings, &mut additional_files).await?;
 
         fetched_count += 1;
 
@@ -388,6 +423,17 @@ pub async fn get_company_filings(
         .map_err(|e| anyhow!("Failed to parse initial filings JSON: {}", e))?;
 
     // Merge all filing entries into the initial response's recent filings
+    let merged = merge_filing_entries(all_filings);
+
+    // Update the initial response with merged filings
+    initial_response.filings.recent = merged.clone();
+
+    log_filing_summary(&merged, &padded_cik);
+
+    Ok(initial_response)
+}
+
+fn merge_filing_entries(filings: Vec<FilingEntry>) -> FilingEntry {
     let mut merged = FilingEntry {
         accession_number: Vec::new(),
         filing_date: Vec::new(),
@@ -405,13 +451,11 @@ pub async fn get_company_filings(
         primary_doc_description: Vec::new(),
     };
 
-    for filing in all_filings {
+    for filing in filings {
         merged.accession_number.extend(filing.accession_number);
         merged.filing_date.extend(filing.filing_date);
         merged.report_date.extend(filing.report_date);
-        merged
-            .acceptance_date_time
-            .extend(filing.acceptance_date_time);
+        merged.acceptance_date_time.extend(filing.acceptance_date_time);
         merged.act.extend(filing.act);
         merged.report_type.extend(filing.report_type);
         merged.file_number.extend(filing.file_number);
@@ -421,16 +465,14 @@ pub async fn get_company_filings(
         merged.is_xbrl.extend(filing.is_xbrl);
         merged.is_inline_xbrl.extend(filing.is_inline_xbrl);
         merged.primary_document.extend(filing.primary_document);
-        merged
-            .primary_doc_description
-            .extend(filing.primary_doc_description);
+        merged.primary_doc_description.extend(filing.primary_doc_description);
     }
 
-    // Update the initial response with merged filings
-    initial_response.filings.recent = merged.clone();
+    merged
+}
 
+fn log_filing_summary(merged: &FilingEntry, padded_cik: &str) {
     let unique_report_types: std::collections::HashSet<_> = merged.report_type.iter().collect();
-    // Log summary of fetched data
     info!(
         "Fetched filings summary for CIK {}: {} total filings, {} unique report types ({}), date range: {} to {}",
         padded_cik,
@@ -440,8 +482,21 @@ pub async fn get_company_filings(
         merged.filing_date.iter().min().map_or("N/A".to_string(), |d| d.to_string()),
         merged.filing_date.iter().max().map_or("N/A".to_string(), |d| d.to_string())
     );
+}
 
-    Ok(initial_response)
+pub async fn get_company_filings(
+    client: &Client,
+    cik: &str,
+    limit: Option<usize>,
+) -> Result<CompanyFilings> {
+    // Check if this is an ADR filing
+    let is_adr = crate::edgar::tickers::is_adr(cik).await?;
+    
+    if is_adr {
+        process_adr_company_filings(client, cik, limit).await
+    } else {
+        get_company_filings_internal(client, cik, limit).await
+    }
 }
 
 pub async fn fetch_matching_filings(
