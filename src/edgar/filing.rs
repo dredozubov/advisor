@@ -503,34 +503,116 @@ pub async fn get_company_filings(
     }
 }
 
+async fn get_cik_for_query(query: &Query) -> Result<String> {
+    let tickers = super::tickers::fetch_tickers().await?;
+    tickers
+        .iter()
+        .find(|(ticker, _, _)| ticker.as_str() == query.tickers[0])
+        .map(|(_, _, cik)| cik.to_string())
+        .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))
+}
+
+async fn fetch_filing_document(
+    client: &Client,
+    cik: &str,
+    filing: &Filing,
+) -> Result<String> {
+    let base = "https://www.sec.gov/Archives/edgar/data";
+    let accession_number = filing.accession_number.replace("-", "");
+    let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
+    
+    let filing_dir = format!("{}/{}/{}", EDGAR_FILINGS_DIR, cik, accession_number);
+    fs::create_dir_all(&filing_dir)?;
+    
+    let document_path = format!("{}/{}", filing_dir, xbrl_document);
+    let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
+    
+    log::debug!("EDGAR Document Request URL: {}", document_url);
+    log::info!("Fetching: {}", document_url);
+
+    let document_url_obj = Url::parse(&document_url)?;
+    let local_path = Path::new(&document_path);
+
+    fetch_and_save(
+        client,
+        &document_url_obj,
+        local_path,
+        USER_AGENT,
+        TEXT_XML,
+        crate::edgar::rate_limiter(),
+    )
+    .await?;
+
+    log::info!("Saved filing document to {}", document_path);
+    Ok(document_path)
+}
+
+async fn process_filings_concurrently(
+    client: &Client,
+    cik: &str,
+    filings: Vec<Filing>,
+) -> Result<HashMap<String, Filing>> {
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let total_tasks = filings.len();
+    let mut completed_tasks = 0;
+    let mut handles = Vec::new();
+
+    for filing in filings {
+        let tx = tx.clone();
+        let client = client.clone();
+        let cik = cik.to_string();
+        
+        let handle = tokio::spawn(async move {
+            let filing_clone = filing.clone();
+            match fetch_filing_document(&client, &cik, &filing).await {
+                Ok(document_path) => {
+                    tx.send((document_path, filing)).await?;
+                }
+                Err(e) => {
+                    log::error!("Error processing filing: {}", e);
+                    tx.send(("".to_string(), filing_clone)).await?;
+                }
+            }
+            Ok::<(), anyhow::Error>(())
+        });
+        handles.push(handle);
+    }
+
+    drop(tx);
+
+    let mut filing_map = HashMap::new();
+    while let Some((document_path, filing)) = rx.recv().await {
+        completed_tasks += 1;
+        if !document_path.is_empty() {
+            filing_map.insert(document_path, filing);
+        }
+        if completed_tasks >= total_tasks {
+            break;
+        }
+    }
+
+    for handle in handles {
+        if let Err(e) = handle.await {
+            log::error!("Task join error: {}", e);
+        }
+    }
+
+    Ok(filing_map)
+}
+
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
 ) -> Result<HashMap<String, Filing>> {
-    // Fetch tickers to get CIKs
-    let tickers = super::tickers::fetch_tickers().await?;
-
-    // Find the CIK for the first ticker in the query
-    let cik = tickers
-        .iter()
-        .find(|(ticker, _, _)| ticker.as_str() == query.tickers[0])
-        .map(|(_, _, cik)| cik)
-        .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))?;
-
+    let cik = get_cik_for_query(query).await?;
+    
     // Fetch filings using the CIK and ADR status from query
-    let filings = get_company_filings(client, cik, None, query.is_adr).await?;
+    let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
 
     crate::utils::dirs::ensure_edgar_dirs()?;
 
-    // Create a bounded channel
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-
-    // Keep track of how many tasks we spawn
-    let total_tasks = matching_filings.len();
-    let mut completed_tasks = 0;
-
-    info!(
+    log::info!(
         "Found {} matching filings for query parameters:\n\
          - Report types: {}\n\
          - Date range: {} to {}",
@@ -546,87 +628,7 @@ pub async fn fetch_matching_filings(
         query.end_date
     );
 
-    // Spawn async tasks to fetch and save each matching filing
-    let mut handles = Vec::new();
-    for filing in matching_filings {
-        let tx = tx.clone();
-        let client = client.clone();
-        let cik = cik.to_string();
-        let handle = tokio::spawn(async move {
-            let filing_clone = filing.clone();
-            let base = "https://www.sec.gov/Archives/edgar/data";
-            let accession_number = filing.accession_number.replace("-", "");
-
-            // The primary_document from FilingEntry contains the original .htm file
-            // We need to construct URL for the XBRL version by transforming .htm to _htm.xml
-            let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
-
-            let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
-            log::debug!("EDGAR Document Request URL: {}", document_url);
-
-            // Create the directory structure for the filing
-            let filing_dir = format!("{}/{}/{}", EDGAR_FILINGS_DIR, cik, accession_number);
-            fs::create_dir_all(&filing_dir)?;
-
-            // Define the path to save the document using the XBRL document name
-            let document_path = format!("{}/{}", filing_dir, xbrl_document);
-
-            let document_url_obj = Url::parse(&document_url[..]).unwrap();
-            let local_path = Path::new(&document_path[..]);
-            log::info!("Fetching: {}", document_url);
-
-            // Fetch and save the document with XML content type
-            let result = fetch_and_save(
-                &client,
-                &document_url_obj,
-                local_path,
-                USER_AGENT,
-                TEXT_XML,
-                crate::edgar::rate_limiter(),
-            )
-            .await;
-
-            if let Err(e) = result {
-                log::error!("Error processing filing: {}", e);
-                // Still send a completion signal even on error
-                let _ = tx.send(("".to_string(), filing_clone)).await;
-                return Ok(());
-            }
-
-            log::info!("Saved filing document to {}", document_path);
-
-            tx.send((document_path, filing)).await?;
-            Ok::<(), anyhow::Error>(())
-        });
-        handles.push(handle);
-    }
-
-    // Drop the original sender so the channel can close when all clones are dropped
-    drop(tx);
-
-    // Collect results from the channel
-    let mut filing_map = HashMap::new();
-    while let Some((document_path, filing)) = rx.recv().await {
-        completed_tasks += 1;
-        if !document_path.is_empty() {
-            // Only add successful results
-            filing_map.insert(document_path, filing);
-        }
-
-        // Break if we've received responses for all tasks
-        if completed_tasks >= total_tasks {
-            break;
-        }
-    }
-
-    // Wait for all spawned tasks to complete
-    for handle in handles {
-        if let Err(e) = handle.await {
-            log::error!("Task join error: {}", e);
-        }
-    }
-
-    Ok(filing_map)
+    process_filings_concurrently(client, &cik, matching_filings).await
 }
 
 pub async fn extract_complete_submission_filing(
