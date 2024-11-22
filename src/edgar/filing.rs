@@ -256,11 +256,7 @@ pub struct CompanyFilings {
     pub filings: FilingsData,
 }
 
-async fn fetch_filing_page(
-    client: &Client,
-    url: &str,
-    filepath: &Path,
-) -> Result<()> {
+async fn fetch_filing_page(client: &Client, url: &str, filepath: &Path) -> Result<()> {
     match fetch_and_save(
         client,
         &Url::parse(url)?,
@@ -392,7 +388,13 @@ async fn get_company_filings_internal(
             fetch_filing_page(client, &current_url, &filepath).await?;
         }
 
-        process_filing_page(&filepath, fetched_count, &mut all_filings, &mut additional_files).await?;
+        process_filing_page(
+            &filepath,
+            fetched_count,
+            &mut all_filings,
+            &mut additional_files,
+        )
+        .await?;
 
         fetched_count += 1;
 
@@ -455,7 +457,9 @@ fn merge_filing_entries(filings: Vec<FilingEntry>) -> FilingEntry {
         merged.accession_number.extend(filing.accession_number);
         merged.filing_date.extend(filing.filing_date);
         merged.report_date.extend(filing.report_date);
-        merged.acceptance_date_time.extend(filing.acceptance_date_time);
+        merged
+            .acceptance_date_time
+            .extend(filing.acceptance_date_time);
         merged.act.extend(filing.act);
         merged.report_type.extend(filing.report_type);
         merged.file_number.extend(filing.file_number);
@@ -465,7 +469,9 @@ fn merge_filing_entries(filings: Vec<FilingEntry>) -> FilingEntry {
         merged.is_xbrl.extend(filing.is_xbrl);
         merged.is_inline_xbrl.extend(filing.is_inline_xbrl);
         merged.primary_document.extend(filing.primary_document);
-        merged.primary_doc_description.extend(filing.primary_doc_description);
+        merged
+            .primary_doc_description
+            .extend(filing.primary_doc_description);
     }
 
     merged
