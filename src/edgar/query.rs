@@ -93,19 +93,24 @@ impl Query {
         start_date: NaiveDate,
         end_date: NaiveDate,
         report_types: Vec<report::ReportType>,
+        is_adr: bool,
     ) -> Result<Self> {
         let query = Query {
             tickers,
             start_date,
             end_date,
             report_types,
+            is_adr,
         };
         query.validate()?;
         Ok(query)
     }
 
     pub fn builder() -> QueryBuilder {
-        QueryBuilder::default()
+        QueryBuilder {
+            is_adr: Some(false), // Default to non-ADR
+            ..Default::default()
+        }
     }
 
     fn validate(&self) -> Result<()> {
@@ -153,6 +158,7 @@ pub struct QueryBuilder {
     start_date: Option<NaiveDate>,
     end_date: Option<NaiveDate>,
     report_types: Option<Vec<report::ReportType>>,
+    is_adr: Option<bool>,
 }
 
 impl QueryBuilder {
@@ -176,13 +182,19 @@ impl QueryBuilder {
         self
     }
 
+    pub fn is_adr(mut self, is_adr: bool) -> Self {
+        self.is_adr = Some(is_adr);
+        self
+    }
+
     pub fn build(self) -> Result<Query> {
         let tickers = self.tickers.ok_or_else(|| anyhow!("Tickers must be specified"))?;
         let start_date = self.start_date.ok_or_else(|| anyhow!("Start date must be specified"))?;
         let end_date = self.end_date.ok_or_else(|| anyhow!("End date must be specified"))?;
         let report_types = self.report_types.ok_or_else(|| anyhow!("Report types must be specified"))?;
+        let is_adr = self.is_adr.unwrap_or(false);
 
-        Query::new(tickers, start_date, end_date, report_types)
+        Query::new(tickers, start_date, end_date, report_types, is_adr)
     }
 }
 

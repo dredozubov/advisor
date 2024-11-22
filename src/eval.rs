@@ -622,8 +622,8 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
                 Possible values are: {} etc, use appropriate EDGAR report types even if not mentioned here.
 
     Examples:
-    {{"tickers": ["AAPL"], "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["10-K", "10-Q", "8-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
-    {{"tickers": ["PDD"], "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["20-K", "6-K", "20-K", "40-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
+    {{"tickers": ["AAPL"], "is_adr": false, "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["10-K", "10-Q", "8-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
+    {{"tickers": ["BABA"], "is_adr": true, "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["20-F", "6-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
 
     Infer which data sources to query based on the user's question:
     - Use the ticker and the company name to establish if it's a US stock or ADRs
