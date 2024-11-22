@@ -11,6 +11,8 @@ pub struct Query {
     pub tickers: Vec<String>,
     /// Parameters for different data sources
     pub parameters: Value,
+    /// Flag indicating if the security is an ADR
+    pub is_adr: bool,
 }
 
 impl Query {
@@ -18,6 +20,7 @@ impl Query {
         Query {
             tickers,
             parameters: Value::Object(serde_json::Map::new()),
+            is_adr: false, // Default to false for non-ADR securities
         }
     }
 
