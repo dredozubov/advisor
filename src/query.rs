@@ -92,7 +92,7 @@ impl Query {
                 start,
                 end,
                 types?,
-                is_adr: self.is_adr
+                self.is_adr,
             )?)
         } else {
             Err(anyhow!("No filings parameters found"))

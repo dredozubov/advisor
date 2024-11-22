@@ -291,8 +291,12 @@ pub async fn get_company_filings(
             )
             .await
             {
-                Ok(_) => {
-                    log::debug!("Successfully fetched and saved filing from {}", current_url);
+                Ok(()) => {
+                    log::debug!(
+                        "Successfully fetched and saved {} filing to {}",
+                        current_url,
+                        filepath.to_str().unwrap()
+                    );
                 }
                 Err(e) => {
                     // If the file exists despite an error, try to use it anyway

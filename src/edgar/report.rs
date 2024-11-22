@@ -4,10 +4,12 @@ use std::{fmt, str::FromStr};
 use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumIter)]
-#[serde(try_from = "String", rename_all = "UPPERCASE")]
+#[serde(try_from = "String")]
 pub enum ReportType {
     Form10K,
+    Form6K,
     Form10Q,
+    Form20K,
     Form8K,
     Form4,
     Form5,
@@ -19,7 +21,6 @@ pub enum ReportType {
     Form13G,
     Form13D,
     FormSD,
-    Form6K,
     Form20F,
     FormN1A,
     FormNCSR,
@@ -41,7 +42,9 @@ impl fmt::Display for ReportType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ReportType::Form10K => write!(f, "10-K"),
+            ReportType::Form6K => write!(f, "6-K"),
             ReportType::Form10Q => write!(f, "10-Q"),
+            ReportType::Form20K => write!(f, "20-K"),
             ReportType::Form8K => write!(f, "8-K"),
             ReportType::Form4 => write!(f, "4"),
             ReportType::Form5 => write!(f, "5"),
@@ -53,7 +56,6 @@ impl fmt::Display for ReportType {
             ReportType::Form13G => write!(f, "13G"),
             ReportType::Form13D => write!(f, "13D"),
             ReportType::FormSD => write!(f, "SD"),
-            ReportType::Form6K => write!(f, "6-K"),
             ReportType::Form20F => write!(f, "20-F"),
             ReportType::FormN1A => write!(f, "N-1A"),
             ReportType::FormNCSR => write!(f, "N-CSR"),
@@ -84,7 +86,9 @@ impl FromStr for ReportType {
     fn from_str(s: &str) -> std::result::Result<ReportType, std::string::String> {
         match s.to_uppercase().as_str() {
             "10-K" => Ok(ReportType::Form10K),
+            "6-K" => Ok(ReportType::Form6K),
             "10-Q" => Ok(ReportType::Form10Q),
+            "20-Q" => Ok(ReportType::Form20K),
             "8-K" => Ok(ReportType::Form8K),
             "4" => Ok(ReportType::Form4),
             "5" => Ok(ReportType::Form5),
@@ -96,7 +100,6 @@ impl FromStr for ReportType {
             "13G" => Ok(ReportType::Form13G),
             "13D" => Ok(ReportType::Form13D),
             "SD" => Ok(ReportType::FormSD),
-            "6-K" => Ok(ReportType::Form6K),
             "20-F" => Ok(ReportType::Form20F),
             "N-1A" => Ok(ReportType::FormN1A),
             "N-CSR" => Ok(ReportType::FormNCSR),
