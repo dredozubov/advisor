@@ -488,10 +488,8 @@ pub async fn get_company_filings(
     client: &Client,
     cik: &str,
     limit: Option<usize>,
+    is_adr: bool,
 ) -> Result<CompanyFilings> {
-    // Check if this is an ADR filing
-    let is_adr = crate::edgar::tickers::is_adr(cik).await?;
-    
     if is_adr {
         process_adr_company_filings(client, cik, limit).await
     } else {
@@ -513,8 +511,8 @@ pub async fn fetch_matching_filings(
         .map(|(_, _, cik)| cik)
         .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))?;
 
-    // Fetch filings using the CIK
-    let filings = get_company_filings(client, cik, None).await?;
+    // Fetch filings using the CIK and ADR status from query
+    let filings = get_company_filings(client, cik, None, query.is_adr).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
 
     crate::utils::dirs::ensure_edgar_dirs()?;
