@@ -6,6 +6,7 @@ use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
+use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
@@ -26,7 +27,17 @@ async fn process_documents(
         match query.to_edgar_query() {
             Ok(edgar_query) => {
                 for ticker in &edgar_query.tickers {
-                    log::info!("Fetching EDGAR filings for ticker: {}", ticker);
+                    log::debug!(
+                        "Fetching EDGAR filings ({}) for ticker: {} in date range {} to {}",
+                        edgar_query
+                            .report_types
+                            .iter()
+                            .map(|rt| rt.to_string())
+                            .join(", "),
+                        ticker,
+                        edgar_query.start_date,
+                        edgar_query.end_date
+                    );
                     let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
@@ -603,25 +614,28 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
             - 'start_date': ISO date (YYYY-MM-DD)
             - 'end_date': ISO date (YYYY-MM-DD) 
             - 'report_types': array of SEC filing types:
-                - Required reports (10-K, 10-Q)
+                - Required reports (10-K, 10-Q for US stocks, 20-F, 6-K, 8-K for ADRs)
                 - Management discussion (8-K items 2.02, 7.01, 8.01)
                 - Strategic changes (8-K items 1.01, 1.02, 2.01)
                 - Guidance & projections (8-K item 7.01)
                 - Proxy statements (DEF 14A)
-                Possible values are: {}
+                Possible values are: {} etc, use appropriate EDGAR report types even if not mentioned here.
 
-    Example:
+    Examples:
     {{"tickers": ["AAPL"], "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["10-K", "10-Q", "8-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
+    {{"tickers": ["PDD"], "parameters": {{"filings": {{"start_date": "2024-01-01", "end_date": "2024-03-31", "report_types": ["20-K", "6-K", "20-K", "40-K"]}}, "earnings": {{"start_date": "2024-01-01", "end_date": "2024-03-31"}} }} }}
 
     Infer which data sources to query based on the user's question:
+    - Use the ticker and the company name to establish if it's a US stock or ADRs
     - Include 'filings' for questions about financial reports, SEC filings, corporate actions
     - Include 'earnings' for questions about earnings calls, management commentary, guidance
     - Include both when the question spans multiple areas
     
     Use these defaults if values are missing:
     - Latest report: date range from 'today - 90 days' to 'today'
-    - Latest quarterly report: include both 10-Q and relevant 8-K filings
-    - Earnings analysis: automatically include earnings call transcripts
+    - Latest quarterly report: include 10-Q, 8-F for US stocks. 20-F, 40-F, 6-K filings for ADRs. If no sure ask for both.
+    - Yearly reports include: 10-K for US stocks, and 20-K for ADRs. If not sure ask for both.
+    - Earnings analysis: automatically include earnings call transcripts and quarterly reports (10-Q for US stocks, 6-K for ADRs) or yearly reports(10-K for US stocks, 20-F, 40-F for ADRs) depending on the contex timeline.
     
     Current date is: {}.
     Return only a json document, as it's meant to be parsed by the software. No markdown formatting is allowed. No JSON formatting is allowed including pretty-printing and newlines.
@@ -631,7 +645,7 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     )
     .to_string();
 
-    log::debug!("Task: {task}");
+    log::info!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
