@@ -108,10 +108,7 @@ impl Query {
     }
 
     pub fn builder() -> QueryBuilder {
-        QueryBuilder {
-            is_adr: Some(false), // Default to non-ADR
-            ..Default::default()
-        }
+        QueryBuilder::default()
     }
 
     fn validate(&self) -> Result<()> {

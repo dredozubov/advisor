@@ -609,6 +609,7 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     
     Format the parameters as a JSON object with these fields:
     - 'tickers': array of company ticker symbols
+    - 'is_adr': boolean indicating if the security is an ADR (American Depositary Receipt)
     - 'parameters': object containing query parameters:
         - 'filings': optional object for SEC filings:
             - 'start_date': ISO date (YYYY-MM-DD)
