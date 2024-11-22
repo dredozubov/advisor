@@ -1,8 +1,8 @@
+use crate::earnings;
+use crate::edgar::{query as edgar_query, report};
 use anyhow::{anyhow, Result};
 use serde::{self, Deserialize, Serialize};
 use serde_json::Value;
-use crate::edgar::{query as edgar_query, report};
-use crate::earnings;
 
 /// A high-level query type that can handle multiple data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,12 +42,14 @@ impl Query {
         if self.tickers.is_empty() {
             return Err(anyhow!("At least one ticker must be specified"));
         }
-        
+
         let has_filings = self.parameters.get("filings").is_some();
         let has_earnings = self.parameters.get("earnings").is_some();
-        
+
         if !has_filings && !has_earnings {
-            return Err(anyhow!("At least one query type (filings or earnings) must be specified"));
+            return Err(anyhow!(
+                "At least one query type (filings or earnings) must be specified"
+            ));
         }
         Ok(())
     }
@@ -62,19 +64,22 @@ impl Query {
 
     pub fn to_edgar_query(&self) -> Result<edgar_query::Query> {
         if let Some(filings) = self.parameters.get("filings") {
-            let start_date = filings.get("start_date")
+            let start_date = filings
+                .get("start_date")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
-            let end_date = filings.get("end_date")
+            let end_date = filings
+                .get("end_date")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
-            let report_types = filings.get("report_types")
+            let report_types = filings
+                .get("report_types")
                 .and_then(|v| v.as_array())
                 .ok_or_else(|| anyhow!("report_types missing or invalid"))?;
 
             let start = chrono::NaiveDate::parse_from_str(start_date, "%Y-%m-%d")?;
             let end = chrono::NaiveDate::parse_from_str(end_date, "%Y-%m-%d")?;
-            
+
             let types: Result<Vec<report::ReportType>> = report_types
                 .iter()
                 .filter_map(|v| v.as_str())
@@ -87,6 +92,7 @@ impl Query {
                 start,
                 end,
                 types?,
+                is_adr: self.is_adr
             )?)
         } else {
             Err(anyhow!("No filings parameters found"))
@@ -95,10 +101,12 @@ impl Query {
 
     pub fn to_earnings_query(&self) -> Result<earnings::Query> {
         if let Some(earnings) = self.parameters.get("earnings") {
-            let start_date = earnings.get("start_date")
+            let start_date = earnings
+                .get("start_date")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("start_date missing or invalid"))?;
-            let end_date = earnings.get("end_date")
+            let end_date = earnings
+                .get("end_date")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("end_date missing or invalid"))?;
 
