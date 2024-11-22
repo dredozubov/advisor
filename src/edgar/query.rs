@@ -64,6 +64,7 @@ pub struct Query {
     pub end_date: NaiveDate,
     pub report_types: Vec<ReportType>,
     pub is_adr: bool,
+    pub is_adr: bool,
 }
 
 pub mod date_format {
