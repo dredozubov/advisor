@@ -457,8 +457,8 @@ pub async fn eval(
     let progress = if std::io::stdout().is_terminal() {
         let tracker = crate::utils::progress::ProgressTracker::new(query.estimated_tasks());
         let multi_progress = tracker.multi_progress.clone();
-        tokio::spawn(async move {
-            multi_progress.join();
+        std::thread::spawn(move || {
+            let _ = multi_progress.join();
         });
         Some(tracker)
     } else {
