@@ -457,14 +457,14 @@ pub async fn eval(
     // Create progress tracker for CLI
 
     let progress = if std::io::stdout().is_terminal() {
-        let tasks = query.estimated_tasks(); // Define tasks
+        let tasks = vec![]; // Replace with actual tasks
         let tracker = Arc::new(crate::utils::progress::ProgressTracker::new(&tasks));
         let multi_progress = tracker.as_multi_progress().clone();
 
         // Spawn a thread to render the progress bars
         std::thread::spawn(move || {
             log::debug!("Starting MultiProgress rendering thread");
-            multi_progress.join();
+            let _ = multi_progress.join();
         });
 
         Some(tracker)

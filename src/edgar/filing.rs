@@ -590,7 +590,7 @@ pub async fn fetch_matching_filings(
         .collect();
 
     let fetch_manager =
-        crate::fetch::FetchManager::new(&tasks, progress.cloned());
+        crate::fetch::FetchManager::new(&tasks, progress.map(|p| Arc::new(p.clone())));
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap

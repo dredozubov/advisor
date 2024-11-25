@@ -1,6 +1,7 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct ProgressTracker {
     pub multi_progress: MultiProgress,
     pub task_bars: HashMap<String, ProgressBar>, // Map task IDs to progress bars
