@@ -12,6 +12,7 @@ use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
 use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
 
