@@ -512,21 +512,17 @@ async fn get_cik_for_query(query: &Query) -> Result<String> {
         .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))
 }
 
-pub async fn fetch_filing_document(
-    client: &Client,
-    cik: &str,
-    filing: &Filing,
-) -> Result<String> {
+pub async fn fetch_filing_document(client: &Client, cik: &str, filing: &Filing) -> Result<String> {
     let base = "https://www.sec.gov/Archives/edgar/data";
     let accession_number = filing.accession_number.replace("-", "");
     let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
-    
+
     let filing_dir = format!("{}/{}/{}", EDGAR_FILINGS_DIR, cik, accession_number);
     fs::create_dir_all(&filing_dir)?;
-    
+
     let document_path = format!("{}/{}", filing_dir, xbrl_document);
     let document_url = format!("{}/{}/{}/{}", base, cik, accession_number, xbrl_document);
-    
+
     log::debug!("EDGAR Document Request URL: {}", document_url);
     log::info!("Fetching: {}", document_url);
 
@@ -547,14 +543,13 @@ pub async fn fetch_filing_document(
     Ok(document_path)
 }
 
-
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
     progress: Option<&crate::utils::progress::ProgressTracker>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
-    
+
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
@@ -593,17 +588,19 @@ pub async fn fetch_matching_filings(
         })
         .collect();
 
-    let fetch_manager = crate::fetch::FetchManager::new(
-        tasks.len(),
-        progress.map(|p| p.as_multi_progress())
-    );
+    let fetch_manager =
+        crate::fetch::FetchManager::new(tasks.len(), progress.map(|p| p.as_multi_progress()));
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap
     let mut filing_map = HashMap::new();
     for result in results {
-        if let (crate::fetch::FetchStatus::Success, Some(path), crate::fetch::FetchTask::EdgarFiling { filing, .. }) = 
-            (result.status, result.output_path, result.task) {
+        if let (
+            crate::fetch::FetchStatus::Success,
+            Some(path),
+            crate::fetch::FetchTask::EdgarFiling { filing, .. },
+        ) = (result.status, result.output_path, result.task)
+        {
             filing_map.insert(path.to_string_lossy().to_string(), filing);
         }
     }
