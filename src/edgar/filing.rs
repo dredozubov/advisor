@@ -24,7 +24,7 @@ use crate::utils::http::fetch_and_save;
 use super::query::Query;
 use super::report::ReportType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Filing {
     pub accession_number: String,
     pub filing_date: NaiveDate,
@@ -512,7 +512,7 @@ async fn get_cik_for_query(query: &Query) -> Result<String> {
         .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))
 }
 
-async fn fetch_filing_document(
+pub async fn fetch_filing_document(
     client: &Client,
     cik: &str,
     filing: &Filing,

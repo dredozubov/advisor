@@ -1,5 +1,4 @@
 use anyhow::Result;
-use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
