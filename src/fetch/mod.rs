@@ -45,7 +45,11 @@ impl FetchTask {
                 output_path: _,
             } => {
                 if let Some(pb) = progress {
-                    pb.set_message("Downloading...");
+                    pb.set_style(ProgressStyle::default_bar()
+                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                        .unwrap()
+                        .progress_chars("#>-"));
+                    pb.set_message("Downloading filing...");
                     pb.set_position(0);
                 }
                 

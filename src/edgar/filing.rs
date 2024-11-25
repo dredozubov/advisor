@@ -616,8 +616,12 @@ pub async fn extract_complete_submission_filing(
     progress: Option<&crate::utils::progress::ProgressTracker>,
 ) -> Result<()> {
     if let Some(p) = &progress {
-        p.parse.inc(1);
+        p.parse.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
+            .unwrap()
+            .progress_chars("#>-"));
         p.parse.set_message("Parsing filing...");
+        p.parse.set_position(33);
     }
     log::info!("Parsing XBRL file");
 
@@ -692,7 +696,7 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(markdown_content, metadata, store, pg_pool).await?;
+    crate::document::store_chunked_document(markdown_content, metadata, store, pg_pool, progress.map(|p| &p.store)).await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 
