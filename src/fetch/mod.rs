@@ -131,8 +131,7 @@ impl FetchManager {
                     .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
                     .unwrap()
                     .progress_chars("#>-"));
-                let msg = desc.to_string();
-                bar.set_message(&msg);
+                bar.set_message(&Box::leak(desc.to_string().into_boxed_str()));
                 
                 progress_bars.insert(format!("task_{}", i), bar);
             }
