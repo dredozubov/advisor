@@ -197,8 +197,18 @@ pub async fn store_chunked_document(
     metadata: Metadata,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
+    progress: Option<&ProgressBar>,
 ) -> anyhow::Result<()> {
     log::debug!("Storing document with metadata: {:?}", metadata);
+    
+    if let Some(pb) = progress {
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.red} [{elapsed_precise}] [{bar:40.red/blue}] {msg}")
+            .unwrap()
+            .progress_chars("#>-"));
+        pb.set_message("Storing document...");
+        pb.set_position(0);
+    }
 
     // Split content into smaller chunks
     let chunks: Vec<String> = content
