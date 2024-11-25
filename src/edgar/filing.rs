@@ -20,6 +20,7 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::document::{DocType, Metadata};
+use std::sync::Arc;
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
