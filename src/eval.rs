@@ -20,6 +20,7 @@ async fn process_documents(
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
+    progress: Option<&crate::utils::progress::ProgressTracker>,
 ) -> Result<()> {
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -38,7 +39,7 @@ async fn process_documents(
                         edgar_query.start_date,
                         edgar_query.end_date
                     );
-                    let filings = filing::fetch_matching_filings(http_client, &edgar_query, None).await?;
+                    let filings = filing::fetch_matching_filings(http_client, &edgar_query, progress).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }
@@ -451,7 +452,14 @@ pub async fn eval(
 
     // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
-    process_documents(&query, http_client, store, pg_pool).await?;
+    // Create progress tracker for CLI
+    let progress = if std::io::stdout().is_terminal() {
+        Some(crate::utils::progress::ProgressTracker::new(query.estimated_tasks()))
+    } else {
+        None
+    };
+    
+    process_documents(&query, http_client, store, pg_pool, progress.as_ref()).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 

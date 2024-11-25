@@ -16,6 +16,23 @@ pub struct Query {
 }
 
 impl Query {
+    pub fn estimated_tasks(&self) -> usize {
+        let mut count = 0;
+        
+        // Estimate filing tasks if present
+        if let Some(filings) = self.parameters.get("filings") {
+            if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
+                count += types.len() * self.tickers.len();
+            }
+        }
+        
+        // Estimate earnings tasks if present
+        if self.parameters.get("earnings").is_some() {
+            count += self.tickers.len();
+        }
+        
+        count
+    }
     pub fn new(tickers: Vec<String>) -> Self {
         Query {
             tickers,
