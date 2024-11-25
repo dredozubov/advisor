@@ -114,38 +114,17 @@ pub struct FetchProgress {
 
 pub struct FetchManager {
     client: Client,
-    progress_bars: HashMap<String, ProgressBar>,
-    multi_progress: Option<MultiProgress>,
+    progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>, // Use ProgressTracker
 }
 
 impl FetchManager {
-    pub fn new(tasks: &[FetchTask], multi_progress: Option<&indicatif::MultiProgress>) -> Self {
-        let mut progress_bars = HashMap::new();
-        
-        if let Some(mp) = multi_progress {
-            for (i, task) in tasks.iter().enumerate() {
-                let desc = match task {
-                    FetchTask::EdgarFiling { filing, .. } => 
-                        format!("Filing {} {}", filing.report_type, filing.accession_number),
-                    FetchTask::EarningsTranscript { ticker, quarter, year, .. } =>
-                        format!("{} Q{} {}", ticker, quarter, year),
-                };
-                
-                let bar = mp.add(ProgressBar::new(100));
-                bar.set_style(ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
-                bar.set_message(desc.to_string());
-                
-                progress_bars.insert(format!("task_{}", i), bar);
-            }
-        }
-        
+    pub fn new(
+        tasks: &[FetchTask],
+        progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
+    ) -> Self {
         Self {
             client: Client::new(),
-            progress_bars,
-            multi_progress: multi_progress.cloned(),
+            progress_tracker,
         }
     }
 
@@ -156,7 +135,12 @@ impl FetchManager {
         for (i, task) in tasks.iter().enumerate() {
             let tx = tx.clone();
             let client = self.client.clone();
-            let progress = self.progress_bars.get(&format!("task_{}", i)).cloned();
+            let task_id = format!("task_{}", i);
+            let progress = self
+                .progress_tracker
+                .as_ref()
+                .and_then(|tracker| tracker.get_bar(&task_id))
+                .cloned();
             let task = task.clone();
 
             let handle = tokio::spawn(async move {
