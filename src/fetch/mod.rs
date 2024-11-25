@@ -1,10 +1,10 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use reqwest::Client;
-use tokio::sync::mpsc;
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FetchTask {
@@ -39,26 +39,33 @@ pub enum FetchStatus {
 impl FetchTask {
     pub async fn execute(&self, client: &Client) -> Result<FetchResult> {
         match self {
-            FetchTask::EdgarFiling { cik, filing, output_path } => {
-                match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
-                    Ok(path) => Ok(FetchResult {
-                        task: self.clone(),
-                        status: FetchStatus::Success,
-                        output_path: Some(PathBuf::from(path)),
-                        error: None,
-                    }),
-                    Err(e) => Ok(FetchResult {
-                        task: self.clone(),
-                        status: FetchStatus::Failed,
-                        output_path: None,
-                        error: Some(e.to_string()),
-                    }),
-                }
+            FetchTask::EdgarFiling {
+                cik,
+                filing,
+                output_path,
+            } => match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
+                Ok(path) => Ok(FetchResult {
+                    task: self.clone(),
+                    status: FetchStatus::Success,
+                    output_path: Some(PathBuf::from(path)),
+                    error: None,
+                }),
+                Err(e) => Ok(FetchResult {
+                    task: self.clone(),
+                    status: FetchStatus::Failed,
+                    output_path: None,
+                    error: Some(e.to_string()),
+                }),
             },
-            FetchTask::EarningsTranscript { ticker, quarter, year, output_path } => {
+            FetchTask::EarningsTranscript {
+                ticker,
+                quarter,
+                year,
+                output_path,
+            } => {
                 let date = chrono::NaiveDate::from_ymd_opt(*year, (quarter * 3) as u32, 1)
                     .ok_or_else(|| anyhow::anyhow!("Invalid date"))?;
-                
+
                 match crate::earnings::fetch_transcript(client, ticker, date).await {
                     Ok((_, path)) => Ok(FetchResult {
                         task: self.clone(),
@@ -98,7 +105,7 @@ impl FetchManager {
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
             .unwrap()
             .progress_chars("#>-"));
-        
+
         Self {
             client: Client::new(),
             progress_bar,
