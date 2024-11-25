@@ -11,7 +11,10 @@ impl ProgressTracker {
     pub fn new(total_tasks: usize) -> Self {
         let multi = MultiProgress::new();
         
+        log::debug!("Initializing MultiProgress with {} tasks", total_tasks);
+
         let download = multi.add(ProgressBar::new(total_tasks as u64));
+        log::debug!("Added download progress bar");
         log::debug!("Initializing download progress bar");
         download.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Downloads ({eta}) {msg}")
@@ -19,12 +22,14 @@ impl ProgressTracker {
             .progress_chars("#>-"));
         
         let parse = multi.add(ProgressBar::new(total_tasks as u64));
+        log::debug!("Added parse progress bar");
         parse.set_style(ProgressStyle::default_bar()
             .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {pos}/{len} Parsing ({eta}) {msg}")
             .unwrap()
             .progress_chars("#>-"));
         
         let store = multi.add(ProgressBar::new(total_tasks as u64));
+        log::debug!("Added store progress bar");
         store.set_style(ProgressStyle::default_bar()
             .template("{spinner:.red} [{elapsed_precise}] [{bar:40.red/blue}] {pos}/{len} Storing ({eta}) {msg}")
             .unwrap()

@@ -51,6 +51,7 @@ impl FetchTask {
                         .progress_chars("#>-"));
                     pb.set_message("Downloading filing...");
                     pb.inc(10); // Increment progress
+                    pb.tick();  // Force an update to the terminal
                 }
                 
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
