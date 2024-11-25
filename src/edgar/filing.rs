@@ -20,7 +20,6 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::document::{DocType, Metadata};
-use std::sync::Arc;
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
@@ -591,7 +590,7 @@ pub async fn fetch_matching_filings(
         .collect();
 
     let fetch_manager =
-        crate::fetch::FetchManager::new(&tasks, progress.map(|p| Arc::new(p.clone())));
+        crate::fetch::FetchManager::new(&tasks, progress.map(|p| p.as_multi_progress()));
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap
@@ -620,11 +619,11 @@ pub async fn extract_complete_submission_filing(
     if let Some(p) = &progress {
         if let Some(pb) = p.get_bar("parse") {
             pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
+                ProgressStyle::default_bar()
+                    .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"),
+            );
             pb.set_message("Parsing filing...");
             pb.set_position(33);
         }
