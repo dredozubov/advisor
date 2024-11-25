@@ -41,7 +41,7 @@ impl FetchTask {
             FetchTask::EdgarFiling {
                 cik,
                 filing,
-                output_path,
+                output_path: _,
             } => match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
                 Ok(path) => Ok(FetchResult {
                     task: self.clone(),
@@ -60,7 +60,7 @@ impl FetchTask {
                 ticker,
                 quarter,
                 year,
-                output_path,
+                output_path: _,
             } => {
                 let date = chrono::NaiveDate::from_ymd_opt(*year, (quarter * 3) as u32, 1)
                     .ok_or_else(|| anyhow::anyhow!("Invalid date"))?;
