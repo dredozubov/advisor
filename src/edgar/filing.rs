@@ -576,7 +576,35 @@ pub async fn fetch_matching_filings(
         query.end_date
     );
 
-    process_filings_concurrently(client, &cik, matching_filings).await
+    // Convert filings to tasks
+    let tasks: Vec<crate::fetch::FetchTask> = matching_filings
+        .into_iter()
+        .map(|filing| crate::fetch::FetchTask::EdgarFiling {
+            cik: cik.clone(),
+            filing: filing.clone(),
+            output_path: PathBuf::from(format!(
+                "{}/{}/{}/{}",
+                EDGAR_FILINGS_DIR,
+                cik,
+                filing.accession_number.replace("-", ""),
+                filing.primary_document.replace(".htm", "_htm.xml")
+            )),
+        })
+        .collect();
+
+    let fetch_manager = crate::fetch::FetchManager::new(tasks.len());
+    let results = fetch_manager.execute_tasks(tasks).await?;
+
+    // Convert results back to HashMap
+    let mut filing_map = HashMap::new();
+    for result in results {
+        if let (crate::fetch::FetchStatus::Success, Some(path), crate::fetch::FetchTask::EdgarFiling { filing, .. }) = 
+            (result.status, result.output_path, result.task) {
+            filing_map.insert(path.to_string_lossy().to_string(), filing);
+        }
+    }
+
+    Ok(filing_map)
 }
 
 pub async fn extract_complete_submission_filing(
