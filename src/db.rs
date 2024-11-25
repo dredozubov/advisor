@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde_json::Value;
 use sqlx::{query, query_as, Pool, Postgres};
-use time::OffsetDateTime;
 use uuid::Uuid;
 use crate::memory::{Conversation, Message, MessageRole};
 

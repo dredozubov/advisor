@@ -38,7 +38,7 @@ async fn process_documents(
                         edgar_query.start_date,
                         edgar_query.end_date
                     );
-                    let filings = filing::fetch_matching_filings(http_client, &edgar_query).await?;
+                    let filings = filing::fetch_matching_filings(http_client, &edgar_query, None).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }
@@ -540,6 +540,7 @@ async fn process_edgar_filings(
             filing.report_type.clone(),
             store,
             pg_pool,
+            None
         )
         .await?;
     }
