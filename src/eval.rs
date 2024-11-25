@@ -458,7 +458,9 @@ pub async fn eval(
         let tracker = crate::utils::progress::ProgressTracker::new(query.estimated_tasks());
         let multi_progress = tracker.multi_progress.clone();
         std::thread::spawn(move || {
-            let _ = multi_progress.join();
+            multi_progress.join().unwrap_or_else(|e| {
+                log::error!("Failed to render progress bars: {}", e);
+            });
         });
         Some(tracker)
     } else {
