@@ -1,5 +1,6 @@
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::collections::HashMap;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -36,25 +37,39 @@ pub enum FetchStatus {
 }
 
 impl FetchTask {
-    pub async fn execute(&self, client: &Client) -> Result<FetchResult> {
+    pub async fn execute(&self, client: &Client, progress: Option<&ProgressBar>) -> Result<FetchResult> {
         match self {
             FetchTask::EdgarFiling {
                 cik,
                 filing,
                 output_path: _,
-            } => match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
-                Ok(path) => Ok(FetchResult {
-                    task: self.clone(),
-                    status: FetchStatus::Success,
-                    output_path: Some(PathBuf::from(path)),
-                    error: None,
-                }),
-                Err(e) => Ok(FetchResult {
-                    task: self.clone(),
-                    status: FetchStatus::Failed,
-                    output_path: None,
-                    error: Some(e.to_string()),
-                }),
+            } => {
+                if let Some(pb) = progress {
+                    pb.set_message("Downloading...");
+                    pb.set_position(0);
+                }
+                
+                match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
+                    Ok(path) => {
+                        if let Some(pb) = progress {
+                            pb.set_message("Parsing...");
+                            pb.set_position(50);
+                        }
+                        
+                        Ok(FetchResult {
+                            task: self.clone(),
+                            status: FetchStatus::Success,
+                            output_path: Some(PathBuf::from(path)),
+                            error: None,
+                        })
+                    },
+                    Err(e) => Ok(FetchResult {
+                        task: self.clone(),
+                        status: FetchStatus::Failed,
+                        output_path: None,
+                        error: Some(e.to_string()),
+                    }),
+                }
             },
             FetchTask::EarningsTranscript {
                 ticker,
@@ -94,50 +109,71 @@ pub struct FetchProgress {
 
 pub struct FetchManager {
     client: Client,
-    progress: Option<ProgressBar>,
+    progress_bars: HashMap<String, ProgressBar>,
+    multi_progress: Option<MultiProgress>,
 }
 
 impl FetchManager {
-    pub fn new(total_tasks: usize, multi_progress: Option<&indicatif::MultiProgress>) -> Self {
-        let progress = multi_progress.map(|mp| {
-            let bar = mp.add(ProgressBar::new(total_tasks as u64));
-            bar.set_style(ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-                .unwrap()
-                .progress_chars("#>-"));
-            bar
-        });
+    pub fn new(tasks: &[FetchTask], multi_progress: Option<&indicatif::MultiProgress>) -> Self {
+        let mut progress_bars = HashMap::new();
+        
+        if let Some(mp) = multi_progress {
+            for (i, task) in tasks.iter().enumerate() {
+                let desc = match task {
+                    FetchTask::EdgarFiling { filing, .. } => 
+                        format!("Filing {} {}", filing.report_type, filing.accession_number),
+                    FetchTask::EarningsTranscript { ticker, quarter, year, .. } =>
+                        format!("{} Q{} {}", ticker, quarter, year),
+                };
+                
+                let bar = mp.add(ProgressBar::new(100));
+                bar.set_style(ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
+                bar.set_message(&desc);
+                
+                progress_bars.insert(format!("task_{}", i), bar);
+            }
+        }
         
         Self {
             client: Client::new(),
-            progress,
+            progress_bars,
+            multi_progress: multi_progress.cloned(),
         }
     }
 
     pub async fn execute_tasks(&self, tasks: Vec<FetchTask>) -> Result<Vec<FetchResult>> {
         let (tx, mut rx) = mpsc::channel(100);
         let mut handles = Vec::new();
-        let total_tasks = tasks.len();
 
-        for task in tasks {
+        for (i, task) in tasks.iter().enumerate() {
             let tx = tx.clone();
             let client = self.client.clone();
-            let progress = self.progress.as_ref().cloned();
+            let progress = self.progress_bars.get(&format!("task_{}", i)).cloned();
+            let task = task.clone();
 
             let handle = tokio::spawn(async move {
-                let result = task.execute(&client).await;
+                let result = task.execute(&client, progress.as_ref()).await;
                 if let Some(pb) = progress {
-                    pb.inc(1);
                     match &result {
                         Ok(fetch_result) => {
                             match fetch_result.status {
-                                FetchStatus::Success => pb.set_message("✓"),
-                                FetchStatus::Failed => pb.set_message("✗"),
-                                FetchStatus::Skipped => pb.set_message("-"),
+                                FetchStatus::Success => {
+                                    pb.set_position(100);
+                                    pb.finish_with_message("✓");
+                                },
+                                FetchStatus::Failed => {
+                                    pb.finish_with_message("✗");
+                                },
+                                FetchStatus::Skipped => {
+                                    pb.finish_with_message("-");
+                                },
                             }
                         }
                         Err(_) => {
-                            pb.set_message("✗");
+                            pb.finish_with_message("✗");
                         }
                     }
                 }
