@@ -198,7 +198,7 @@ pub async fn store_chunked_document(
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
 ) -> anyhow::Result<()> {
-    println!("Storing document with metadata: {:?}", metadata);
+    log::debug!("Storing document with metadata: {:?}", metadata);
 
     // Split content into smaller chunks
     let chunks: Vec<String> = content
