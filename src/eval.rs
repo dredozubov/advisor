@@ -463,9 +463,7 @@ pub async fn eval(
         // Spawn a thread to render the progress bars
         std::thread::spawn(move || {
             log::debug!("Starting MultiProgress rendering thread");
-            multi_progress.join().unwrap_or_else(|e| {
-                log::error!("Failed to render progress bars: {}", e);
-            });
+            let _ = multi_progress.join();
         });
 
         Some(tracker)
