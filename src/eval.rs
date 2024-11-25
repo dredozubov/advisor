@@ -40,7 +40,8 @@ async fn process_documents(
                         edgar_query.start_date,
                         edgar_query.end_date
                     );
-                    let filings = filing::fetch_matching_filings(http_client, &edgar_query, progress).await?;
+                    let filings =
+                        filing::fetch_matching_filings(http_client, &edgar_query, progress).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }
@@ -454,17 +455,14 @@ pub async fn eval(
     // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
     // Create progress tracker for CLI
+
     let progress = if std::io::stdout().is_terminal() {
         let tracker = crate::utils::progress::ProgressTracker::new(query.estimated_tasks());
-        let multi_progress = tracker.multi_progress.clone();
-        std::thread::spawn(move || {
-            let _ = multi_progress.join();
-        });
         Some(tracker)
     } else {
         None
     };
-    
+
     process_documents(&query, http_client, store, pg_pool, progress.as_ref()).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
@@ -554,7 +552,7 @@ async fn process_edgar_filings(
             filing.report_type.clone(),
             store,
             pg_pool,
-            None
+            None,
         )
         .await?;
     }
@@ -586,8 +584,14 @@ async fn process_earnings_transcripts(
 
         // Store the transcript using the chunking utility with caching
         log::info!("Storing earnings transcript in vector store");
-        crate::document::store_chunked_document(transcript.content, metadata, store, qdrant_client, None)
-            .await?;
+        crate::document::store_chunked_document(
+            transcript.content,
+            metadata,
+            store,
+            qdrant_client,
+            None,
+        )
+        .await?;
         log::info!(
             "Added earnings transcript to vector store: {} Q{}",
             transcript.symbol,
