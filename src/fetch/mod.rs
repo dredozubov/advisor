@@ -94,20 +94,23 @@ pub struct FetchProgress {
 
 pub struct FetchManager {
     client: Client,
-    progress_bar: ProgressBar,
+    progress: Option<ProgressBar>,
 }
 
 impl FetchManager {
-    pub fn new(total_tasks: usize) -> Self {
-        let progress_bar = ProgressBar::new(total_tasks as u64);
-        progress_bar.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
-
+    pub fn new(total_tasks: usize, multi_progress: Option<&indicatif::MultiProgress>) -> Self {
+        let progress = multi_progress.map(|mp| {
+            let bar = mp.add(ProgressBar::new(total_tasks as u64));
+            bar.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+                .unwrap()
+                .progress_chars("#>-"));
+            bar
+        });
+        
         Self {
             client: Client::new(),
-            progress_bar,
+            progress,
         }
     }
 
@@ -119,22 +122,23 @@ impl FetchManager {
         for task in tasks {
             let tx = tx.clone();
             let client = self.client.clone();
-            let pb = self.progress_bar.clone();
+            let progress = self.progress.as_ref().cloned();
 
             let handle = tokio::spawn(async move {
                 let result = task.execute(&client).await;
-                match &result {
-                    Ok(fetch_result) => {
-                        pb.inc(1);
-                        match fetch_result.status {
-                            FetchStatus::Success => pb.set_message("✓"),
-                            FetchStatus::Failed => pb.set_message("✗"),
-                            FetchStatus::Skipped => pb.set_message("-"),
+                if let Some(pb) = progress {
+                    pb.inc(1);
+                    match &result {
+                        Ok(fetch_result) => {
+                            match fetch_result.status {
+                                FetchStatus::Success => pb.set_message("✓"),
+                                FetchStatus::Failed => pb.set_message("✗"),
+                                FetchStatus::Skipped => pb.set_message("-"),
+                            }
                         }
-                    }
-                    Err(_) => {
-                        pb.inc(1);
-                        pb.set_message("✗");
+                        Err(_) => {
+                            pb.set_message("✗");
+                        }
                     }
                 }
                 tx.send(result).await
@@ -153,7 +157,9 @@ impl FetchManager {
             handle.await?;
         }
 
-        self.progress_bar.finish_with_message("Download complete");
+        if let Some(pb) = &self.progress {
+            pb.finish_with_message("Download complete");
+        }
         Ok(results)
     }
 }

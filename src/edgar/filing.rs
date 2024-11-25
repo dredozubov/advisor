@@ -551,6 +551,7 @@ pub async fn fetch_filing_document(
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
+    progress: Option<&crate::utils::progress::ProgressTracker>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
     
@@ -592,7 +593,10 @@ pub async fn fetch_matching_filings(
         })
         .collect();
 
-    let fetch_manager = crate::fetch::FetchManager::new(tasks.len());
+    let fetch_manager = crate::fetch::FetchManager::new(
+        tasks.len(),
+        progress.map(|p| p.as_multi_progress())
+    );
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap
@@ -612,11 +616,12 @@ pub async fn extract_complete_submission_filing(
     report_type: ReportType,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
+    progress: Option<&crate::utils::progress::ProgressTracker>,
 ) -> Result<()> {
-    log::info!(
-        "Starting extract_complete_submission_filing for file: {}",
-        filepath
-    );
+    if let Some(p) = &progress {
+        p.parse.inc(1);
+        p.parse.set_message(&format!("Parsing {}", filepath));
+    }
     log::info!("Parsing XBRL file");
 
     // Read and decode the file content
