@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::collections::HashMap;
+use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -120,7 +119,7 @@ pub struct FetchManager {
 
 impl FetchManager {
     pub fn new(
-        tasks: &[FetchTask],
+        _tasks: &[FetchTask],
         progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
     ) -> Self {
         Self {
