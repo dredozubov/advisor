@@ -620,8 +620,7 @@ pub async fn extract_complete_submission_filing(
 ) -> Result<()> {
     if let Some(p) = &progress {
         p.parse.inc(1);
-        let msg = format!("Parsing {}", filepath);
-        p.parse.set_message(msg.as_str());
+        p.parse.set_message("Parsing filing...");
     }
     log::info!("Parsing XBRL file");
 
