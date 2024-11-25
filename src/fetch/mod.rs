@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::HashMap;
+use std::sync::Arc;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -176,7 +177,8 @@ impl FetchManager {
 
         let mut results = Vec::with_capacity(tasks.len());
         while let Some(result) = rx.recv().await {
-            if let Some(mp) = self.multi_progress.as_ref() {
+            if let Some(tracker) = self.progress_tracker.as_ref() {
+                let mp = tracker.as_multi_progress();
                 mp.println("Task completed").unwrap();
             }
             results.push(result?);

@@ -1,7 +1,5 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-
 use std::collections::HashMap;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub struct ProgressTracker {
     pub multi_progress: MultiProgress,

@@ -457,7 +457,7 @@ pub async fn eval(
     // Create progress tracker for CLI
 
     let progress = if std::io::stdout().is_terminal() {
-        let tracker = Arc::new(crate::utils::progress::ProgressTracker::new(&query.estimated_tasks()));
+        let tracker = Arc::new(crate::utils::progress::ProgressTracker::new(&tasks));
         let multi_progress = tracker.as_multi_progress().clone();
 
         // Spawn a thread to render the progress bars
@@ -471,7 +471,7 @@ pub async fn eval(
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, progress.as_ref()).await?;
+    process_documents(&query, http_client, store, pg_pool, progress.as_ref().map(|v| &**v)).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
