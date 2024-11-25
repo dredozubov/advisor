@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use core::fmt;
+use indicatif::{ProgressBar, ProgressStyle};
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde::{Deserialize, Serialize};

@@ -581,7 +581,7 @@ async fn process_earnings_transcripts(
 
         // Store the transcript using the chunking utility with caching
         log::info!("Storing earnings transcript in vector store");
-        crate::document::store_chunked_document(transcript.content, metadata, store, qdrant_client)
+        crate::document::store_chunked_document(transcript.content, metadata, store, qdrant_client, None)
             .await?;
         log::info!(
             "Added earnings transcript to vector store: {} Q{}",
