@@ -131,7 +131,7 @@ impl FetchManager {
                     .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
                     .unwrap()
                     .progress_chars("#>-"));
-                bar.set_message(&desc);
+                bar.set_message(&desc.to_string());
                 
                 progress_bars.insert(format!("task_{}", i), bar);
             }
@@ -184,7 +184,7 @@ impl FetchManager {
 
         drop(tx);
 
-        let mut results = Vec::with_capacity(total_tasks);
+        let mut results = Vec::with_capacity(tasks.len());
         while let Some(result) = rx.recv().await {
             results.push(result?);
         }
@@ -193,9 +193,7 @@ impl FetchManager {
             handle.await?;
         }
 
-        if let Some(pb) = &self.progress {
-            pb.finish_with_message("Download complete");
-        }
+        // All tasks complete
         Ok(results)
     }
 }
