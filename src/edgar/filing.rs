@@ -17,6 +17,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 use url::Url;
 
 use crate::document::{DocType, Metadata};

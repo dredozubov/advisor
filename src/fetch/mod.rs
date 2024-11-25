@@ -1,9 +1,9 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::sync::Arc;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +37,11 @@ pub enum FetchStatus {
 }
 
 impl FetchTask {
-    pub async fn execute(&self, client: &Client, progress: Option<&ProgressBar>) -> Result<FetchResult> {
+    pub async fn execute(
+        &self,
+        client: &Client,
+        progress: Option<&ProgressBar>,
+    ) -> Result<FetchResult> {
         match self {
             FetchTask::EdgarFiling {
                 cik,
@@ -45,29 +49,33 @@ impl FetchTask {
                 output_path: _,
             } => {
                 if let Some(pb) = progress {
-                    pb.set_style(ProgressStyle::default_bar()
-                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                        .unwrap()
-                        .progress_chars("#>-"));
+                    pb.set_style(
+                        ProgressStyle::default_bar()
+                            .template(
+                                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}",
+                            )
+                            .unwrap()
+                            .progress_chars("#>-"),
+                    );
                     pb.set_message("Downloading filing...");
                     pb.inc(10); // Increment progress
-                    pb.tick();  // Force an update to the terminal
+                    pb.tick(); // Force an update to the terminal
                 }
-                
+
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
                     Ok(path) => {
                         if let Some(pb) = progress {
                             pb.set_message("Parsing...");
                             pb.inc(40); // Increment progress
                         }
-                        
+
                         Ok(FetchResult {
                             task: self.clone(),
                             status: FetchStatus::Success,
                             output_path: Some(PathBuf::from(path)),
                             error: None,
                         })
-                    },
+                    }
                     Err(e) => Ok(FetchResult {
                         task: self.clone(),
                         status: FetchStatus::Failed,
@@ -75,7 +83,7 @@ impl FetchTask {
                         error: Some(e.to_string()),
                     }),
                 }
-            },
+            }
             FetchTask::EarningsTranscript {
                 ticker,
                 quarter,
@@ -153,13 +161,13 @@ impl FetchManager {
                                     pb.inc(50); // Increment progress
                                     pb.finish_with_message("✓");
                                     pb.finish_with_message("✓");
-                                },
+                                }
                                 FetchStatus::Failed => {
                                     pb.finish_with_message("✗");
-                                },
+                                }
                                 FetchStatus::Skipped => {
                                     pb.finish_with_message("-");
-                                },
+                                }
                             }
                         }
                         Err(_) => {
@@ -184,7 +192,7 @@ impl FetchManager {
         }
 
         for handle in handles {
-            handle.await?;
+            let _ = handle.await?;
         }
 
         // All tasks complete

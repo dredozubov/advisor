@@ -464,7 +464,9 @@ pub async fn eval(
         // Spawn a thread to render the progress bars
         std::thread::spawn(move || {
             log::debug!("Starting MultiProgress rendering thread");
-            multi_progress.join().expect("Failed to render progress bars");
+            multi_progress
+                .clear()
+                .expect("Failed to render progress bars");
         });
 
         Some(tracker)
@@ -472,7 +474,7 @@ pub async fn eval(
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, progress.as_ref().map(|v| &**v)).await?;
+    process_documents(&query, http_client, store, pg_pool, progress.as_deref()).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
