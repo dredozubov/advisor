@@ -547,58 +547,6 @@ async fn fetch_filing_document(
     Ok(document_path)
 }
 
-async fn process_filings_concurrently(
-    client: &Client,
-    cik: &str,
-    filings: Vec<Filing>,
-) -> Result<HashMap<String, Filing>> {
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-    let total_tasks = filings.len();
-    let mut completed_tasks = 0;
-    let mut handles = Vec::new();
-
-    for filing in filings {
-        let tx = tx.clone();
-        let client = client.clone();
-        let cik = cik.to_string();
-        
-        let handle = tokio::spawn(async move {
-            let filing_clone = filing.clone();
-            match fetch_filing_document(&client, &cik, &filing).await {
-                Ok(document_path) => {
-                    tx.send((document_path, filing)).await?;
-                }
-                Err(e) => {
-                    log::error!("Error processing filing: {}", e);
-                    tx.send(("".to_string(), filing_clone)).await?;
-                }
-            }
-            Ok::<(), anyhow::Error>(())
-        });
-        handles.push(handle);
-    }
-
-    drop(tx);
-
-    let mut filing_map = HashMap::new();
-    while let Some((document_path, filing)) = rx.recv().await {
-        completed_tasks += 1;
-        if !document_path.is_empty() {
-            filing_map.insert(document_path, filing);
-        }
-        if completed_tasks >= total_tasks {
-            break;
-        }
-    }
-
-    for handle in handles {
-        if let Err(e) = handle.await {
-            log::error!("Task join error: {}", e);
-        }
-    }
-
-    Ok(filing_map)
-}
 
 pub async fn fetch_matching_filings(
     client: &Client,
