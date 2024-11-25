@@ -458,7 +458,7 @@ pub async fn eval(
         let tracker = crate::utils::progress::ProgressTracker::new(query.estimated_tasks());
         let multi_progress = tracker.multi_progress.clone();
         tokio::spawn(async move {
-            let _ = multi_progress.join_and_clear().expect("Failed to render progress bars");
+            let _ = multi_progress.join().expect("Failed to render progress bars");
         });
         Some(tracker)
     } else {
