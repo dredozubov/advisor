@@ -1,7 +1,7 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub struct ProgressTracker {
-    multi_progress: MultiProgress,
+    pub multi_progress: MultiProgress,
     pub download: ProgressBar,
     pub parse: ProgressBar,
     pub store: ProgressBar,
@@ -12,6 +12,7 @@ impl ProgressTracker {
         let multi = MultiProgress::new();
         
         let download = multi.add(ProgressBar::new(total_tasks as u64));
+        log::debug!("Initializing download progress bar");
         download.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Downloads ({eta}) {msg}")
             .unwrap()

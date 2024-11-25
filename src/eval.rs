@@ -455,7 +455,12 @@ pub async fn eval(
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
     // Create progress tracker for CLI
     let progress = if std::io::stdout().is_terminal() {
-        Some(crate::utils::progress::ProgressTracker::new(query.estimated_tasks()))
+        let tracker = crate::utils::progress::ProgressTracker::new(query.estimated_tasks());
+        let multi_progress = tracker.multi_progress.clone();
+        tokio::spawn(async move {
+            let _ = multi_progress.join();
+        });
+        Some(tracker)
     } else {
         None
     };

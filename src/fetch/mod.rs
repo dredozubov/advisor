@@ -57,7 +57,7 @@ impl FetchTask {
                     Ok(path) => {
                         if let Some(pb) = progress {
                             pb.set_message("Parsing...");
-                            pb.set_position(50);
+                            pb.inc(40); // Increment progress
                         }
                         
                         Ok(FetchResult {
@@ -165,7 +165,8 @@ impl FetchManager {
                         Ok(fetch_result) => {
                             match fetch_result.status {
                                 FetchStatus::Success => {
-                                    pb.set_position(100);
+                                    pb.inc(50); // Increment progress
+                                    pb.finish_with_message("✓");
                                     pb.finish_with_message("✓");
                                 },
                                 FetchStatus::Failed => {
@@ -190,6 +191,9 @@ impl FetchManager {
 
         let mut results = Vec::with_capacity(tasks.len());
         while let Some(result) = rx.recv().await {
+            if let Some(mp) = self.multi_progress.as_ref() {
+                mp.println("Task completed").unwrap();
+            }
             results.push(result?);
         }
 
