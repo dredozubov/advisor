@@ -78,7 +78,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool.clone(), multi_progress.as_ref())
+        process_earnings_transcripts(transcripts, store, pg_pool.clone(), progress_tracker)
             .await?;
     }
 
@@ -619,7 +619,7 @@ async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: Arc<Store>,
     pg_pool: Pool<Postgres>,
-    progress: Option<&Arc<MultiProgress>>,
+    progress_tracker: Option<&ProgressTracker>,
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut success_count = 0;
@@ -632,8 +632,6 @@ async fn process_earnings_transcripts(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
-        let progress_tracker = ProgressTracker::new(progress_bar.as_ref());
         progress_tracker.start_progress(
             100,
             &format!(
@@ -677,10 +675,6 @@ async fn process_earnings_transcripts(
             )
             .await?;
 
-            if let Some(pb) = progress_bar {
-                pb.finish_and_clear();
-                pb.abandon();
-            }
 
             let _ = tx.send(Ok(())).await;
             Ok::<_, anyhow::Error>(())
