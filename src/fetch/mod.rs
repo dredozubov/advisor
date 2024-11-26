@@ -112,6 +112,12 @@ impl FetchTask {
     ) -> Result<FetchResult> {
         let progress_bar = self.progress_bar();
         if let Some(pb) = progress_bar {
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-")
+            );
             pb.set_message("Starting task...");
             pb.set_position(0);
         }
@@ -310,6 +316,11 @@ impl FetchManager {
                 mp.println("Task completed").unwrap();
             }
             results.push(result?);
+        }
+
+        // Clear progress bars when done
+        if let Some(mp) = &self.multi_progress {
+            mp.clear().unwrap();
         }
 
         for handle in handles {

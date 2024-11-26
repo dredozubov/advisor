@@ -554,6 +554,10 @@ pub async fn fetch_matching_filings(
 
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
+    
+    if let Some(mp) = progress {
+        mp.println("Retrieved filing list").unwrap();
+    }
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
 
     crate::utils::dirs::ensure_edgar_dirs()?;

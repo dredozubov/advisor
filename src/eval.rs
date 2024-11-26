@@ -24,6 +24,15 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&MultiProgress>,
 ) -> Result<()> {
+    // Create MultiProgress only if we're in a terminal
+    let multi_progress = if std::io::stdout().is_terminal() {
+        let mp = MultiProgress::new();
+        mp.set_move_cursor(true);
+        Some(Arc::new(mp))
+    } else {
+        None
+    };
+
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
