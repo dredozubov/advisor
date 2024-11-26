@@ -5,7 +5,7 @@ use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
-use indicatif::MultiProgress;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
@@ -541,25 +541,23 @@ async fn process_edgar_filings(
 ) -> Result<()> {
     // Launch tasks concurrently
     for (filepath, filing) in filings {
-        let tx = tx.clone();
-        let client = client.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                .unwrap()
-                .progress_chars("#>-"));
-            pb.set_message(format!("Filing {} {}", filing.report_type, filing.accession_number));
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"),
+            );
+            pb.set_message(format!(
+                "Filing {} {}",
+                filing.report_type, filing.accession_number
+            ));
             pb
         });
 
         let handle = tokio::spawn(async move {
-            let result = fetch_and_process_filing(
-                &client,
-                &filing,
-                progress_bar.as_ref()
-            ).await;
-            tx.send(result).await.expect("Channel send failed");
+            let result = fetch_and_process_filing(&client, &filing, progress_bar.as_ref()).await;
             result
         });
         handles.push(handle);
@@ -601,11 +599,16 @@ async fn process_earnings_transcripts(
         let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                .unwrap()
-                .progress_chars("#>-"));
-            pb.set_message(format!("Processing {} Q{} {}", transcript.symbol, transcript.quarter, transcript.year));
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"),
+            );
+            pb.set_message(format!(
+                "Processing {} Q{} {}",
+                transcript.symbol, transcript.quarter, transcript.year
+            ));
             pb
         });
 
@@ -632,7 +635,8 @@ async fn process_earnings_transcripts(
                 store.as_ref(),
                 &pg_pool,
                 progress_bar.as_ref(),
-            ).await?;
+            )
+            .await?;
 
             if let Some(pb) = progress_bar {
                 pb.finish_with_message("Complete");
