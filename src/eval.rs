@@ -605,8 +605,6 @@ async fn process_edgar_filings(
     // Drop the sender to signal no more messages will be sent
     drop(tx);
 
-    // Drop sender to signal no more messages
-    drop(tx);
 
     // Collect and process results
     while let Some(result) = rx.recv().await {
