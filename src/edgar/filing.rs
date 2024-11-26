@@ -590,7 +590,7 @@ pub async fn fetch_matching_filings(
         })
         .collect();
 
-    let store = Arc::new(crate::vectorstore::get_store().await? as Box<dyn VectorStore + Send + Sync>);
+    let store = Arc::new(crate::vectorstore::get_store().await?);
     let pg_pool = crate::db::get_pool().await?;
 
     let fetch_manager = crate::fetch::FetchManager::new(
