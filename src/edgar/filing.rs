@@ -581,7 +581,7 @@ pub async fn fetch_matching_filings(
         let client = client.clone();
         let cik = cik.clone();
         let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
-        let progress_tracker = ProgressTracker::new(progress_bar);
+        let progress_tracker = ProgressTracker::new(progress_bar.as_ref());
         progress_tracker.start_progress(100, &format!(
             "Filing {} {}",
             filing.report_type, filing.accession_number
