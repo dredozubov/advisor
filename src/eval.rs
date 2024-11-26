@@ -551,7 +551,6 @@ async fn process_edgar_filings(
     // Launch tasks concurrently
     for (filepath, filing) in filings {
         let tx = tx.clone();
-        let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
         if let Some(tracker) = progress_tracker {
@@ -559,7 +558,6 @@ async fn process_edgar_filings(
                 "Processing filing: {} {}",
                 filing.report_type, filing.accession_number
             ));
-        }
         }
 
         let handle = tokio::spawn(async move {
