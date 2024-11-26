@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FetchTask {
     EdgarFiling {
@@ -25,6 +27,21 @@ pub enum FetchTask {
         #[serde(skip)]
         progress: Option<ProgressBar>,
     },
+}
+
+impl FetchTask {
+    fn create_progress_bar(multi: &MultiProgress, desc: &str) -> ProgressBar {
+        let pb = multi.add(ProgressBar::new(100));
+        pb.set_style(
+            ProgressStyle::with_template(
+                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+            )
+            .unwrap()
+            .progress_chars("##-")
+        );
+        pb.set_message(desc.to_string());
+        pb
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,17 +74,8 @@ impl FetchTask {
                 progress,
             } => {
                 if let Some(pb) = progress {
-                    pb.set_style(
-                        ProgressStyle::default_bar()
-                            .template(
-                                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}",
-                            )
-                            .unwrap()
-                            .progress_chars("#>-"),
-                    );
                     pb.set_message("Downloading filing...");
                     pb.inc(25);
-                    pb.tick();
                 }
 
                 // Download the filing

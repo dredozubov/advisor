@@ -575,18 +575,25 @@ pub async fn fetch_matching_filings(
     );
 
     // Convert filings to tasks
+    let multi = MultiProgress::new();
     let tasks: Vec<crate::fetch::FetchTask> = matching_filings
         .into_iter()
-        .map(|filing| crate::fetch::FetchTask::EdgarFiling {
-            cik: cik.clone(),
-            filing: filing.clone(),
-            output_path: PathBuf::from(format!(
-                "{}/{}/{}/{}",
-                EDGAR_FILINGS_DIR,
-                cik,
-                filing.accession_number.replace("-", ""),
-                filing.primary_document.replace(".htm", "_htm.xml")
-            )),
+        .map(|filing| {
+            let desc = format!("Filing {} {}", filing.report_type, filing.accession_number);
+            let pb = FetchTask::create_progress_bar(&multi, &desc);
+            
+            crate::fetch::FetchTask::EdgarFiling {
+                cik: cik.clone(),
+                filing: filing.clone(),
+                output_path: PathBuf::from(format!(
+                    "{}/{}/{}/{}",
+                    EDGAR_FILINGS_DIR,
+                    cik,
+                    filing.accession_number.replace("-", ""),
+                    filing.primary_document.replace(".htm", "_htm.xml")
+                )),
+                progress: Some(pb),
+            }
         })
         .collect();
 
