@@ -27,7 +27,12 @@ pub enum FetchTask {
 }
 
 impl FetchTask {
-    pub fn new_edgar_filing(multi: &MultiProgress, cik: String, filing: crate::edgar::filing::Filing, output_path: PathBuf) -> Self {
+    pub fn new_edgar_filing(
+        multi: &MultiProgress,
+        cik: String,
+        filing: crate::edgar::filing::Filing,
+        output_path: PathBuf,
+    ) -> Self {
         let desc = format!("Filing {} {}", filing.report_type, filing.accession_number);
         let pb = multi.add(ProgressBar::new(100));
         pb.set_style(
@@ -35,10 +40,10 @@ impl FetchTask {
                 "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
             )
             .unwrap()
-            .progress_chars("##-")
+            .progress_chars("##-"),
         );
         pb.set_message(desc);
-        
+
         FetchTask::EdgarFiling {
             cik,
             filing,
@@ -47,7 +52,13 @@ impl FetchTask {
         }
     }
 
-    pub fn new_earnings_transcript(multi: &MultiProgress, ticker: String, quarter: i32, year: i32, output_path: PathBuf) -> Self {
+    pub fn new_earnings_transcript(
+        multi: &MultiProgress,
+        ticker: String,
+        quarter: i32,
+        year: i32,
+        output_path: PathBuf,
+    ) -> Self {
         let desc = format!("Earnings {} Q{} {}", ticker, quarter, year);
         let pb = multi.add(ProgressBar::new(100));
         pb.set_style(
@@ -55,10 +66,10 @@ impl FetchTask {
                 "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
             )
             .unwrap()
-            .progress_chars("##-")
+            .progress_chars("##-"),
         );
         pb.set_message(desc);
-        
+
         FetchTask::EarningsTranscript {
             ticker,
             quarter,
@@ -162,12 +173,14 @@ impl FetchTask {
                 quarter,
                 year,
                 output_path: _,
-                progress,
+                progress_bar,
             } => {
                 if let Some(pb) = progress {
                     pb.set_style(
                         ProgressStyle::default_bar()
-                            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                            .template(
+                                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}",
+                            )
                             .unwrap()
                             .progress_chars("#>-"),
                     );
@@ -237,7 +250,9 @@ impl FetchManager {
             let store = self.store.clone();
             let pg_pool = self.pg_pool.clone();
             let handle = tokio::spawn(async move {
-                let result = task.execute(&client, &*store, &pg_pool, progress.as_ref()).await;
+                let result = task
+                    .execute(&client, &*store, &pg_pool, progress.as_ref())
+                    .await;
                 if let Some(pb) = progress {
                     match &result {
                         Ok(fetch_result) => {
