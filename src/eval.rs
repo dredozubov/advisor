@@ -552,7 +552,9 @@ async fn process_edgar_filings(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let mut handles = Vec::new();
-    let (tx, _rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
+    let mut success_count = 0;
+    let mut error_count = 0;
 
     // Launch tasks concurrently
     for (filepath, filing) in filings {
@@ -599,16 +601,27 @@ async fn process_edgar_filings(
         handles.push(handle);
     }
 
-    // Drop the sender
+    // Drop the sender to signal no more messages will be sent
     drop(tx);
 
-    // Collect results
+    // Collect and process results
+    let mut success_count = 0;
+    let mut error_count = 0;
     while let Some(result) = rx.recv().await {
         match result {
-            Ok(_) => (),
-            Err(e) => log::error!("Error processing filing: {}", e),
+            Ok(_) => success_count += 1,
+            Err(e) => {
+                error_count += 1;
+                log::error!("Error processing filing: {}", e);
+            }
         }
     }
+    log::info!(
+        "Processed {} filings: {} successful, {} failed",
+        success_count + error_count,
+        success_count,
+        error_count
+    );
 
     // Wait for all tasks
     for handle in handles {
@@ -691,14 +704,31 @@ async fn process_earnings_transcripts(
         handles.push(handle);
     }
 
-    // Collect results
-    let mut results = Vec::new();
-    for handle in handles {
-        match handle.await? {
-            Ok(result) => results.push(result),
-            Err(e) => log::error!("Error processing transcript: {}", e),
+    // Drop sender to signal no more messages
+    drop(tx);
+
+    // Collect results from channel
+    while let Some(result) = rx.recv().await {
+        match result {
+            Ok(_) => success_count += 1,
+            Err(e) => {
+                error_count += 1;
+                log::error!("Error processing transcript: {}", e);
+            }
         }
     }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        handle.await??;
+    }
+
+    log::info!(
+        "Processed {} transcripts: {} successful, {} failed",
+        success_count + error_count,
+        success_count,
+        error_count
+    );
 
     Ok(())
 }
