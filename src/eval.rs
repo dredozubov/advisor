@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        Arc::new(store),
+                        store,
                         pg_pool.clone(),
                         multi_progress.as_ref(),
                     )
@@ -87,7 +87,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            Arc::new(store),
+            store,
             pg_pool.clone(),
             multi_progress.as_ref(),
         )
