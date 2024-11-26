@@ -571,7 +571,7 @@ async fn process_edgar_filings(
                     .progress_chars("#>-"),
             );
             pb.set_message(format!(
-                "Filing {} {}",
+                "Processing filing: {} {}",
                 filing.report_type, filing.accession_number
             ));
             pb
@@ -657,7 +657,7 @@ async fn process_earnings_transcripts(
                     .progress_chars("#>-"),
             );
             pb.set_message(format!(
-                "Processing {} Q{} {}",
+                "Processing transcript: {} Q{} {}",
                 transcript.symbol, transcript.quarter, transcript.year
             ));
             pb
@@ -665,7 +665,7 @@ async fn process_earnings_transcripts(
 
         let handle = tokio::spawn(async move {
             if let Some(pb) = &progress_bar {
-                pb.set_message("Processing transcript content");
+                pb.set_message("Processing transcript...");
                 pb.set_position(25);
                 pb.set_style(
                     ProgressStyle::default_bar()
