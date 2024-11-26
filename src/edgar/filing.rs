@@ -580,7 +580,7 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.clone();
-        if let Some(tracker) = progress_tracker {
+        if let Some(ref tracker) = progress_tracker {
             tracker.start_progress(
                 100,
                 &format!("Filing {} {}", filing.report_type, filing.accession_number),

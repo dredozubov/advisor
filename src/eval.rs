@@ -54,7 +54,7 @@ async fn process_documents(
                         filings,
                         Arc::clone(&store),
                         pg_pool.clone(),
-                        Some(Arc::clone(progress_tracker)),
+                        Some(Arc::clone(&progress_tracker)),
                     )
                     .await?;
                 }
@@ -82,7 +82,7 @@ async fn process_documents(
             transcripts,
             store,
             pg_pool.clone(),
-            Some(Arc::new(progress_tracker)),
+            Some(progress_tracker.clone()),
         )
         .await?;
     }
