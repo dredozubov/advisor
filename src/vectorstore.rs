@@ -6,6 +6,12 @@ use std::collections::HashMap;
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk
 
+pub async fn get_store() -> Result<Box<dyn VectorStore>> {
+    // For now, return a simple in-memory store
+    // TODO: Implement proper vector store initialization
+    Ok(Box::new(langchain_rust::vectorstore::InMemoryStore::new()))
+}
+
 pub async fn store_document(
     content: String,
     metadata: HashMap<String, Value>,

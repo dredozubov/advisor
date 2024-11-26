@@ -1,7 +1,9 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
+use langchain_rust::vectorstore::VectorStore;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -194,7 +196,7 @@ impl FetchManager {
             let task = task.clone();
 
             let handle = tokio::spawn(async move {
-                let result = task.execute(&client, &*store, &pg_pool, progress.as_ref()).await;
+                let result = task.execute(&client, &*self.store, &self.pg_pool, progress.as_ref()).await;
                 if let Some(pb) = progress {
                     match &result {
                         Ok(fetch_result) => {
