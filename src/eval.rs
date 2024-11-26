@@ -5,7 +5,7 @@ use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
-use indicatif::{MultiProgress, ProgressBar};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
@@ -26,10 +26,12 @@ async fn process_documents(
 ) -> Result<()> {
     let progress_bar = progress.map(|mp| {
         let pb = mp.add(ProgressBar::new(100));
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")
-            .unwrap()
-            .progress_chars("#>-"));
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")
+                .unwrap()
+                .progress_chars("#>-"),
+        );
         pb
     });
     let progress_tracker = Arc::new(ProgressTracker::new(progress_bar.as_ref()));
@@ -96,7 +98,8 @@ async fn process_documents(
 
     // Clear all progress bars at the end
     if let Some(mp) = progress {
-        mp.clear().map_err(|e| anyhow!("Failed to clear progress bars: {}", e))?;
+        mp.clear()
+            .map_err(|e| anyhow!("Failed to clear progress bars: {}", e))?;
     }
     Ok(())
 }
