@@ -566,7 +566,9 @@ async fn process_edgar_filings(
             let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
                 ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .template(
+                        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
+                    )
                     .unwrap()
                     .progress_chars("#>-"),
             );
@@ -652,7 +654,9 @@ async fn process_earnings_transcripts(
             let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
                 ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .template(
+                        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
+                    )
                     .unwrap()
                     .progress_chars("#>-"),
             );
@@ -669,7 +673,9 @@ async fn process_earnings_transcripts(
                 pb.set_position(25);
                 pb.set_style(
                     ProgressStyle::default_bar()
-                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                        .template(
+                            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
+                        )
                         .unwrap()
                         .progress_chars("#>-"),
                 );
@@ -697,9 +703,8 @@ async fn process_earnings_transcripts(
             .await?;
 
             if let Some(pb) = progress_bar {
-                pb.finish();
-                pb.set_message("Processing complete");
-                pb.abandon_with_message("Processing complete");
+                pb.finish_and_clear();
+                pb.abandon();
             }
 
             let _ = tx.send(Ok(())).await;
