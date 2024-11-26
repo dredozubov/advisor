@@ -545,13 +545,13 @@ async fn process_edgar_filings(
             if let Some(mp) = progress {
                 crate::fetch::FetchTask::new_edgar_filing(
                     &**mp,
-                    cik.clone(),
+                    filing.accession_number.clone(), // Use accession number instead of cik
                     filing.clone(),
                     PathBuf::from(input_file),
                 )
             } else {
                 crate::fetch::FetchTask::new_edgar_filing_without_progress(
-                    filing.cik.clone(),
+                    filing.accession_number.clone(), // Use accession number instead of cik
                     filing.clone(),
                     PathBuf::from(input_file),
                 )
@@ -562,7 +562,7 @@ async fn process_edgar_filings(
     // Create FetchManager with progress
     let fetch_manager = crate::fetch::FetchManager::new(
         progress.cloned(),
-        store.clone(),
+        Arc::new(store.clone()),
         pg_pool.clone(),
     );
 
@@ -604,7 +604,7 @@ async fn process_earnings_transcripts(
     // Create FetchManager with progress
     let fetch_manager = crate::fetch::FetchManager::new(
         progress.cloned(),
-        Arc::new(store),
+        Arc::new(store.clone()),
         pg_pool.clone(),
     );
 
