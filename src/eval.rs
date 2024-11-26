@@ -458,15 +458,8 @@ pub async fn eval(
     
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
-        
-        // Spawn thread to render progress bars
-        let mp_clone = mp.clone();
-        std::thread::spawn(move || {
-            log::debug!("Starting MultiProgress rendering thread");
-            let _ = mp_clone.clear();
-        });
-
-        Some(mp)
+        mp.set_move_cursor(true);
+        Some(Arc::new(mp))
     } else {
         None
     };

@@ -110,10 +110,11 @@ impl FetchTask {
         store: &dyn VectorStore,
         pg_pool: &Pool<Postgres>,
     ) -> Result<FetchResult> {
-        let progress_bar = match self {
-            FetchTask::EdgarFiling { progress_bar, .. } => progress_bar,
-            FetchTask::EarningsTranscript { progress_bar, .. } => progress_bar,
-        };
+        let progress_bar = self.progress_bar();
+        if let Some(pb) = progress_bar {
+            pb.set_message("Starting task...");
+            pb.set_position(0);
+        }
         match self {
             FetchTask::EdgarFiling {
                 cik,
@@ -239,7 +240,6 @@ pub struct FetchManager {
 
 impl FetchManager {
     pub fn new(
-        _tasks: &[FetchTask],
         multi_progress: Option<Arc<MultiProgress>>,
         store: Arc<dyn VectorStore>,
         pg_pool: Pool<Postgres>,
@@ -257,6 +257,15 @@ impl FetchManager {
         let mut handles = Vec::new();
 
         for (_i, task) in tasks.iter().enumerate() {
+            if let Some(mp) = &self.multi_progress {
+                if let Some(pb) = task.progress_bar() {
+                    pb.set_style(ProgressStyle::default_bar()
+                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                        .unwrap()
+                        .progress_chars("#>-"));
+                    pb.set_message("Preparing task...");
+                }
+            }
             let tx = tx.clone();
             let client = self.client.clone();
             let task = task.clone();

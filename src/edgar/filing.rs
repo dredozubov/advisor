@@ -624,20 +624,17 @@ pub async fn extract_complete_submission_filing(
     report_type: ReportType,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&MultiProgress>,
+    progress: Option<&ProgressBar>,
 ) -> Result<()> {
-    if let Some(p) = &progress {
-        let pb = p.add(ProgressBar::new(100));
-        {
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"),
-            );
-            pb.set_message("Parsing filing...");
-            pb.set_position(33);
-        }
+    if let Some(pb) = progress {
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
+                .unwrap()
+                .progress_chars("#>-"),
+        );
+        pb.set_message("Parsing filing...");
+        pb.set_position(33);
     }
     log::info!("Parsing XBRL file");
 
