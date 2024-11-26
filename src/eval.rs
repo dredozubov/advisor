@@ -22,7 +22,7 @@ async fn process_documents(
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    _progress: Option<&Arc<MultiProgress>>,
+    progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
@@ -52,9 +52,9 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        multi_progress.as_ref().map(|mp| &**mp)
+                        progress.map(|mp| &**mp)
                     ).await?;
-                    process_edgar_filings(filings, store, pg_pool).await?;
+                    process_edgar_filings(filings, store, pg_pool, progress).await?;
                 }
             }
             Err(e) => {
@@ -76,7 +76,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool).await?;
+        process_earnings_transcripts(transcripts, store, pg_pool, progress).await?;
     }
 
     Ok(())
@@ -534,6 +534,7 @@ async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: &(dyn VectorStore + Send + Sync),
     pg_pool: &Pool<Postgres>,
+    progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     for (input_file, filing) in &filings {
         log::info!("Processing filing ({:?}): {:?}", input_file, filing);
@@ -575,6 +576,7 @@ async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: &(dyn VectorStore + Send + Sync),
     qdrant_client: &Pool<Postgres>,
+    progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     for (transcript, filepath) in transcripts {
         log::info!(
