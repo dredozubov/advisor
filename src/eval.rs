@@ -78,7 +78,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool.clone(), progress_tracker)
+        process_earnings_transcripts(transcripts, store, pg_pool.clone(), Some(&progress_tracker))
             .await?;
     }
 
@@ -560,6 +560,7 @@ async fn process_edgar_filings(
                 filing.report_type, filing.accession_number
             ));
         }
+        }
 
         let handle = tokio::spawn(async move {
             match filing::extract_complete_submission_filing(
@@ -632,7 +633,8 @@ async fn process_earnings_transcripts(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        progress_tracker.start_progress(
+        if let Some(tracker) = progress_tracker {
+            tracker.start_progress(
             100,
             &format!(
                 "Processing transcript: {} Q{} {}",

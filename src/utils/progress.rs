@@ -8,7 +8,8 @@ pub struct ProgressTracker {
 
 impl ProgressTracker {
     pub fn new(progress_bar: Option<&ProgressBar>) -> Self {
-        if let Some(pb) = progress_bar {
+        let progress_bar = progress_bar.cloned();
+        if let Some(pb) = &progress_bar {
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")

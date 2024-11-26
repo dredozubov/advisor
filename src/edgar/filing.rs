@@ -629,8 +629,10 @@ pub async fn extract_complete_submission_filing(
     pg_pool: &Pool<Postgres>,
     progress_tracker: Option<&ProgressTracker>,
 ) -> Result<()> {
-    progress_tracker.update_message("Parsing filing...");
-    progress_tracker.update_progress(33);
+    if let Some(tracker) = progress_tracker {
+        tracker.update_message("Parsing filing...");
+        tracker.update_progress(33);
+    }
     log::info!("Parsing XBRL file");
 
     // Read and decode the file content
