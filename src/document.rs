@@ -207,7 +207,7 @@ pub async fn store_chunked_document(
     if let Some(pb) = progress {
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("{spinner:.red} [{elapsed_precise}] [{bar:40.red/blue}] {msg}")
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.red/blue}] {wide_msg}")
                 .unwrap()
                 .progress_chars("#>-"),
         );
