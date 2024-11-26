@@ -24,6 +24,14 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
+    let multi_progress = if std::io::stdout().is_terminal() {
+        let mp = MultiProgress::new();
+        mp.set_move_cursor(true);
+        Some(Arc::new(mp))
+    } else {
+        None
+    };
+
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
@@ -41,8 +49,11 @@ async fn process_documents(
                         edgar_query.start_date,
                         edgar_query.end_date
                     );
-                    let filings =
-                        filing::fetch_matching_filings(http_client, &edgar_query, progress.map(|mp| &**mp)).await?;
+                    let filings = filing::fetch_matching_filings(
+                        http_client,
+                        &edgar_query,
+                        multi_progress.as_ref().map(|mp| &**mp)
+                    ).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }

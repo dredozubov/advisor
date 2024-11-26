@@ -580,7 +580,7 @@ pub async fn fetch_matching_filings(
         query.end_date
     );
 
-    // Convert filings to tasks with progress bars
+    // Create tasks with progress bars
     let tasks: Vec<crate::fetch::FetchTask> = matching_filings
         .into_iter()
         .map(|filing| {
@@ -604,8 +604,12 @@ pub async fn fetch_matching_filings(
     let store = crate::vectorstore::get_store().await?;
     let pg_pool = crate::db::get_pool().await?;
 
-    let fetch_manager =
-        crate::fetch::FetchManager::new(progress.map(|p| Arc::new(p.clone())), store, pg_pool);
+    // Create FetchManager with progress bars
+    let fetch_manager = crate::fetch::FetchManager::new(
+        Some(Arc::new(multi.clone())),
+        store,
+        pg_pool
+    );
 
     let results = fetch_manager.execute_tasks(tasks).await?;
 

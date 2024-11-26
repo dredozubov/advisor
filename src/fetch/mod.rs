@@ -121,10 +121,6 @@ impl FetchTask {
             pb.set_message("Starting task...");
             pb.set_position(0);
         }
-
-        // Initialize progress tracking
-        let mut progress = 0;
-        let progress_increment = 10;
         match self {
             FetchTask::EdgarFiling {
                 cik,
@@ -269,60 +265,40 @@ impl FetchManager {
         let (tx, mut rx) = mpsc::channel(100);
         let mut handles = Vec::new();
 
-        for (_i, task) in tasks.iter().enumerate() {
-            if let Some(_mp) = &self.multi_progress {
-                if let Some(pb) = task.progress_bar() {
-                    pb.set_style(ProgressStyle::default_bar()
-                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                        .unwrap()
-                        .progress_chars("#>-"));
-                    pb.set_message("Preparing task...");
-                }
-            }
+        // Launch tasks concurrently
+        for task in tasks {
             let tx = tx.clone();
             let client = self.client.clone();
-            let task = task.clone();
-
             let store = self.store.clone();
             let pg_pool = self.pg_pool.clone();
+
+            if let Some(pb) = task.progress_bar() {
+                pb.set_style(ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
+                pb.set_message("Preparing task...");
+            }
+
             let handle = tokio::spawn(async move {
-                let result = task
-                    .execute(&client, &*store, &pg_pool)
-                    .await;
-                if let Some(progress_bar) = task.progress_bar() {
-                    match &result {
-                        Ok(fetch_result) => {
-                            match fetch_result.status {
-                                FetchStatus::Success => {
-                                    progress_bar.inc(50);
-                                    progress_bar.finish_with_message("✓");
-                                }
-                                FetchStatus::Failed => {
-                                    progress_bar.finish_with_message("✗");
-                                }
-                                FetchStatus::Skipped => {
-                                    progress_bar.finish_with_message("-");
-                                }
-                            }
-                        }
-                        Err(_) => {
-                            progress_bar.finish_with_message("✗");
-                        }
-                    }
-                }
-                tx.send(result).await
+                let result = task.execute(&client, &*store, &pg_pool).await;
+                tx.send(result).await.expect("Channel send failed");
+                result
             });
             handles.push(handle);
         }
 
         drop(tx);
 
-        let mut results = Vec::with_capacity(tasks.len());
+        // Collect results while progress bars update independently
+        let mut results = Vec::with_capacity(handles.len());
         while let Some(result) = rx.recv().await {
-            if let Some(mp) = &self.multi_progress {
-                mp.println("Task completed").unwrap();
-            }
             results.push(result?);
+        }
+
+        // Wait for all tasks to complete
+        for handle in handles {
+            let _ = handle.await?;
         }
 
         // Clear progress bars when done
@@ -330,11 +306,6 @@ impl FetchManager {
             mp.clear().unwrap();
         }
 
-        for handle in handles {
-            let _ = handle.await?;
-        }
-
-        // All tasks complete
         Ok(results)
     }
 }
