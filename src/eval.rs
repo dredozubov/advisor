@@ -22,17 +22,8 @@ async fn process_documents(
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&MultiProgress>,
+    progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    // Create MultiProgress only if we're in a terminal
-    let multi_progress = if std::io::stdout().is_terminal() {
-        let mp = MultiProgress::new();
-        mp.set_move_cursor(true);
-        Some(Arc::new(mp))
-    } else {
-        None
-    };
-
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
@@ -51,7 +42,7 @@ async fn process_documents(
                         edgar_query.end_date
                     );
                     let filings =
-                        filing::fetch_matching_filings(http_client, &edgar_query, progress).await?;
+                        filing::fetch_matching_filings(http_client, &edgar_query, progress.map(|mp| &**mp)).await?;
                     process_edgar_filings(filings, store, pg_pool).await?;
                 }
             }
@@ -473,7 +464,7 @@ pub async fn eval(
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref().map(|v| &**v)).await?;
+    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref()).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
