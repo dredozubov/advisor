@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
-use indicatif::MultiProgress;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::ProgressStyle;
@@ -628,7 +628,8 @@ pub async fn extract_complete_submission_filing(
     progress: Option<&MultiProgress>,
 ) -> Result<()> {
     if let Some(p) = &progress {
-        if let Some(pb) = p.add(ProgressBar::new(100)) {
+        let pb = p.add(ProgressBar::new(100));
+        {
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
@@ -717,7 +718,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress.map(|p| p.add(ProgressBar::new(100))),
+        progress.map(|p| &p.add(ProgressBar::new(100))),
     )
     .await?;
 
