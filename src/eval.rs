@@ -78,7 +78,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool.clone(), Some(&progress_tracker))
+        process_earnings_transcripts(transcripts, store, pg_pool.clone(), Some(Arc::new(progress_tracker)))
             .await?;
     }
 
@@ -541,7 +541,7 @@ async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: Arc<Store>,
     pg_pool: Pool<Postgres>,
-    progress_tracker: Option<&ProgressTracker>,
+    progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     let mut success_count = 0;
     let mut error_count = 0;
@@ -704,7 +704,7 @@ async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: Arc<Store>,
     pg_pool: Pool<Postgres>,
-    progress_tracker: Option<&ProgressTracker>,
+    progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut success_count = 0;

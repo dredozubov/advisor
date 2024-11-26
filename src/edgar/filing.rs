@@ -615,7 +615,7 @@ pub async fn fetch_matching_filings(
         let _ = handle.await?;
     }
 
-    if let Some(tracker) = progress_tracker {
+    if let Some(ref tracker) = progress_tracker {
         tracker.finish();
     }
 
