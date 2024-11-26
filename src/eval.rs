@@ -24,13 +24,16 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let multi_progress = if std::io::stdout().is_terminal() {
-        let mp = MultiProgress::new();
-        mp.set_move_cursor(true);
-        Some(Arc::new(mp))
-    } else {
-        None
-    };
+    // Use provided progress or create new if in terminal
+    let multi_progress = progress.cloned().or_else(|| {
+        if std::io::stdout().is_terminal() {
+            let mp = MultiProgress::new();
+            mp.set_move_cursor(true);
+            Some(Arc::new(mp))
+        } else {
+            None
+        }
+    });
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -52,9 +55,9 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        progress.map(|mp| &**mp)
+                        multi_progress.as_ref().map(|mp| &**mp)
                     ).await?;
-                    process_edgar_filings(filings, store, pg_pool, progress).await?;
+                    process_edgar_filings(filings, store, pg_pool, multi_progress.as_ref()).await?;
                 }
             }
             Err(e) => {
@@ -76,7 +79,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool, progress).await?;
+        process_earnings_transcripts(transcripts, store, pg_pool, multi_progress.as_ref()).await?;
     }
 
     Ok(())
