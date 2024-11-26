@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use core::fmt;
-use indicatif::ProgressBar;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
