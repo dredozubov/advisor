@@ -454,25 +454,23 @@ pub async fn eval(
 
     // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
-    // Create progress tracker for CLI
-
-    let progress = if std::io::stdout().is_terminal() {
-        let tasks = vec![]; // Replace with actual tasks
-        let tracker = Arc::new(crate::utils::progress::ProgressTracker::new(&tasks));
-        let multi_progress = tracker.as_multi_progress().clone();
-
-        // Spawn a thread to render the progress bars
+    
+    let multi_progress = if std::io::stdout().is_terminal() {
+        let mp = MultiProgress::new();
+        
+        // Spawn thread to render progress bars
+        let mp_clone = mp.clone();
         std::thread::spawn(move || {
             log::debug!("Starting MultiProgress rendering thread");
-            let _ = multi_progress.join();
+            let _ = mp_clone.join();
         });
 
-        Some(tracker)
+        Some(mp)
     } else {
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, progress.as_deref()).await?;
+    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref()).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
