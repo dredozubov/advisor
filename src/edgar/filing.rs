@@ -562,68 +562,57 @@ pub async fn fetch_matching_filings(
 
     crate::utils::dirs::ensure_edgar_dirs()?;
 
-    let multi = progress.expect("Progress bar required for filing downloads");
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
-    log::info!(
-        "Found {} matching filings for query parameters:\n\
-         - Report types: {}\n\
-         - Date range: {} to {}",
-        matching_filings.len(),
-        matching_filings
-            .iter()
-            .map(|f| f.report_type.to_string())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .join(", "),
-        query.start_date,
-        query.end_date
-    );
+    // Launch tasks concurrently
+    for filing in matching_filings {
+        let tx = tx.clone();
+        let client = client.clone();
+        let cik = cik.clone();
+        let progress_bar = progress.map(|mp| {
+            let pb = mp.add(ProgressBar::new(100));
+            pb.set_style(ProgressStyle::with_template(
+                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+            ).unwrap().progress_chars("##-"));
+            pb.set_message(format!("Filing {} {}", filing.report_type, filing.accession_number));
+            pb
+        });
 
-    // Create tasks with progress bars
-    let tasks: Vec<crate::fetch::FetchTask> = matching_filings
-        .into_iter()
-        .map(|filing| {
-            let output_path = PathBuf::from(format!(
-                "{}/{}/{}/{}",
-                EDGAR_FILINGS_DIR,
-                cik,
-                filing.accession_number.replace("-", ""),
-                filing.primary_document.replace(".htm", "_htm.xml")
-            ));
+        let handle = tokio::spawn(async move {
+            let result = fetch_and_process_filing(
+                &client,
+                &cik,
+                &filing,
+                progress_bar.as_ref()
+            ).await;
+            tx.send(result).await.expect("Channel send failed");
+            result
+        });
+        handles.push(handle);
+    }
 
-            crate::fetch::FetchTask::new_edgar_filing(
-                multi,
-                cik.clone(),
-                filing.clone(),
-                output_path,
-            )
-        })
-        .collect();
+    drop(tx);
 
-    let store = crate::vectorstore::get_store().await?;
-    let pg_pool = crate::db::get_pool().await?;
-
-    // Create FetchManager with progress bars
-    let fetch_manager = crate::fetch::FetchManager::new(
-        Some(Arc::new(multi.clone())),
-        store,
-        pg_pool
-    );
-
-    let results = fetch_manager.execute_tasks(tasks).await?;
-
-    // Convert results back to HashMap
+    // Collect results
     let mut filing_map = HashMap::new();
-    for result in results {
-        if let (
-            crate::fetch::FetchStatus::Success,
-            Some(path),
-            crate::fetch::FetchTask::EdgarFiling { filing, .. },
-        ) = (result.status, result.output_path, result.task)
-        {
-            filing_map.insert(path.to_string_lossy().to_string(), filing);
+    while let Some(result) = rx.recv().await {
+        match result {
+            Ok((path, filing)) => {
+                filing_map.insert(path, filing);
+            }
+            Err(e) => log::error!("Error processing filing: {}", e),
         }
+    }
+
+    // Wait for all tasks
+    for handle in handles {
+        handle.await?;
+    }
+
+    // Clear progress bars when done
+    if let Some(mp) = progress {
+        mp.clear()?;
     }
 
     Ok(filing_map)
@@ -732,4 +721,42 @@ pub async fn extract_complete_submission_filing(
 
     log::debug!("Filing processed and converted to markdown");
     Ok(())
+}
+async fn fetch_and_process_filing(
+    client: &Client,
+    cik: &str,
+    filing: &Filing,
+    progress: Option<&ProgressBar>,
+) -> Result<(String, Filing)> {
+    if let Some(pb) = progress {
+        pb.set_message("Downloading...");
+        pb.set_position(0);
+    }
+
+    // Download the filing
+    let path = fetch_filing_document(client, cik, filing).await?;
+    
+    if let Some(pb) = progress {
+        pb.set_message("Processing...");
+        pb.set_position(50);
+    }
+
+    // Get store and pool
+    let store = crate::vectorstore::get_store().await?;
+    let pg_pool = crate::db::get_pool().await?;
+
+    // Process the filing
+    extract_complete_submission_filing(
+        &path,
+        filing.report_type.clone(),
+        store.as_ref(),
+        &pg_pool,
+        progress,
+    ).await?;
+
+    if let Some(pb) = progress {
+        pb.finish_with_message("Complete");
+    }
+
+    Ok((path, filing.clone()))
 }
