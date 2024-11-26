@@ -24,8 +24,7 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
-    let progress_tracker = Arc::new(ProgressTracker::new(progress_bar.as_ref()));
+    let progress_tracker = Arc::new(ProgressTracker::new(progress));
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {

@@ -4,13 +4,14 @@ use std::time::Duration;
 
 #[derive(Clone)]
 pub struct ProgressTracker {
+    multi_progress: Option<Arc<MultiProgress>>,
     progress_bar: Option<ProgressBar>,
 }
 
 impl ProgressTracker {
-    pub fn new(progress_bar: Option<&ProgressBar>) -> Self {
-        let progress_bar = progress_bar.cloned();
-        if let Some(pb) = &progress_bar {
+    pub fn new(multi_progress: Option<&Arc<MultiProgress>>) -> Self {
+        let progress_bar = multi_progress.map(|mp| {
+            let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")
@@ -18,8 +19,12 @@ impl ProgressTracker {
                     .progress_chars("#>-"),
             );
             pb.enable_steady_tick(Duration::from_millis(100));
+            pb
+        });
+        Self {
+            multi_progress: multi_progress.cloned(),
+            progress_bar,
         }
-        Self { progress_bar }
     }
 
     pub fn update_message(&self, message: &str) {
