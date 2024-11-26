@@ -697,7 +697,7 @@ async fn process_earnings_transcripts(
             .await?;
 
             if let Some(pb) = progress_bar {
-                pb.finish_with_message("Complete");
+                pb.finish_with_message("Processing complete");
             }
 
             let _ = tx.send(Ok(())).await;
