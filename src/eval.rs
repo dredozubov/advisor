@@ -1,7 +1,7 @@
-use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
+use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
@@ -652,10 +652,13 @@ async fn process_earnings_transcripts(
         let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
         let progress_tracker = ProgressTracker::new(progress_bar);
-        progress_tracker.start_progress(100, &format!(
-            "Processing transcript: {} Q{} {}",
-            transcript.symbol, transcript.quarter, transcript.year
-        ));
+        progress_tracker.start_progress(
+            100,
+            &format!(
+                "Processing transcript: {} Q{} {}",
+                transcript.symbol, transcript.quarter, transcript.year
+            ),
+        );
 
         let handle = tokio::spawn(async move {
             if let Some(pb) = &progress_bar {

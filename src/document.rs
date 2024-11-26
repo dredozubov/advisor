@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub const COLLECTION_NAME: &str = "advisor";
 
 use crate::edgar::report::ReportType;
+use crate::ProgressTracker;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DocType {
