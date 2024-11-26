@@ -25,7 +25,8 @@ pub async fn get_store() -> Result<Box<dyn VectorStore>> {
         .embedder_table_name(crate::db::EMBEDDER_TABLE)
         .vector_dimensions(1536)
         .build()
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to build vector store: {}", e))?;
 
     Ok(Box::new(store))
 }

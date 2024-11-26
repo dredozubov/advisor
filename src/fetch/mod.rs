@@ -195,8 +195,10 @@ impl FetchManager {
                 .cloned();
             let task = task.clone();
 
+            let store = self.store.clone();
+            let pg_pool = self.pg_pool.clone();
             let handle = tokio::spawn(async move {
-                let result = task.execute(&client, &*self.store, &self.pg_pool, progress.as_ref()).await;
+                let result = task.execute(&client, &*store, &pg_pool, progress.as_ref()).await;
                 if let Some(pb) = progress {
                     match &result {
                         Ok(fetch_result) => {

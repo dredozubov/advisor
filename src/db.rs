@@ -188,3 +188,14 @@ pub async fn get_memory(pool: &Pool<Postgres>, file_path: &str) -> Result<Option
         None => Ok(None),
     }
 }
+
+pub async fn get_pool() -> Result<Pool<Postgres>> {
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL environment variable not set"))?;
+
+    sqlx::postgres::PgPoolOptions::new()
+        .max_connections(16)
+        .connect(&database_url)
+        .await
+        .map_err(Into::into)
+}
