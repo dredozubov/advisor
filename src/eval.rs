@@ -145,7 +145,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                     input,
                     50,
                     &langchain_rust::vectorstore::VecStoreOptions {
-                        where_filter: Some(filter.clone()),
+                        filters: Some(filter.clone()),
                         ..Default::default()
                     },
                 )
@@ -180,7 +180,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                 input,
                 50,
                 &langchain_rust::vectorstore::VecStoreOptions {
-                    where_filter: Some(filter.clone()),
+                    filters: Some(filter.clone()),
                     ..Default::default()
                 },
             )
@@ -201,7 +201,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
     const MAX_TOKENS: usize = 12000; // Adjust based on your model
     let total_tokens: usize = required_docs
         .iter()
-        .map(|doc| doc.page_content.as_ref().split_whitespace().count() * 4) // Estimate 4 tokens per word
+        .map(|doc| doc.page_content.to_string().split_whitespace().count() * 4) // Estimate 4 tokens per word
         .sum();
 
     log::info!(
