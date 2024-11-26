@@ -122,17 +122,23 @@ pub struct FetchProgress {
 
 pub struct FetchManager {
     client: Client,
-    progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>, // Use ProgressTracker
+    progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
+    store: Arc<dyn VectorStore>,
+    pg_pool: Pool<Postgres>,
 }
 
 impl FetchManager {
     pub fn new(
         _tasks: &[FetchTask],
         progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
+        store: Arc<dyn VectorStore>,
+        pg_pool: Pool<Postgres>,
     ) -> Self {
         Self {
             client: Client::new(),
             progress_tracker,
+            store,
+            pg_pool,
         }
     }
 
@@ -152,7 +158,7 @@ impl FetchManager {
             let task = task.clone();
 
             let handle = tokio::spawn(async move {
-                let result = task.execute(&client, progress.as_ref()).await;
+                let result = task.execute(&client, &*store, &pg_pool, progress.as_ref()).await;
                 if let Some(pb) = progress {
                     match &result {
                         Ok(fetch_result) => {

@@ -590,8 +590,16 @@ pub async fn fetch_matching_filings(
         })
         .collect();
 
-    let fetch_manager =
-        crate::fetch::FetchManager::new(&tasks, progress.map(|p| Arc::new(p.clone())));
+    let store = Arc::new(crate::vectorstore::get_store().await?);
+    let pg_pool = crate::db::get_pool().await?;
+
+    let fetch_manager = crate::fetch::FetchManager::new(
+        &tasks,
+        progress.map(|p| Arc::new(p.clone())),
+        store,
+        pg_pool,
+    );
+    
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap
