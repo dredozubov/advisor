@@ -579,21 +579,15 @@ pub async fn fetch_matching_filings(
     let tasks: Vec<crate::fetch::FetchTask> = matching_filings
         .into_iter()
         .map(|filing| {
-            let desc = format!("Filing {} {}", filing.report_type, filing.accession_number);
-            let pb = FetchTask::create_progress_bar(&multi, &desc);
+            let output_path = PathBuf::from(format!(
+                "{}/{}/{}/{}",
+                EDGAR_FILINGS_DIR,
+                cik,
+                filing.accession_number.replace("-", ""),
+                filing.primary_document.replace(".htm", "_htm.xml")
+            ));
             
-            crate::fetch::FetchTask::EdgarFiling {
-                cik: cik.clone(),
-                filing: filing.clone(),
-                output_path: PathBuf::from(format!(
-                    "{}/{}/{}/{}",
-                    EDGAR_FILINGS_DIR,
-                    cik,
-                    filing.accession_number.replace("-", ""),
-                    filing.primary_document.replace(".htm", "_htm.xml")
-                )),
-                progress: Some(pb),
-            }
+            crate::fetch::FetchTask::new_edgar_filing(&multi, cik.clone(), filing.clone(), output_path)
         })
         .collect();
 

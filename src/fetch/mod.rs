@@ -1,14 +1,11 @@
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use langchain_rust::vectorstore::VectorStore;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FetchTask {
@@ -71,12 +68,10 @@ impl FetchTask {
                 cik,
                 filing,
                 output_path: _,
-                progress,
+                progress_bar,
             } => {
-                if let Some(pb) = progress {
-                    pb.set_message("Downloading filing...");
-                    pb.inc(25);
-                }
+                progress_bar.set_message("Downloading filing...");
+                progress_bar.inc(25);
 
                 // Download the filing
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
