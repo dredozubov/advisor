@@ -639,7 +639,7 @@ pub async fn extract_complete_submission_filing(
                 .progress_chars("#>-"),
         );
     }
-    let progress_tracker = ProgressTracker::new(progress.cloned().map(|pb| pb.into()));
+    let progress_tracker = ProgressTracker::new(progress);
     progress_tracker.update_message("Parsing filing...");
     progress_tracker.update_progress(33);
     log::info!("Parsing XBRL file");
