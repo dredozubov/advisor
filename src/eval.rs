@@ -22,7 +22,7 @@ async fn process_documents(
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&Arc<MultiProgress>>,
+    _progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();

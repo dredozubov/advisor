@@ -130,8 +130,7 @@ impl FetchTask {
             } => {
                 if let Some(pb) = progress_bar {
                     pb.set_message("Downloading filing...");
-                    progress += progress_increment * 3;
-                    pb.set_position(progress);
+                    pb.set_position(30);
                 }
 
                 // Download the filing
@@ -139,8 +138,7 @@ impl FetchTask {
                     Ok(path) => {
                         if let Some(pb) = progress_bar {
                             pb.set_message("Parsing and storing...");
-                            progress += progress_increment * 3;
-                            pb.set_position(progress);
+                            pb.set_position(60);
                         }
 
                         // Parse and store the filing immediately after download
@@ -155,8 +153,7 @@ impl FetchTask {
                         {
                             Ok(_) => {
                                 if let Some(pb) = progress_bar {
-                                    progress += progress_increment * 4;
-                                    pb.set_position(progress);
+                                    pb.set_position(100);
                                     pb.finish_with_message("✓ Complete");
                                 }
                                 Ok(FetchResult {
@@ -282,7 +279,7 @@ impl FetchManager {
 
             let handle = tokio::spawn(async move {
                 let result = task.execute(&client, &*store, &pg_pool).await;
-                tx.send(result).await.expect("Channel send failed");
+                tx.send(result.clone()).await.expect("Channel send failed");
                 result
             });
             handles.push(handle);
