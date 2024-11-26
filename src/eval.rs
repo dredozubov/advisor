@@ -25,7 +25,7 @@ async fn process_documents(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
-    let progress_tracker = ProgressTracker::new(progress_bar.as_ref());
+    let progress_tracker = Arc::new(ProgressTracker::new(progress_bar.as_ref()));
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -47,14 +47,14 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        Some(Arc::new(progress_tracker.clone())),
+                        Some(Arc::clone(&progress_tracker)),
                     )
                     .await?;
                     process_edgar_filings(
                         filings,
                         Arc::clone(&store),
                         pg_pool.clone(),
-                        Some(&progress_tracker),
+                        Some(Arc::clone(progress_tracker)),
                     )
                     .await?;
                 }
@@ -78,8 +78,13 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool.clone(), Some(Arc::new(progress_tracker)))
-            .await?;
+        process_earnings_transcripts(
+            transcripts,
+            store,
+            pg_pool.clone(),
+            Some(Arc::new(progress_tracker)),
+        )
+        .await?;
     }
 
     Ok(())

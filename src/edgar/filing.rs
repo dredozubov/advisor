@@ -519,7 +519,7 @@ async fn fetch_and_process_filing(
     client: &Client,
     cik: &str,
     filing: &Filing,
-    progress: Option<&ProgressBar>,
+    progress: Option<Arc<ProgressBar>>,
 ) -> Result<(String, Filing)> {
     if let Some(pb) = progress {
         pb.set_message(format!("Fetching filing {}", filing.accession_number));
@@ -558,7 +558,7 @@ async fn fetch_and_process_filing(
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
-    progress_tracker: Option<&ProgressTracker>,
+    progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
 
@@ -615,7 +615,7 @@ pub async fn fetch_matching_filings(
         let _ = handle.await?;
     }
 
-    if let Some(ref tracker) = progress_tracker {
+    if let Some(tracker) = progress_tracker {
         tracker.finish();
     }
 
