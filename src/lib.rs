@@ -8,3 +8,6 @@ pub mod query;
 pub mod repl;
 pub mod utils;
 pub mod vectorstore;
+
+// Re-export progress tracker
+pub use utils::progress::ProgressTracker;
