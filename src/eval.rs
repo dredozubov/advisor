@@ -633,27 +633,15 @@ async fn process_earnings_transcripts(
         let pg_pool = pg_pool.clone();
         if let Some(tracker) = progress_tracker {
             tracker.start_progress(
-            100,
-            &format!(
-                "Processing transcript: {} Q{} {}",
-                transcript.symbol, transcript.quarter, transcript.year
-            ),
-        );
+                100,
+                &format!(
+                    "Processing transcript: {} Q{} {}",
+                    transcript.symbol, transcript.quarter, transcript.year
+                ),
+            );
+        }
 
         let handle = tokio::spawn(async move {
-            if let Some(pb) = &progress_bar {
-                pb.set_message("Processing transcript...");
-                pb.set_position(25);
-                pb.set_style(
-                    ProgressStyle::default_bar()
-                        .template(
-                            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
-                        )
-                        .unwrap()
-                        .progress_chars("#>-"),
-                );
-            }
-
             // Store the transcript
             let metadata = crate::document::Metadata::MetaEarningsTranscript {
                 doc_type: crate::document::DocType::EarningTranscript,
@@ -671,16 +659,14 @@ async fn process_earnings_transcripts(
                 metadata,
                 store,
                 &pg_pool,
-                progress_bar.as_ref(),
+                None,
             )
             .await?;
-
 
             let _ = tx.send(Ok(())).await;
             Ok::<_, anyhow::Error>(())
         });
         handles.push(handle);
-    }
 
     // Drop sender to signal no more messages
     drop(tx);
