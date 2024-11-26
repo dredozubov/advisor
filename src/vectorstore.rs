@@ -6,10 +6,28 @@ use std::collections::HashMap;
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk
 
+use langchain_rust::embedding::openai::OpenAiEmbedder;
+use langchain_rust::llm::OpenAIConfig;
+use langchain_rust::vectorstore::pgvector::StoreBuilder;
+use std::env;
+
 pub async fn get_store() -> Result<Box<dyn VectorStore>> {
-    // For now, return a simple in-memory store
-    // TODO: Implement proper vector store initialization
-    Ok(Box::new(langchain_rust::vectorstore::InMemoryStore::new()))
+    let openai_key = env::var("OPENAI_KEY").map_err(|_| anyhow::anyhow!("OPENAI_KEY not set"))?;
+    let database_url = env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!("DATABASE_URL not set"))?;
+
+    let embedder = OpenAiEmbedder::default()
+        .with_config(OpenAIConfig::default().with_api_key(openai_key));
+
+    let store = StoreBuilder::new()
+        .embedder(embedder)
+        .connection_url(&database_url)
+        .collection_table_name(crate::db::COLLECTIONS_TABLE)
+        .embedder_table_name(crate::db::EMBEDDER_TABLE)
+        .vector_dimensions(1536)
+        .build()
+        .await?;
+
+    Ok(Box::new(store))
 }
 
 pub async fn store_document(
