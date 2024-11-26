@@ -5,7 +5,7 @@ use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar};
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
@@ -554,10 +554,13 @@ async fn process_edgar_filings(
         let store = store.clone();
         let pg_pool = pg_pool.clone();
         if let Some(tracker) = progress_tracker {
-            tracker.start_progress(100, &format!(
-                "Processing filing: {} {}",
-                filing.report_type, filing.accession_number
-            ));
+            tracker.start_progress(
+                100,
+                &format!(
+                    "Processing filing: {} {}",
+                    filing.report_type, filing.accession_number
+                ),
+            );
         }
 
         let handle = tokio::spawn(async move {
@@ -566,7 +569,7 @@ async fn process_edgar_filings(
                 filing.report_type,
                 store,
                 &pg_pool,
-                progress_bar.as_ref(),
+                progress_tracker.map(|v| Arc::new(v)),
             )
             .await
             {
@@ -606,89 +609,6 @@ async fn process_edgar_filings(
 
     log::info!(
         "Processed {} filings: {} successful, {} failed",
-        success_count + error_count,
-        success_count,
-        error_count
-    );
-
-    Ok(())
-}
-
-async fn process_earnings_transcripts(
-    transcripts: Vec<(earnings::Transcript, PathBuf)>,
-    store: Arc<Store>,
-    pg_pool: Pool<Postgres>,
-    progress_tracker: Option<&ProgressTracker>,
-) -> Result<()> {
-    // Create tasks with progress bars
-    let mut success_count = 0;
-    let mut error_count = 0;
-    let mut handles: Vec<tokio::task::JoinHandle<Result<(), anyhow::Error>>> = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
-
-    // Launch tasks concurrently
-    for (transcript, filepath) in transcripts {
-        let tx = tx.clone();
-        let store = store.clone();
-        let pg_pool = pg_pool.clone();
-        if let Some(tracker) = progress_tracker {
-            tracker.start_progress(
-                100,
-                &format!(
-                    "Processing transcript: {} Q{} {}",
-                    transcript.symbol, transcript.quarter, transcript.year
-                ),
-            );
-        }
-
-        let handle = tokio::spawn(async move {
-            // Store the transcript
-            let metadata = crate::document::Metadata::MetaEarningsTranscript {
-                doc_type: crate::document::DocType::EarningTranscript,
-                filepath: filepath.clone(),
-                symbol: transcript.symbol.clone(),
-                year: transcript.year as usize,
-                quarter: transcript.quarter as usize,
-                chunk_index: 0,
-                total_chunks: 1,
-            };
-
-            let content = transcript.content.clone();
-            crate::document::store_chunked_document(
-                content,
-                metadata,
-                store,
-                &pg_pool,
-                None,
-            )
-            .await?;
-
-            let _ = tx.send(Ok(())).await;
-            Ok::<_, anyhow::Error>(())
-        });
-        handles.push(handle);
-
-    // Drop sender to signal no more messages
-    drop(tx);
-
-    // Collect results from channel
-    while let Some(result) = rx.recv().await {
-        match result {
-            Ok(_) => success_count += 1,
-            Err(e) => {
-                error_count += 1;
-                log::error!("Error processing transcript: {}", e);
-            }
-        }
-    }
-
-    // Wait for all tasks to complete
-    for handle in handles {
-        handle.await??;
-    }
-
-    log::info!(
-        "Processed {} transcripts: {} successful, {} failed",
         success_count + error_count,
         success_count,
         error_count
@@ -778,4 +698,82 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
         }
         Err(e) => Err(anyhow!("Error invoking LLMChain: {:?}", e)),
     }
+}
+
+async fn process_earnings_transcripts(
+    transcripts: Vec<(earnings::Transcript, PathBuf)>,
+    store: Arc<Store>,
+    pg_pool: Pool<Postgres>,
+    progress_tracker: Option<&ProgressTracker>,
+) -> Result<()> {
+    // Create tasks with progress bars
+    let mut success_count = 0;
+    let mut error_count = 0;
+    let mut handles: Vec<tokio::task::JoinHandle<Result<(), anyhow::Error>>> = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
+
+    // Launch tasks concurrently
+    for (transcript, filepath) in transcripts {
+        let tx = tx.clone();
+        let store = store.clone();
+        let pg_pool = pg_pool.clone();
+        if let Some(tracker) = progress_tracker {
+            tracker.start_progress(
+                100,
+                &format!(
+                    "Processing transcript: {} Q{} {}",
+                    transcript.symbol, transcript.quarter, transcript.year
+                ),
+            );
+        }
+
+        let handle = tokio::spawn(async move {
+            // Store the transcript
+            let metadata = crate::document::Metadata::MetaEarningsTranscript {
+                doc_type: crate::document::DocType::EarningTranscript,
+                filepath: filepath.clone(),
+                symbol: transcript.symbol.clone(),
+                year: transcript.year as usize,
+                quarter: transcript.quarter as usize,
+                chunk_index: 0,
+                total_chunks: 1,
+            };
+
+            let content = transcript.content.clone();
+            crate::document::store_chunked_document(content, metadata, store, &pg_pool, None)
+                .await?;
+
+            let _ = tx.send(Ok(())).await;
+            Ok::<_, anyhow::Error>(())
+        });
+        handles.push(handle);
+    }
+
+    // Drop sender to signal no more messages
+    drop(tx);
+
+    // Collect results from channel
+    while let Some(result) = rx.recv().await {
+        match result {
+            Ok(_) => success_count += 1,
+            Err(e) => {
+                error_count += 1;
+                log::error!("Error processing transcript: {}", e);
+            }
+        }
+    }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        handle.await??;
+    }
+
+    log::info!(
+        "Processed {} transcripts: {} successful, {} failed",
+        success_count + error_count,
+        success_count,
+        error_count
+    );
+
+    Ok(())
 }

@@ -1,10 +1,10 @@
+use crate::ProgressTracker;
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use crate::ProgressTracker;
+use indicatif::ProgressBar;
 use itertools::Itertools;
 use langchain_rust::vectorstore::pgvector::Store;
 use log::{error, info};
@@ -581,10 +581,10 @@ pub async fn fetch_matching_filings(
         let client = client.clone();
         let cik = cik.clone();
         if let Some(tracker) = progress_tracker {
-            tracker.start_progress(100, &format!(
-                "Filing {} {}",
-                filing.report_type, filing.accession_number
-            ));
+            tracker.start_progress(
+                100,
+                &format!("Filing {} {}", filing.report_type, filing.accession_number),
+            );
         }
 
         let handle = tokio::spawn(async move {
@@ -627,7 +627,7 @@ pub async fn extract_complete_submission_filing(
     report_type: ReportType,
     store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
-    progress_tracker: Option<&ProgressTracker>,
+    progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     if let Some(tracker) = progress_tracker {
         tracker.update_message("Parsing filing...");
@@ -706,8 +706,14 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(markdown_content, metadata, store, pg_pool, progress)
-        .await?;
+    crate::document::store_chunked_document(
+        markdown_content,
+        metadata,
+        store,
+        pg_pool,
+        progress_tracker,
+    )
+    .await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 
