@@ -651,6 +651,7 @@ async fn process_earnings_transcripts(
         let store = store.clone();
         let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
+        let progress_bar_clone = progress_bar.clone();
         let progress_tracker = ProgressTracker::new(progress_bar);
         progress_tracker.start_progress(
             100,
@@ -661,7 +662,7 @@ async fn process_earnings_transcripts(
         );
 
         let handle = tokio::spawn(async move {
-            if let Some(pb) = &progress_bar {
+            if let Some(pb) = &progress_bar_clone {
                 pb.set_message("Processing transcript...");
                 pb.set_position(25);
                 pb.set_style(

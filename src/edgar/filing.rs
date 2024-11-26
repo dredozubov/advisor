@@ -4,6 +4,7 @@ use chrono::NaiveDate;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use crate::ProgressTracker;
 use itertools::Itertools;
 use langchain_rust::vectorstore::pgvector::Store;
 use log::{error, info};
@@ -638,7 +639,7 @@ pub async fn extract_complete_submission_filing(
                 .progress_chars("#>-"),
         );
     }
-    let progress_tracker = ProgressTracker::new(progress.cloned());
+    let progress_tracker = ProgressTracker::new(progress.cloned().map(|pb| pb.into()));
     progress_tracker.update_message("Parsing filing...");
     progress_tracker.update_progress(33);
     log::info!("Parsing XBRL file");

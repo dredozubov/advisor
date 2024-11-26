@@ -7,7 +7,8 @@ pub struct ProgressTracker {
 }
 
 impl ProgressTracker {
-    pub fn new(progress_bar: Option<ProgressBar>) -> Self {
+    pub fn new(progress_bar: Option<impl Into<ProgressBar>>) -> Self {
+        let progress_bar = progress_bar.map(|pb| pb.into());
         if let Some(pb) = &progress_bar {
             pb.set_style(
                 ProgressStyle::default_bar()
