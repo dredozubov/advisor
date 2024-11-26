@@ -11,7 +11,7 @@ use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::vectorstore::pgvector::StoreBuilder;
 use std::env;
 
-pub async fn get_store() -> Result<Box<dyn VectorStore>> {
+pub async fn get_store() -> Result<Arc<dyn VectorStore>> {
     let openai_key = env::var("OPENAI_KEY").map_err(|_| anyhow::anyhow!("OPENAI_KEY not set"))?;
     let database_url = env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!("DATABASE_URL not set"))?;
 
@@ -28,7 +28,7 @@ pub async fn get_store() -> Result<Box<dyn VectorStore>> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to build vector store: {}", e))?;
 
-    Ok(Box::new(store))
+    Ok(Arc::new(store))
 }
 
 pub async fn store_document(
