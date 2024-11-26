@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        Arc::new(store),
+                        store,
                         pg_pool.clone(),
                         multi_progress.as_ref()
                     ).await?;
@@ -86,7 +86,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            Arc::new(store),
+            store,
             pg_pool.clone(),
             multi_progress.as_ref()
         ).await?;
@@ -622,7 +622,7 @@ async fn process_earnings_transcripts(
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {
@@ -645,9 +645,9 @@ async fn process_earnings_transcripts(
         });
 
         let handle = tokio::spawn(async move {
-            // Process transcript logic here
             if let Some(pb) = &progress_bar {
-                pb.set_position(50);
+                pb.set_message("Processing transcript content");
+                pb.set_position(25);
             }
 
             // Store the transcript
@@ -675,7 +675,8 @@ async fn process_earnings_transcripts(
                 pb.finish_with_message("Complete");
             }
 
-            Ok::<_, anyhow::Error>((filepath.display().to_string(), transcript))
+            let _ = tx.send(Ok(())).await;
+            Ok::<_, anyhow::Error>(())
         });
         handles.push(handle);
     }
