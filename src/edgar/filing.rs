@@ -517,7 +517,7 @@ async fn fetch_and_process_filing(
     client: &Client,
     cik: &str,
     filing: &Filing,
-    progress: Option<&ProgressBar>,
+    _progress: Option<&ProgressBar>,
 ) -> Result<(String, Filing)> {
     let base = "https://www.sec.gov/Archives/edgar/data";
     let accession_number = filing.accession_number.replace("-", "");
@@ -567,7 +567,7 @@ pub async fn fetch_matching_filings(
     crate::utils::dirs::ensure_edgar_dirs()?;
 
     let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(String, Filing), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for filing in matching_filings {

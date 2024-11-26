@@ -576,7 +576,7 @@ async fn process_edgar_filings(
             match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
-                store.as_ref(),
+                store,
                 &pg_pool,
                 progress_bar.as_ref(),
             ).await {
@@ -674,7 +674,7 @@ async fn process_earnings_transcripts(
                 pb.finish_with_message("Complete");
             }
 
-            Ok::<_, anyhow::Error>((filepath.to_string(), transcript))
+            Ok::<_, anyhow::Error>((filepath.display().to_string(), transcript))
         });
         handles.push(handle);
     }
