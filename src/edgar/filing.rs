@@ -519,6 +519,10 @@ async fn fetch_and_process_filing(
     filing: &Filing,
     progress: Option<&ProgressBar>,
 ) -> Result<(String, Filing)> {
+    if let Some(pb) = progress {
+        pb.set_message(format!("Fetching filing {}", filing.accession_number));
+        pb.set_position(25);
+    }
     let base = "https://www.sec.gov/Archives/edgar/data";
     let accession_number = filing.accession_number.replace("-", "");
     let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");

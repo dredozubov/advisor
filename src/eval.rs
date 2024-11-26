@@ -545,7 +545,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &dyn VectorStore,
+    store: Arc<dyn VectorStore>,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -585,8 +585,9 @@ async fn process_edgar_filings(
                     Ok(())
                 }
                 Err(e) => {
+                    let err_msg = e.to_string();
                     let err = Err(e);
-                    let _ = tx.send(Err(anyhow::anyhow!("{}", e))).await;
+                    let _ = tx.send(Err(anyhow::anyhow!("{}", err_msg))).await;
                     err
                 }
             }
@@ -615,13 +616,13 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
-    store: &dyn VectorStore,
+    store: Arc<dyn VectorStore>,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
+    let (_tx, _rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {
