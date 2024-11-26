@@ -180,15 +180,34 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         let filter = serde_json::json!({
             "must": [
                 {
-                    "key": "type",
+                    "key": "doc_type",
                     "match": { "value": "earnings_transcript" }
                 },
                 {
-                    "key": "date",
-                    "range": {
-                        "gte": start_date,
-                        "lte": end_date
-                    }
+                    "or": [
+                        {
+                            "key": "date",
+                            "range": {
+                                "gte": start_date,
+                                "lte": end_date
+                            }
+                        },
+                        {
+                            "and": [
+                                {
+                                    "key": "year",
+                                    "range": {
+                                        "gte": start_date.split("-").next().unwrap(),
+                                        "lte": end_date.split("-").next().unwrap()
+                                    }
+                                },
+                                {
+                                    "key": "quarter",
+                                    "exists": true
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
         })
@@ -361,6 +380,11 @@ fn build_metadata_summary(
                 format!("SEC {} Filing ({} chunks)", filing_type, total)
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total)) => {
+                format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
+            }
+            (Some("doc_type"), Some("earnings_transcript"), _, _, Some(total)) => {
+                let quarter = doc.metadata.get("quarter").and_then(|v| v.as_u64()).unwrap_or(0);
+                let year = doc.metadata.get("year").and_then(|v| v.as_u64()).unwrap_or(0);
                 format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
             }
             _ => {
