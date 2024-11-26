@@ -257,7 +257,7 @@ impl FetchManager {
         let mut handles = Vec::new();
 
         for (_i, task) in tasks.iter().enumerate() {
-            if let Some(mp) = &self.multi_progress {
+            if let Some(_mp) = &self.multi_progress {
                 if let Some(pb) = task.progress_bar() {
                     pb.set_style(ProgressStyle::default_bar()
                         .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")

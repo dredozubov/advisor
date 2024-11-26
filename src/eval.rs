@@ -464,7 +464,7 @@ pub async fn eval(
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref()).await?;
+    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref().map(|v| &**v)).await?;
     let context = build_context(&query, input, conversation, store).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 

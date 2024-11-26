@@ -595,7 +595,6 @@ pub async fn fetch_matching_filings(
     let pg_pool = crate::db::get_pool().await?;
 
     let fetch_manager = crate::fetch::FetchManager::new(
-        &tasks,
         progress.map(|p| Arc::new(p.clone())),
         store,
         pg_pool,
@@ -714,7 +713,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress.map(|p| p.add(ProgressBar::new(100))).as_ref().map(|pb| &*pb),
+        progress.map(|p| &p.add(ProgressBar::new(100))),
     )
     .await?;
 
