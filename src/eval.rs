@@ -553,7 +553,8 @@ async fn process_edgar_filings(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        if let Some(tracker) = progress_tracker.as_ref() {
+        let progress_tracker_clone = progress_tracker.clone();
+        if let Some(tracker) = progress_tracker_clone.as_ref() {
             tracker.start_progress(
                 100,
                 &format!(
