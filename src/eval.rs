@@ -535,12 +535,18 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &(dyn VectorStore + Send + Sync),
+    store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let client = reqwest::Client::new();
+
     // Launch tasks concurrently
     for (filepath, filing) in filings {
+        let tx = tx.clone();
+        let client = client.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
@@ -557,26 +563,33 @@ async fn process_edgar_filings(
         });
 
         let handle = tokio::spawn(async move {
-            let result = fetch_and_process_filing(&client, &filing, progress_bar.as_ref()).await;
+            let result = filing::extract_complete_submission_filing(
+                &filepath,
+                filing.report_type,
+                store,
+                pg_pool,
+                progress_bar.as_ref(),
+            ).await;
+            tx.send(result).await.expect("Channel send failed");
             result
         });
         handles.push(handle);
     }
 
+    // Drop the sender
+    drop(tx);
+
     // Collect results
-    let mut results = HashMap::new();
     while let Some(result) = rx.recv().await {
         match result {
-            Ok((path, filing)) => {
-                results.insert(path, filing);
-            }
+            Ok(_) => (),
             Err(e) => log::error!("Error processing filing: {}", e),
         }
     }
 
     // Wait for all tasks
     for handle in handles {
-        handle.await?;
+        handle.await??;
     }
 
     Ok(())
@@ -595,7 +608,7 @@ async fn process_earnings_transcripts(
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {
         let tx = tx.clone();
-        let store = store.clone();
+        let store = Box::new(store.clone()) as Box<dyn VectorStore>;
         let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
