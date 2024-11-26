@@ -535,18 +535,18 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: &dyn VectorStore,
-    pg_pool: &Pool<Postgres>,
+    store: Arc<dyn VectorStore>,
+    pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let mut handles = Vec::new();
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-    let client = reqwest::Client::new();
 
     // Launch tasks concurrently
     for (filepath, filing) in filings {
         let tx = tx.clone();
-        let client = client.clone();
+        let store = store.clone();
+        let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
@@ -566,11 +566,11 @@ async fn process_edgar_filings(
             let result = filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
-                store,
-                pg_pool,
+                store.as_ref(),
+                &pg_pool,
                 progress_bar.as_ref(),
             ).await;
-            tx.send(result).await.expect("Channel send failed");
+            let _ = tx.send(result.clone()).await;
             result
         });
         handles.push(handle);
@@ -597,8 +597,8 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
-    store: &(dyn VectorStore + Send + Sync),
-    pg_pool: &Pool<Postgres>,
+    store: Arc<dyn VectorStore>,
+    pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     // Create tasks with progress bars
@@ -608,7 +608,7 @@ async fn process_earnings_transcripts(
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {
         let tx = tx.clone();
-        let store = Box::new(store.clone()) as Box<dyn VectorStore>;
+        let store = store.clone();
         let pg_pool = pg_pool.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
