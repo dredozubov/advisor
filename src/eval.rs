@@ -650,22 +650,12 @@ async fn process_earnings_transcripts(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        let progress_bar = progress.map(|mp| {
-            let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template(
-                        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
-                    )
-                    .unwrap()
-                    .progress_chars("#>-"),
-            );
-            pb.set_message(format!(
-                "Processing transcript: {} Q{} {}",
-                transcript.symbol, transcript.quarter, transcript.year
-            ));
-            pb
-        });
+        let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
+        let progress_tracker = ProgressTracker::new(progress_bar);
+        progress_tracker.start_progress(100, &format!(
+            "Processing transcript: {} Q{} {}",
+            transcript.symbol, transcript.quarter, transcript.year
+        ));
 
         let handle = tokio::spawn(async move {
             if let Some(pb) = &progress_bar {

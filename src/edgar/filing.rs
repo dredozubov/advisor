@@ -579,21 +579,12 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.clone();
-        let progress_bar = progress.map(|mp| {
-            let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(
-                ProgressStyle::with_template(
-                    "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
-            );
-            pb.set_message(format!(
-                "Filing {} {}",
-                filing.report_type, filing.accession_number
-            ));
-            pb
-        });
+        let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
+        let progress_tracker = ProgressTracker::new(progress_bar);
+        progress_tracker.start_progress(100, &format!(
+            "Filing {} {}",
+            filing.report_type, filing.accession_number
+        ));
 
         let handle = tokio::spawn(async move {
             let result =

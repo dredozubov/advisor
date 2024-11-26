@@ -204,17 +204,8 @@ pub async fn store_chunked_document(
 ) -> anyhow::Result<()> {
     log::debug!("Storing document with metadata: {:?}", metadata);
 
-    if let Some(pb) = progress {
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.red/blue}] {msg:>50}")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
-        pb.reset_elapsed();
-        pb.set_message("Storing document");
-        pb.set_position(0);
-        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    let progress_tracker = ProgressTracker::new(progress.cloned());
+    progress_tracker.start_progress(100, "Storing document");
     }
 
     // Split content into smaller chunks
