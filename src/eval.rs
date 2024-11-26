@@ -1,4 +1,3 @@
-use crate::document::{DocType, Metadata};
 use indicatif::MultiProgress;
 use crate::earnings;
 use crate::edgar::{self, filing};
@@ -546,7 +545,7 @@ async fn process_edgar_filings(
             if let Some(mp) = progress {
                 crate::fetch::FetchTask::new_edgar_filing(
                     &**mp,
-                    filing.cik.clone(),
+                    cik.clone(),
                     filing.clone(),
                     PathBuf::from(input_file),
                 )
@@ -563,7 +562,7 @@ async fn process_edgar_filings(
     // Create FetchManager with progress
     let fetch_manager = crate::fetch::FetchManager::new(
         progress.cloned(),
-        Arc::new(store),
+        store.clone(),
         pg_pool.clone(),
     );
 
