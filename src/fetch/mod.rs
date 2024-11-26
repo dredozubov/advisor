@@ -14,7 +14,7 @@ pub enum FetchTask {
         filing: crate::edgar::filing::Filing,
         output_path: PathBuf,
         #[serde(skip)]
-        progress: Option<ProgressBar>,
+        progress_bar: ProgressBar,
     },
     EarningsTranscript {
         ticker: String,
@@ -22,12 +22,13 @@ pub enum FetchTask {
         year: i32,
         output_path: PathBuf,
         #[serde(skip)]
-        progress: Option<ProgressBar>,
+        progress_bar: ProgressBar,
     },
 }
 
 impl FetchTask {
-    fn create_progress_bar(multi: &MultiProgress, desc: &str) -> ProgressBar {
+    pub fn new_edgar_filing(multi: &MultiProgress, cik: String, filing: crate::edgar::filing::Filing, output_path: PathBuf) -> Self {
+        let desc = format!("Filing {} {}", filing.report_type, filing.accession_number);
         let pb = multi.add(ProgressBar::new(100));
         pb.set_style(
             ProgressStyle::with_template(
@@ -36,8 +37,35 @@ impl FetchTask {
             .unwrap()
             .progress_chars("##-")
         );
-        pb.set_message(desc.to_string());
-        pb
+        pb.set_message(desc);
+        
+        FetchTask::EdgarFiling {
+            cik,
+            filing,
+            output_path,
+            progress_bar: pb,
+        }
+    }
+
+    pub fn new_earnings_transcript(multi: &MultiProgress, ticker: String, quarter: i32, year: i32, output_path: PathBuf) -> Self {
+        let desc = format!("Earnings {} Q{} {}", ticker, quarter, year);
+        let pb = multi.add(ProgressBar::new(100));
+        pb.set_style(
+            ProgressStyle::with_template(
+                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+            )
+            .unwrap()
+            .progress_chars("##-")
+        );
+        pb.set_message(desc);
+        
+        FetchTask::EarningsTranscript {
+            ticker,
+            quarter,
+            year,
+            output_path,
+            progress_bar: pb,
+        }
     }
 }
 
