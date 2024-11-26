@@ -35,9 +35,22 @@ impl FetchTask {
         }
     }
 
+    pub fn new_edgar_filing_without_progress(
+        cik: String,
+        filing: crate::edgar::filing::Filing,
+        output_path: PathBuf,
+    ) -> Self {
+        FetchTask::EdgarFiling {
+            cik,
+            filing,
+            output_path,
+            progress_bar: None,
+        }
+    }
+
     pub fn new_edgar_filing(
         multi: &MultiProgress,
-        cik: String,
+        cik: String, 
         filing: crate::edgar::filing::Filing,
         output_path: PathBuf,
     ) -> Self {
@@ -57,6 +70,21 @@ impl FetchTask {
             filing,
             output_path,
             progress_bar: Some(pb),
+        }
+    }
+
+    pub fn new_earnings_transcript_without_progress(
+        ticker: String,
+        quarter: i32,
+        year: i32,
+        output_path: PathBuf,
+    ) -> Self {
+        FetchTask::EarningsTranscript {
+            ticker,
+            quarter,
+            year,
+            output_path,
+            progress_bar: None,
         }
     }
 

@@ -539,82 +539,79 @@ async fn process_edgar_filings(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    for (input_file, filing) in &filings {
-        log::info!("Processing filing ({:?}): {:?}", input_file, filing);
-        let company_name = &filing.accession_number;
-        let filing_type_with_date = format!("{}_{}", filing.report_type, filing.filing_date);
-        let output_file_path = format!(
-            "data/edgar/parsed/{}/{}",
-            company_name, filing_type_with_date
-        );
+    // Create tasks with progress bars
+    let tasks: Vec<crate::fetch::FetchTask> = filings
+        .iter()
+        .map(|(input_file, filing)| {
+            if let Some(mp) = progress {
+                crate::fetch::FetchTask::new_edgar_filing(
+                    &**mp,
+                    filing.cik.clone(),
+                    filing.clone(),
+                    PathBuf::from(input_file),
+                )
+            } else {
+                crate::fetch::FetchTask::new_edgar_filing_without_progress(
+                    filing.cik.clone(),
+                    filing.clone(),
+                    PathBuf::from(input_file),
+                )
+            }
+        })
+        .collect();
 
-        let output_path = std::path::Path::new(&output_file_path);
-        if output_path.exists() {
-            log::info!(
-                "Output file already exists for filing: {}",
-                output_file_path
-            );
-            continue;
-        }
+    // Create FetchManager with progress
+    let fetch_manager = crate::fetch::FetchManager::new(
+        progress.cloned(),
+        Arc::new(store),
+        pg_pool.clone(),
+    );
 
-        log::debug!(
-            "Parsing filing: {} with output path: {:?}",
-            input_file,
-            output_path.parent().unwrap()
-        );
+    // Execute tasks concurrently
+    fetch_manager.execute_tasks(tasks).await?;
 
-        filing::extract_complete_submission_filing(
-            input_file,
-            filing.report_type.clone(),
-            store,
-            pg_pool,
-            None,
-        )
-        .await?;
-    }
     Ok(())
 }
 
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: &(dyn VectorStore + Send + Sync),
-    qdrant_client: &Pool<Postgres>,
+    pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    for (transcript, filepath) in transcripts {
-        log::info!(
-            "Processing transcript for {} on {}",
-            transcript.symbol,
-            transcript.date
-        );
+    // Create tasks with progress bars
+    let tasks: Vec<crate::fetch::FetchTask> = transcripts
+        .into_iter()
+        .map(|(transcript, filepath)| {
+            if let Some(mp) = progress {
+                crate::fetch::FetchTask::new_earnings_transcript(
+                    &**mp,
+                    transcript.symbol,
+                    transcript.quarter,
+                    transcript.year,
+                    filepath,
+                )
+            } else {
+                crate::fetch::FetchTask::new_earnings_transcript_without_progress(
+                    transcript.symbol,
+                    transcript.quarter,
+                    transcript.year,
+                    filepath,
+                )
+            }
+        })
+        .collect();
 
-        // Create document for vector storage
-        let metadata = Metadata::MetaEarningsTranscript {
-            doc_type: DocType::EarningTranscript,
-            filepath: filepath.clone(),
-            symbol: transcript.symbol.clone(),
-            year: transcript.year as usize,
-            quarter: transcript.quarter as usize,
-            chunk_index: 0,  // Set appropriately
-            total_chunks: 1, // Set appropriately
-        };
+    // Create FetchManager with progress
+    let fetch_manager = crate::fetch::FetchManager::new(
+        progress.cloned(),
+        Arc::new(store),
+        pg_pool.clone(),
+    );
 
-        // Store the transcript using the chunking utility with caching
-        log::info!("Storing earnings transcript in vector store");
-        crate::document::store_chunked_document(
-            transcript.content,
-            metadata,
-            store,
-            qdrant_client,
-            None,
-        )
-        .await?;
-        log::info!(
-            "Added earnings transcript to vector store: {} Q{}",
-            transcript.symbol,
-            transcript.quarter
-        );
-    }
+    // Execute tasks concurrently
+    fetch_manager.execute_tasks(tasks).await?;
+
     Ok(())
 }
 
