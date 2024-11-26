@@ -279,10 +279,13 @@ impl FetchManager {
 
             let handle = tokio::spawn(async move {
                 let result = task.execute(&client, &*store, &pg_pool).await;
-                if let Ok(fetch_result) = &result {
-                    tx.send(Ok(fetch_result.clone())).await.expect("Channel send failed");
-                } else {
-                    tx.send(result.clone()).await.expect("Channel send failed");
+                match &result {
+                    Ok(fetch_result) => {
+                        tx.send(Ok(fetch_result.clone())).await.expect("Channel send failed");
+                    }
+                    Err(e) => {
+                        tx.send(Err(anyhow::anyhow!(e.to_string()))).await.expect("Channel send failed");
+                    }
                 }
                 result
             });
