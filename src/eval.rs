@@ -86,7 +86,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            Arc::new(store.clone()),
+            store,
             pg_pool.clone(),
             multi_progress.as_ref()
         ).await?;
@@ -615,7 +615,7 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
-    store: Arc<dyn VectorStore>,
+    store: &dyn VectorStore,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -660,10 +660,11 @@ async fn process_earnings_transcripts(
                 total_chunks: 1,
             };
 
+            let content = transcript.content.clone();
             crate::document::store_chunked_document(
-                transcript.content,
+                content,
                 metadata,
-                store.as_ref(),
+                store,
                 &pg_pool,
                 progress_bar.as_ref(),
             )
@@ -673,7 +674,7 @@ async fn process_earnings_transcripts(
                 pb.finish_with_message("Complete");
             }
 
-            Ok::<_, anyhow::Error>((filepath, transcript))
+            Ok::<_, anyhow::Error>((filepath.to_string(), transcript))
         });
         handles.push(handle);
     }

@@ -546,7 +546,7 @@ async fn fetch_and_process_filing(
     .await?;
 
     log::info!("Saved filing document to {}", document_path);
-    Ok(document_path)
+    Ok((document_path, filing.clone()))
 }
 
 pub async fn fetch_matching_filings(
@@ -593,7 +593,9 @@ pub async fn fetch_matching_filings(
         let handle = tokio::spawn(async move {
             let result =
                 fetch_and_process_filing(&client, &cik, &filing, progress_bar.as_ref()).await;
-            tx.send(result).await.expect("Channel send failed");
+            if let Ok(ref r) = result {
+                tx.send(Ok(r.clone())).await.expect("Channel send failed");
+            }
             result
         });
         handles.push(handle);
