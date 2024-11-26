@@ -204,7 +204,7 @@ pub async fn store_chunked_document(
 ) -> anyhow::Result<()> {
     log::debug!("Storing document with metadata: {:?}", metadata);
     if let Some(tracker) = progress_tracker {
-        tracker.start_progress(100, "Storing document");
+        tracker.start_progress(100, "Processing [Document storage]");
     }
 
     // Split content into smaller chunks

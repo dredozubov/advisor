@@ -568,8 +568,9 @@ async fn process_edgar_filings(
             task_tracker.start_progress(
                 100,
                 &format!(
-                    "Processing filing: {} {}",
-                    filing.report_type, filing.accession_number
+                    "Downloading [{} {}]",
+                    filing.report_type,
+                    filing.filing_date.format("%Y-%m-%d")
                 ),
             );
             progress_tracker = Some(task_tracker);
