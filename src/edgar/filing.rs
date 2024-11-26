@@ -711,7 +711,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress_tracker,
+        progress_tracker.as_deref(),
     )
     .await?;
 

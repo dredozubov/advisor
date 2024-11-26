@@ -569,7 +569,7 @@ async fn process_edgar_filings(
                 filing.report_type,
                 store,
                 &pg_pool,
-                progress_tracker.map(|v| Arc::new(v)),
+                progress_tracker.cloned().map(Arc::new),
             )
             .await
             {
