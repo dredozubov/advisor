@@ -206,7 +206,6 @@ pub async fn store_chunked_document(
 
     let progress_tracker = ProgressTracker::new(progress.cloned());
     progress_tracker.start_progress(100, "Storing document");
-    }
 
     // Split content into smaller chunks
     let chunks: Vec<String> = content
@@ -282,8 +281,6 @@ pub async fn store_chunked_document(
     }?;
 
     log::info!("Stored {} document chunks in vector store", documents.len());
-    if let Some(pb) = progress {
-        pb.finish_and_clear();
-    }
+    progress_tracker.finish();
     Ok(())
 }
