@@ -57,7 +57,12 @@ async fn process_documents(
                         multi_progress.as_ref().map(|mp| &**mp),
                     )
                     .await?;
-                    process_edgar_filings(filings, store, pg_pool, multi_progress.as_ref()).await?;
+                    process_edgar_filings(
+                        filings,
+                        Arc::new(store.clone()),
+                        pg_pool.clone(),
+                        multi_progress.as_ref()
+                    ).await?;
                 }
             }
             Err(e) => {
@@ -79,7 +84,12 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(transcripts, store, pg_pool, multi_progress.as_ref()).await?;
+        process_earnings_transcripts(
+            transcripts,
+            Arc::new(store.clone()),
+            pg_pool.clone(),
+            multi_progress.as_ref()
+        ).await?;
     }
 
     Ok(())
@@ -540,7 +550,7 @@ async fn process_edgar_filings(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (filepath, filing) in filings {
@@ -563,15 +573,23 @@ async fn process_edgar_filings(
         });
 
         let handle = tokio::spawn(async move {
-            let result = filing::extract_complete_submission_filing(
+            match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
                 store.as_ref(),
                 &pg_pool,
                 progress_bar.as_ref(),
-            ).await;
-            let _ = tx.send(result.clone()).await;
-            result
+            ).await {
+                Ok(()) => {
+                    let _ = tx.send(Ok(())).await;
+                    Ok(())
+                }
+                Err(e) => {
+                    let err = Err(e.clone());
+                    let _ = tx.send(err.clone()).await;
+                    err
+                }
+            }
         });
         handles.push(handle);
     }
