@@ -539,36 +539,8 @@ async fn process_edgar_filings(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    // Create tasks with progress bars
-    let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-
     // Launch tasks concurrently
-    for filing in filings.values() 
-        .iter()
-        .map(|(input_file, filing)| {
-            if let Some(mp) = progress {
-                crate::fetch::FetchTask::new_edgar_filing(
-                    &**mp,
-                    filing.accession_number.clone(), // Use accession number instead of cik
-                    filing.clone(),
-                    PathBuf::from(input_file),
-                )
-            } else {
-                crate::fetch::FetchTask::new_edgar_filing_without_progress(
-                    filing.accession_number.clone(), // Use accession number instead of cik
-                    filing.clone(),
-                    PathBuf::from(input_file),
-                )
-            }
-        })
-        .collect();
-
-    let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
-
-    // Launch tasks concurrently
-    for filing in matching_filings {
+    for (filepath, filing) in filings {
         let tx = tx.clone();
         let client = client.clone();
         let progress_bar = progress.map(|mp| {
