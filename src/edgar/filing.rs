@@ -558,13 +558,19 @@ async fn fetch_and_process_filing(
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
-    progress_tracker: Option<Arc<ProgressTracker>>,
+    multi_progress: Option<&Arc<MultiProgress>>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
 
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
 
+    let progress_tracker = multi_progress.map(|mp| {
+        Arc::new(ProgressTracker::new(
+            Some(mp),
+            &format!("Filing list for {}", query.tickers[0])
+        ))
+    });
     if let Some(ref tracker) = progress_tracker {
         tracker.update_message("Retrieved filing list");
     }

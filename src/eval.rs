@@ -24,8 +24,6 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_tracker = Arc::new(ProgressTracker::new(progress, "Document Processing"));
-
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
@@ -46,14 +44,14 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        Some(Arc::clone(&progress_tracker)),
+                        progress,
                     )
                     .await?;
                     process_edgar_filings(
                         filings,
                         Arc::clone(&store),
                         pg_pool.clone(),
-                        Some(Arc::clone(&progress_tracker)),
+                        progress,
                     )
                     .await?;
                 }
