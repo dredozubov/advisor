@@ -562,7 +562,7 @@ async fn process_edgar_filings(
     // Create FetchManager with progress
     let fetch_manager = crate::fetch::FetchManager::new(
         progress.cloned(),
-        Arc::new(Box::new(store) as Box<dyn VectorStore>),
+        Arc::new(store.clone()),
         pg_pool.clone(),
     );
 
@@ -604,7 +604,7 @@ async fn process_earnings_transcripts(
     // Create FetchManager with progress
     let fetch_manager = crate::fetch::FetchManager::new(
         progress.cloned(),
-        Arc::new(Box::new(store) as Box<dyn VectorStore>),
+        Arc::new(store.clone()),
         pg_pool.clone(),
     );
 
