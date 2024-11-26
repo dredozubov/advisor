@@ -135,11 +135,10 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filing_types_str = filing_types.join("','");
-            let filter = serde_json::json!({
-                "doc_type": "filing",
-                "filing_type": filing_types[0],
-                "filing_date": start_date.to_string()
-            });
+            let mut filter = std::collections::HashMap::new();
+            filter.insert("doc_type".to_string(), "filing".to_string());
+            filter.insert("filing_type".to_string(), filing_types[0].to_string());
+            filter.insert("filing_date".to_string(), start_date.to_string());
             log::info!("Using filter for similarity search: {}", filter);
             let docs = store
                 .similarity_search(
@@ -168,10 +167,9 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
 
         let start_year = start_date.split("-").next().unwrap();
         let end_year = end_date.split("-").next().unwrap();
-        let filter = serde_json::json!({
-            "doc_type": "earnings_transcript",
-            "year": start_year.to_string()
-        });
+        let mut filter = std::collections::HashMap::new();
+        filter.insert("doc_type".to_string(), "earnings_transcript".to_string());
+        filter.insert("year".to_string(), start_year.to_string());
         log::info!("Using filter for similarity search: {}", filter);
         let docs = store
             .similarity_search(
