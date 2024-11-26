@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use langchain_rust::vectorstore::VectorStore;
 use log::{error, info};
@@ -586,20 +586,22 @@ pub async fn fetch_matching_filings(
                 filing.accession_number.replace("-", ""),
                 filing.primary_document.replace(".htm", "_htm.xml")
             ));
-            
-            crate::fetch::FetchTask::new_edgar_filing(&multi, cik.clone(), filing.clone(), output_path)
+
+            crate::fetch::FetchTask::new_edgar_filing(
+                &multi,
+                cik.clone(),
+                filing.clone(),
+                output_path,
+            )
         })
         .collect();
 
     let store = crate::vectorstore::get_store().await?;
     let pg_pool = crate::db::get_pool().await?;
 
-    let fetch_manager = crate::fetch::FetchManager::new(
-        progress.map(|p| Arc::new(p.clone())),
-        store,
-        pg_pool,
-    );
-    
+    let fetch_manager =
+        crate::fetch::FetchManager::new(progress.map(|p| Arc::new(p.clone())), store, pg_pool);
+
     let results = fetch_manager.execute_tasks(tasks).await?;
 
     // Convert results back to HashMap
@@ -713,7 +715,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress.map(|p| &p.add(ProgressBar::new(100))),
+        progress.map(|p| p.add(ProgressBar::new(100))),
     )
     .await?;
 
