@@ -545,44 +545,6 @@ pub async fn fetch_filing_document(client: &Client, cik: &str, filing: &Filing) 
     Ok(document_path)
 }
 
-async fn fetch_and_process_filing(
-    client: &Client,
-    filing: &Filing,
-    progress: Option<&ProgressBar>,
-) -> Result<(String, Filing)> {
-    if let Some(pb) = progress {
-        pb.set_message("Downloading...");
-        pb.set_position(0);
-    }
-
-    // Download
-    let path = fetch_filing_document(client, filing).await?;
-    
-    if let Some(pb) = progress {
-        pb.set_message("Processing...");
-        pb.set_position(50);
-    }
-
-    // Get store and pool
-    let store = crate::vectorstore::get_store().await?;
-    let pg_pool = crate::db::get_pool().await?;
-
-    // Process
-    extract_complete_submission_filing(
-        &path,
-        filing.report_type.clone(),
-        store.as_ref(),
-        &pg_pool,
-        progress,
-    ).await?;
-
-    if let Some(pb) = progress {
-        pb.finish_with_message("Complete");
-    }
-
-    Ok((path, filing.clone()))
-}
-
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
@@ -759,42 +721,4 @@ pub async fn extract_complete_submission_filing(
 
     log::debug!("Filing processed and converted to markdown");
     Ok(())
-}
-async fn fetch_and_process_filing(
-    client: &Client,
-    cik: &str,
-    filing: &Filing,
-    progress: Option<&ProgressBar>,
-) -> Result<(String, Filing)> {
-    if let Some(pb) = progress {
-        pb.set_message("Downloading...");
-        pb.set_position(0);
-    }
-
-    // Download the filing
-    let path = fetch_filing_document(client, cik, filing).await?;
-    
-    if let Some(pb) = progress {
-        pb.set_message("Processing...");
-        pb.set_position(50);
-    }
-
-    // Get store and pool
-    let store = crate::vectorstore::get_store().await?;
-    let pg_pool = crate::db::get_pool().await?;
-
-    // Process the filing
-    extract_complete_submission_filing(
-        &path,
-        filing.report_type.clone(),
-        store.as_ref(),
-        &pg_pool,
-        progress,
-    ).await?;
-
-    if let Some(pb) = progress {
-        pb.finish_with_message("Complete");
-    }
-
-    Ok((path, filing.clone()))
 }

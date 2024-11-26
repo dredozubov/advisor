@@ -540,7 +540,11 @@ async fn process_edgar_filings(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     // Create tasks with progress bars
-    let tasks: Vec<crate::fetch::FetchTask> = filings
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+
+    // Launch tasks concurrently
+    for filing in filings.values() 
         .iter()
         .map(|(input_file, filing)| {
             if let Some(mp) = progress {
@@ -615,37 +619,66 @@ async fn process_earnings_transcripts(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     // Create tasks with progress bars
-    let tasks: Vec<crate::fetch::FetchTask> = transcripts
-        .into_iter()
-        .map(|(transcript, filepath)| {
-            if let Some(mp) = progress {
-                crate::fetch::FetchTask::new_earnings_transcript(
-                    &**mp,
-                    transcript.symbol,
-                    transcript.quarter,
-                    transcript.year,
-                    filepath,
-                )
-            } else {
-                crate::fetch::FetchTask::new_earnings_transcript_without_progress(
-                    transcript.symbol,
-                    transcript.quarter,
-                    transcript.year,
-                    filepath,
-                )
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+
+    // Launch tasks concurrently
+    for (transcript, filepath) in transcripts {
+        let tx = tx.clone();
+        let store = store.clone();
+        let pg_pool = pg_pool.clone();
+        let progress_bar = progress.map(|mp| {
+            let pb = mp.add(ProgressBar::new(100));
+            pb.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                .unwrap()
+                .progress_chars("#>-"));
+            pb.set_message(format!("Processing {} Q{} {}", transcript.symbol, transcript.quarter, transcript.year));
+            pb
+        });
+
+        let handle = tokio::spawn(async move {
+            // Process transcript logic here
+            if let Some(pb) = &progress_bar {
+                pb.set_position(50);
             }
-        })
-        .collect();
 
-    // Create FetchManager with progress
-    let fetch_manager = crate::fetch::FetchManager::new(
-        progress.cloned(),
-        Arc::new(Box::new(store) as Box<dyn VectorStore>),
-        pg_pool.clone(),
-    );
+            // Store the transcript
+            let metadata = crate::document::Metadata::MetaEarningsTranscript {
+                doc_type: crate::document::DocType::EarningTranscript,
+                filepath: filepath.clone(),
+                symbol: transcript.symbol.clone(),
+                year: transcript.year as usize,
+                quarter: transcript.quarter as usize,
+                chunk_index: 0,
+                total_chunks: 1,
+            };
 
-    // Execute tasks concurrently
-    fetch_manager.execute_tasks(tasks).await?;
+            crate::document::store_chunked_document(
+                transcript.content,
+                metadata,
+                store.as_ref(),
+                &pg_pool,
+                progress_bar.as_ref(),
+            ).await?;
+
+            if let Some(pb) = progress_bar {
+                pb.finish_with_message("Complete");
+            }
+
+            Ok::<_, anyhow::Error>((filepath, transcript))
+        });
+        handles.push(handle);
+    }
+
+    // Collect results
+    let mut results = Vec::new();
+    for handle in handles {
+        match handle.await? {
+            Ok(result) => results.push(result),
+            Err(e) => log::error!("Error processing transcript: {}", e),
+        }
+    }
 
     Ok(())
 }
