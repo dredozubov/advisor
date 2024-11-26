@@ -139,13 +139,13 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             filter.insert("doc_type".to_string(), "filing".to_string());
             filter.insert("filing_type".to_string(), filing_types[0].to_string());
             filter.insert("filing_date".to_string(), start_date.to_string());
-            log::info!("Using filter for similarity search: {}", filter);
+            log::info!("Using filter for similarity search: {:?}", filter);
             let docs = store
                 .similarity_search(
                     input,
                     50,
                     &langchain_rust::vectorstore::VecStoreOptions {
-                        filters: Some(serde_json::Value::String(filter.clone())),
+                        filters: Some(serde_json::Value::Object(filter.iter().map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))).collect())),
                         ..Default::default()
                     },
                 )
@@ -170,13 +170,13 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         let mut filter = std::collections::HashMap::new();
         filter.insert("doc_type".to_string(), "earnings_transcript".to_string());
         filter.insert("year".to_string(), start_year.to_string());
-        log::info!("Using filter for similarity search: {}", filter);
+        log::info!("Using filter for similarity search: {:?}", filter);
         let docs = store
             .similarity_search(
                 input,
                 50,
                 &langchain_rust::vectorstore::VecStoreOptions {
-                    filters: Some(serde_json::Value::String(filter.clone())),
+                    filters: Some(serde_json::Value::Object(filter.iter().map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))).collect())),
                     ..Default::default()
                 },
             )
