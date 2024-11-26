@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        Arc::new(store.clone()),
+                        store,
                         pg_pool.clone(),
                         multi_progress.as_ref()
                     ).await?;
@@ -545,7 +545,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: Arc<dyn VectorStore>,
+    store: &dyn VectorStore,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -585,8 +585,8 @@ async fn process_edgar_filings(
                     Ok(())
                 }
                 Err(e) => {
-                    let err = Err(e.clone());
-                    let _ = tx.send(err.clone()).await;
+                    let err = Err(e);
+                    let _ = tx.send(Err(anyhow::anyhow!("{}", e))).await;
                     err
                 }
             }
@@ -621,7 +621,7 @@ async fn process_earnings_transcripts(
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {

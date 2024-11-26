@@ -513,7 +513,12 @@ async fn get_cik_for_query(query: &Query) -> Result<String> {
         .ok_or_else(|| anyhow!("CIK not found for ticker: {}", query.tickers[0]))
 }
 
-pub async fn fetch_filing_document(client: &Client, cik: &str, filing: &Filing) -> Result<String> {
+async fn fetch_and_process_filing(
+    client: &Client,
+    cik: &str,
+    filing: &Filing,
+    progress: Option<&ProgressBar>,
+) -> Result<(String, Filing)> {
     let base = "https://www.sec.gov/Archives/edgar/data";
     let accession_number = filing.accession_number.replace("-", "");
     let xbrl_document = filing.primary_document.replace(".htm", "_htm.xml");
