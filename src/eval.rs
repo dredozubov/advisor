@@ -555,9 +555,12 @@ async fn process_edgar_filings(
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
     let mut success_count = 0;
     let mut error_count = 0;
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (filepath, filing) in filings {
+        let tx = tx.clone();
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
@@ -604,9 +607,10 @@ async fn process_edgar_filings(
     // Drop the sender to signal no more messages will be sent
     drop(tx);
 
+    // Drop sender to signal no more messages
+    drop(tx);
+
     // Collect and process results
-    let mut success_count = 0;
-    let mut error_count = 0;
     while let Some(result) = rx.recv().await {
         match result {
             Ok(_) => success_count += 1,
@@ -616,6 +620,12 @@ async fn process_edgar_filings(
             }
         }
     }
+
+    // Wait for all tasks
+    for handle in handles {
+        handle.await??;
+    }
+
     log::info!(
         "Processed {} filings: {} successful, {} failed",
         success_count + error_count,
