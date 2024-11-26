@@ -47,7 +47,7 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        Some(&progress_tracker),
+                        Some(Arc::new(progress_tracker)),
                     )
                     .await?;
                     process_edgar_filings(
@@ -553,7 +553,7 @@ async fn process_edgar_filings(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        if let Some(tracker) = progress_tracker {
+        if let Some(ref tracker) = progress_tracker {
             tracker.start_progress(
                 100,
                 &format!(
@@ -569,7 +569,7 @@ async fn process_edgar_filings(
                 filing.report_type,
                 store,
                 &pg_pool,
-                progress_tracker.cloned().map(Arc::new),
+                progress_tracker.clone(),
             )
             .await
             {

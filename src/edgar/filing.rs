@@ -629,7 +629,7 @@ pub async fn extract_complete_submission_filing(
     pg_pool: &Pool<Postgres>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
-    if let Some(tracker) = progress_tracker {
+    if let Some(ref tracker) = progress_tracker {
         tracker.update_message("Parsing filing...");
         tracker.update_progress(33);
     }
