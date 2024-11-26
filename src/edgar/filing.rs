@@ -548,7 +548,7 @@ pub async fn fetch_filing_document(client: &Client, cik: &str, filing: &Filing) 
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
-    progress: Option<&crate::utils::progress::ProgressTracker>,
+    progress: Option<&MultiProgress>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
 

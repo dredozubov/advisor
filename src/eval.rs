@@ -21,7 +21,7 @@ async fn process_documents(
     http_client: &reqwest::Client,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&crate::utils::progress::ProgressTracker>,
+    progress: Option<&MultiProgress>,
 ) -> Result<()> {
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {

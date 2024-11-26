@@ -2,6 +2,7 @@ use anyhow::Result;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use langchain_rust::vectorstore::VectorStore;
 use reqwest::Client;
+use serde::{Deserialize, Serialize}; 
 use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ pub enum FetchTask {
         filing: crate::edgar::filing::Filing,
         output_path: PathBuf,
         #[serde(skip)]
-        progress_bar: ProgressBar,
+        progress_bar: Option<ProgressBar>,
     },
     EarningsTranscript {
         ticker: String,
@@ -22,7 +23,7 @@ pub enum FetchTask {
         year: i32,
         output_path: PathBuf,
         #[serde(skip)]
-        progress_bar: ProgressBar,
+        progress_bar: Option<ProgressBar>,
     },
 }
 
@@ -109,8 +110,10 @@ impl FetchTask {
                 output_path: _,
                 progress_bar,
             } => {
-                progress_bar.set_message("Downloading filing...");
-                progress_bar.inc(25);
+                if let Some(pb) = progress_bar {
+                    pb.set_message("Downloading filing...");
+                    pb.inc(25);
+                }
 
                 // Download the filing
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
@@ -218,7 +221,7 @@ pub struct FetchProgress {
 
 pub struct FetchManager {
     client: Client,
-    progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
+    multi_progress: Option<Arc<MultiProgress>>,
     store: Arc<dyn VectorStore>,
     pg_pool: Pool<Postgres>,
 }
@@ -226,13 +229,13 @@ pub struct FetchManager {
 impl FetchManager {
     pub fn new(
         _tasks: &[FetchTask],
-        progress_tracker: Option<Arc<crate::utils::progress::ProgressTracker>>,
+        multi_progress: Option<Arc<MultiProgress>>,
         store: Arc<dyn VectorStore>,
         pg_pool: Pool<Postgres>,
     ) -> Self {
         Self {
             client: Client::new(),
-            progress_tracker,
+            multi_progress,
             store,
             pg_pool,
         }
