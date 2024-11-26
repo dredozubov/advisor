@@ -560,15 +560,50 @@ async fn process_edgar_filings(
         })
         .collect();
 
-    // Create FetchManager with progress
-    let fetch_manager = crate::fetch::FetchManager::new(
-        progress.cloned(),
-        Arc::new(Box::new(store) as Box<dyn VectorStore>),
-        pg_pool.clone(),
-    );
+    let mut handles = Vec::new();
+    let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
-    // Execute tasks concurrently
-    fetch_manager.execute_tasks(tasks).await?;
+    // Launch tasks concurrently
+    for filing in matching_filings {
+        let tx = tx.clone();
+        let client = client.clone();
+        let progress_bar = progress.map(|mp| {
+            let pb = mp.add(ProgressBar::new(100));
+            pb.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                .unwrap()
+                .progress_chars("#>-"));
+            pb.set_message(format!("Filing {} {}", filing.report_type, filing.accession_number));
+            pb
+        });
+
+        let handle = tokio::spawn(async move {
+            let result = fetch_and_process_filing(
+                &client,
+                &filing,
+                progress_bar.as_ref()
+            ).await;
+            tx.send(result).await.expect("Channel send failed");
+            result
+        });
+        handles.push(handle);
+    }
+
+    // Collect results
+    let mut results = HashMap::new();
+    while let Some(result) = rx.recv().await {
+        match result {
+            Ok((path, filing)) => {
+                results.insert(path, filing);
+            }
+            Err(e) => log::error!("Error processing filing: {}", e),
+        }
+    }
+
+    // Wait for all tasks
+    for handle in handles {
+        handle.await?;
+    }
 
     Ok(())
 }
