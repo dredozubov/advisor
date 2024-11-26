@@ -61,8 +61,9 @@ async fn process_documents(
                         filings,
                         Arc::new(store),
                         pg_pool.clone(),
-                        multi_progress.as_ref()
-                    ).await?;
+                        multi_progress.as_ref(),
+                    )
+                    .await?;
                 }
             }
             Err(e) => {
@@ -88,8 +89,9 @@ async fn process_documents(
             transcripts,
             Arc::new(store),
             pg_pool.clone(),
-            multi_progress.as_ref()
-        ).await?;
+            multi_progress.as_ref(),
+        )
+        .await?;
     }
 
     Ok(())
@@ -579,7 +581,9 @@ async fn process_edgar_filings(
                 store.as_ref(),
                 &pg_pool,
                 progress_bar.as_ref(),
-            ).await {
+            )
+            .await
+            {
                 Ok(()) => {
                     let _ = tx.send(Ok(())).await;
                     Ok(())
@@ -648,10 +652,12 @@ async fn process_earnings_transcripts(
             if let Some(pb) = &progress_bar {
                 pb.set_message("Processing transcript content");
                 pb.set_position(25);
-                pb.set_style(ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"));
+                pb.set_style(
+                    ProgressStyle::default_bar()
+                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                        .unwrap()
+                        .progress_chars("#>-"),
+                );
             }
 
             // Store the transcript
