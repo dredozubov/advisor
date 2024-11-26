@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        store,
+                        Arc::new(store),
                         pg_pool.clone(),
                         multi_progress.as_ref()
                     ).await?;
@@ -86,7 +86,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            store,
+            Arc::new(store),
             pg_pool.clone(),
             multi_progress.as_ref()
         ).await?;
@@ -576,7 +576,7 @@ async fn process_edgar_filings(
             match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
-                store,
+                store.as_ref(),
                 &pg_pool,
                 progress_bar.as_ref(),
             ).await {
@@ -622,7 +622,7 @@ async fn process_earnings_transcripts(
 ) -> Result<()> {
     // Create tasks with progress bars
     let mut handles = Vec::new();
-    let (_tx, _rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(String, filing::Filing), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (transcript, filepath) in transcripts {
@@ -665,7 +665,7 @@ async fn process_earnings_transcripts(
             crate::document::store_chunked_document(
                 content,
                 metadata,
-                store,
+                store.as_ref(),
                 &pg_pool,
                 progress_bar.as_ref(),
             )
