@@ -40,6 +40,8 @@ impl FetchTask {
     pub async fn execute(
         &self,
         client: &Client,
+        store: &dyn VectorStore,
+        pg_pool: &Pool<Postgres>,
         progress: Option<&ProgressBar>,
     ) -> Result<FetchResult> {
         match self {
@@ -58,30 +60,64 @@ impl FetchTask {
                             .progress_chars("#>-"),
                     );
                     pb.set_message("Downloading filing...");
-                    pb.inc(10); // Increment progress
-                    pb.tick(); // Force an update to the terminal
+                    pb.inc(25);
+                    pb.tick();
                 }
 
+                // Download the filing
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
                     Ok(path) => {
                         if let Some(pb) = progress {
-                            pb.set_message("Parsing...");
-                            pb.inc(40); // Increment progress
+                            pb.set_message("Parsing and storing...");
+                            pb.inc(25);
                         }
 
+                        // Parse and store the filing immediately after download
+                        match crate::edgar::filing::extract_complete_submission_filing(
+                            &path,
+                            filing.report_type.clone(),
+                            store,
+                            pg_pool,
+                            None, // We're using the task's progress bar instead
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                if let Some(pb) = progress {
+                                    pb.inc(50);
+                                    pb.finish_with_message("✓ Complete");
+                                }
+                                Ok(FetchResult {
+                                    task: self.clone(),
+                                    status: FetchStatus::Success,
+                                    output_path: Some(PathBuf::from(path)),
+                                    error: None,
+                                })
+                            }
+                            Err(e) => {
+                                if let Some(pb) = progress {
+                                    pb.finish_with_message("✗ Parse failed");
+                                }
+                                Ok(FetchResult {
+                                    task: self.clone(),
+                                    status: FetchStatus::Failed,
+                                    output_path: Some(PathBuf::from(path)),
+                                    error: Some(e.to_string()),
+                                })
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        if let Some(pb) = progress {
+                            pb.finish_with_message("✗ Download failed");
+                        }
                         Ok(FetchResult {
                             task: self.clone(),
-                            status: FetchStatus::Success,
-                            output_path: Some(PathBuf::from(path)),
-                            error: None,
+                            status: FetchStatus::Failed,
+                            output_path: None,
+                            error: Some(e.to_string()),
                         })
                     }
-                    Err(e) => Ok(FetchResult {
-                        task: self.clone(),
-                        status: FetchStatus::Failed,
-                        output_path: None,
-                        error: Some(e.to_string()),
-                    }),
                 }
             }
             FetchTask::EarningsTranscript {
