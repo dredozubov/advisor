@@ -134,29 +134,15 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
-            let filter = serde_json::json!({
-                "must": [
-                    {
-                        "key": "type",
-                        "match": { "value": "edgar_filing" }
-                    },
-                    {
-                        "key": "filing_type",
-                        "match": { "any": filing_types }
-                    },
-                    {
-                        "key": "filing_date",
-                        "range": {
-                            "gte": start_date,
-                            "lte": end_date
-                        }
-                    }
-                ]
-            })
-            .to_string();
+            let filing_types_str = filing_types.join("','");
+            let filter = format!(
+                "doc_type = 'filing' AND filing_type IN ('{}') AND filing_date BETWEEN '{}' AND '{}'",
+                filing_types_str, start_date, end_date
+            );
             log::info!("Using filter for similarity search: {}", filter);
             let docs = store
-                .similarity_search(
+                .similarity_search_with_filter(
+                    input,
                     &filter,
                     50,
                     &langchain_rust::vectorstore::VecStoreOptions::default(),
@@ -177,44 +163,19 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
 
-        let filter = serde_json::json!({
-            "must": [
-                {
-                    "key": "doc_type",
-                    "match": { "value": "earnings_transcript" }
-                },
-                {
-                    "or": [
-                        {
-                            "key": "date",
-                            "range": {
-                                "gte": start_date,
-                                "lte": end_date
-                            }
-                        },
-                        {
-                            "and": [
-                                {
-                                    "key": "year",
-                                    "range": {
-                                        "gte": start_date.split("-").next().unwrap(),
-                                        "lte": end_date.split("-").next().unwrap()
-                                    }
-                                },
-                                {
-                                    "key": "quarter",
-                                    "exists": true
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        })
-        .to_string();
+        let start_year = start_date.split("-").next().unwrap();
+        let end_year = end_date.split("-").next().unwrap();
+        let filter = format!(
+            "doc_type = 'earnings_transcript' AND (
+                (date BETWEEN '{}' AND '{}') OR 
+                (year BETWEEN {} AND {} AND quarter IS NOT NULL)
+            )",
+            start_date, end_date, start_year, end_year
+        );
         log::info!("Using filter for similarity search: {}", filter);
         let docs = store
-            .similarity_search(
+            .similarity_search_with_filter(
+                input,
                 &filter,
                 50,
                 &langchain_rust::vectorstore::VecStoreOptions::default(),
