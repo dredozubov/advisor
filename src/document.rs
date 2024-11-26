@@ -207,11 +207,12 @@ pub async fn store_chunked_document(
     if let Some(pb) = progress {
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.red/blue}] {wide_msg}")
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.red/blue}] {msg}")
                 .unwrap()
                 .progress_chars("#>-"),
         );
-        pb.set_message("Storing document...");
+        pb.reset();
+        pb.set_message("Storing document");
         pb.set_position(0);
     }
 
@@ -289,5 +290,8 @@ pub async fn store_chunked_document(
     }?;
 
     log::info!("Stored {} document chunks in vector store", documents.len());
+    if let Some(pb) = progress {
+        pb.finish_and_clear();
+    }
     Ok(())
 }
