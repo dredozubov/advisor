@@ -17,7 +17,6 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Arc;
 use url::Url;
 
 use crate::document::{DocType, Metadata};
@@ -554,7 +553,7 @@ pub async fn fetch_matching_filings(
 
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
-    
+
     if let Some(mp) = progress {
         mp.println("Retrieved filing list").unwrap();
     }
@@ -572,20 +571,23 @@ pub async fn fetch_matching_filings(
         let cik = cik.clone();
         let progress_bar = progress.map(|mp| {
             let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(ProgressStyle::with_template(
-                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-            ).unwrap().progress_chars("##-"));
-            pb.set_message(format!("Filing {} {}", filing.report_type, filing.accession_number));
+            pb.set_style(
+                ProgressStyle::with_template(
+                    "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
+            );
+            pb.set_message(format!(
+                "Filing {} {}",
+                filing.report_type, filing.accession_number
+            ));
             pb
         });
 
         let handle = tokio::spawn(async move {
-            let result = fetch_and_process_filing(
-                &client,
-                &cik,
-                &filing,
-                progress_bar.as_ref()
-            ).await;
+            let result =
+                fetch_and_process_filing(&client, &cik, &filing, progress_bar.as_ref()).await;
             tx.send(result).await.expect("Channel send failed");
             result
         });
@@ -708,14 +710,8 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(
-        markdown_content,
-        metadata,
-        store,
-        pg_pool,
-        progress,
-    )
-    .await?;
+    crate::document::store_chunked_document(markdown_content, metadata, store, pg_pool, progress)
+        .await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 
