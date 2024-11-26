@@ -463,7 +463,7 @@ pub async fn eval(
         let mp_clone = mp.clone();
         std::thread::spawn(move || {
             log::debug!("Starting MultiProgress rendering thread");
-            let _ = mp_clone.join_and_clear();
+            let _ = mp_clone.join();
         });
 
         Some(mp)

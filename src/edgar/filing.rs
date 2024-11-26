@@ -628,7 +628,7 @@ pub async fn extract_complete_submission_filing(
     progress: Option<&MultiProgress>,
 ) -> Result<()> {
     if let Some(p) = &progress {
-        if let Some(pb) = p.get_bar("parse") {
+        if let Some(pb) = p.add(ProgressBar::new(100)) {
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
@@ -717,7 +717,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress.and_then(|p| p.get_bar("store")),
+        progress.map(|p| p.add(ProgressBar::new(100))),
     )
     .await?;
 

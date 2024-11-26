@@ -189,7 +189,7 @@ impl FetchTask {
                 output_path: _,
                 progress_bar,
             } => {
-                if let Some(pb) = progress {
+                if let Some(pb) = progress_bar {
                     pb.set_style(
                         ProgressStyle::default_bar()
                             .template(
@@ -256,7 +256,7 @@ impl FetchManager {
         let (tx, mut rx) = mpsc::channel(100);
         let mut handles = Vec::new();
 
-        for (i, task) in tasks.iter().enumerate() {
+        for (_i, task) in tasks.iter().enumerate() {
             let tx = tx.clone();
             let client = self.client.clone();
             let task = task.clone();
