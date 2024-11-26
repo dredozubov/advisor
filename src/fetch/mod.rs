@@ -49,7 +49,7 @@ impl FetchTask {
             cik,
             filing,
             output_path,
-            progress_bar: pb,
+            progress_bar: Some(pb),
         }
     }
 
@@ -103,6 +103,10 @@ impl FetchTask {
         store: &dyn VectorStore,
         pg_pool: &Pool<Postgres>,
     ) -> Result<FetchResult> {
+        let progress_bar = match self {
+            FetchTask::EdgarFiling { progress_bar, .. } => progress_bar,
+            FetchTask::EarningsTranscript { progress_bar, .. } => progress_bar,
+        };
         match self {
             FetchTask::EdgarFiling {
                 cik,
@@ -287,8 +291,7 @@ impl FetchManager {
 
         let mut results = Vec::with_capacity(tasks.len());
         while let Some(result) = rx.recv().await {
-            if let Some(tracker) = self.progress_tracker.as_ref() {
-                let mp = tracker.as_multi_progress();
+            if let Some(mp) = &self.multi_progress {
                 mp.println("Task completed").unwrap();
             }
             results.push(result?);

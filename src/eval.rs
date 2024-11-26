@@ -1,4 +1,5 @@
 use crate::document::{DocType, Metadata};
+use indicatif::MultiProgress;
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};

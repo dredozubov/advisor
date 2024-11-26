@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
+use indicatif::MultiProgress;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::ProgressStyle;
