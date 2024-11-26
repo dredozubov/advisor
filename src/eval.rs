@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        store,
+                        Arc::new(store),
                         pg_pool.clone(),
                         multi_progress.as_ref(),
                     )
@@ -87,7 +87,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            store,
+            Arc::new(store),
             pg_pool.clone(),
             multi_progress.as_ref(),
         )
@@ -551,7 +551,9 @@ async fn process_edgar_filings(
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let mut handles = Vec::new();
+    let mut success_count = 0;
+    let mut error_count = 0;
+    let mut handles: Vec<tokio::task::JoinHandle<Result<(), anyhow::Error>>> = Vec::new();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
     let mut success_count = 0;
     let mut error_count = 0;
