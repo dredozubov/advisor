@@ -1,4 +1,3 @@
-use indicatif::MultiProgress;
 use crate::earnings;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
@@ -6,6 +5,7 @@ use crate::query::Query;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
+use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::VectorStore;
@@ -54,8 +54,9 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        multi_progress.as_ref().map(|mp| &**mp)
-                    ).await?;
+                        multi_progress.as_ref().map(|mp| &**mp),
+                    )
+                    .await?;
                     process_edgar_filings(filings, store, pg_pool, multi_progress.as_ref()).await?;
                 }
             }
@@ -468,7 +469,7 @@ pub async fn eval(
 
     // Generate response
     let (query, summary) = generate_query(query_chain, input, conversation).await?;
-    
+
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
         mp.set_move_cursor(true);
