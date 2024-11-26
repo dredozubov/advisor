@@ -157,7 +157,7 @@ impl FetchTask {
                                 })
                             }
                             Err(e) => {
-                                if let Some(pb) = progress {
+                                if let Some(pb) = progress_bar {
                                     pb.finish_with_message("✗ Parse failed");
                                 }
                                 Ok(FetchResult {
