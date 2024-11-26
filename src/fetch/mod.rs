@@ -145,7 +145,7 @@ impl FetchTask {
                         .await
                         {
                             Ok(_) => {
-                                if let Some(pb) = progress {
+                                if let Some(pb) = progress_bar {
                                     pb.inc(50);
                                     pb.finish_with_message("✓ Complete");
                                 }

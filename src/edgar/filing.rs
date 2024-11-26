@@ -4,7 +4,6 @@ use chrono::NaiveDate;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use indicatif::ProgressStyle;
 use itertools::Itertools;
 use langchain_rust::vectorstore::VectorStore;
 use log::{error, info};
@@ -718,7 +717,7 @@ pub async fn extract_complete_submission_filing(
         metadata,
         store,
         pg_pool,
-        progress.map(|p| &p.add(ProgressBar::new(100))),
+        progress.map(|p| p.add(ProgressBar::new(100))),
     )
     .await?;
 
