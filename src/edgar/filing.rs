@@ -2,6 +2,7 @@ use crate::ProgressTracker;
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
+use indicatif::MultiProgress;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::ProgressBar;
@@ -571,7 +572,7 @@ pub async fn fetch_matching_filings(
             &format!("Filing list for {}", query.tickers[0])
         ))
     });
-    if let Some(ref tracker) = progress_tracker {
+    if let Some(ref tracker) = progress_tracker.as_ref() {
         tracker.update_message("Retrieved filing list");
     }
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
@@ -586,7 +587,7 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.clone();
-        if let Some(ref tracker) = progress_tracker {
+        if let Some(ref tracker) = progress_tracker.as_ref() {
             tracker.start_progress(
                 100,
                 &format!("Filing {} {}", filing.report_type, filing.accession_number),
