@@ -747,14 +747,15 @@ async fn process_earnings_transcripts(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        if let Some(tracker) = progress_tracker.as_ref() {
-            tracker.start_progress(
-                100,
-                &format!(
-                    "Downloading [Earnings {} Q{} {}]",
-                    transcript.symbol, transcript.quarter, transcript.year
-                ),
-            );
+        let task_tracker = progress_tracker.as_ref().map(|tracker| {
+            Arc::new(ProgressTracker::new(
+                tracker.multi_progress.as_ref(),
+                &format!("Earnings {} Q{} {}", transcript.symbol, transcript.quarter, transcript.year),
+            ))
+        });
+
+        if let Some(ref tracker) = task_tracker {
+            tracker.start_progress(100, "Processing transcript");
         }
 
         let handle = tokio::spawn(async move {
@@ -770,7 +771,7 @@ async fn process_earnings_transcripts(
             };
 
             let content = transcript.content.clone();
-            crate::document::store_chunked_document(content, metadata, store, &pg_pool, None)
+            crate::document::store_chunked_document(content, metadata, store, &pg_pool, task_tracker.as_deref())
                 .await?;
 
             let _ = tx.send(Ok(())).await;
