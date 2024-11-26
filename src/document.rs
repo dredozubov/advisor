@@ -282,7 +282,7 @@ pub async fn store_chunked_document(
 
     log::info!("Stored {} document chunks in vector store", documents.len());
     if let Some(tracker) = progress_tracker {
-        tracker.finish();
+        tracker.finish(); // Keep progress bar visible
     }
     Ok(())
 }

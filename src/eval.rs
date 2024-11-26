@@ -24,7 +24,14 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
+    let progress_bar = progress.map(|mp| {
+        let pb = mp.add(ProgressBar::new(100));
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")
+            .unwrap()
+            .progress_chars("#>-"));
+        pb
+    });
     let progress_tracker = Arc::new(ProgressTracker::new(progress_bar.as_ref()));
 
     // Process EDGAR filings if requested
@@ -87,6 +94,10 @@ async fn process_documents(
         .await?;
     }
 
+    // Clear all progress bars at the end
+    if let Some(mp) = progress {
+        mp.clear().map_err(|e| anyhow!("Failed to clear progress bars: {}", e))?;
+    }
     Ok(())
 }
 

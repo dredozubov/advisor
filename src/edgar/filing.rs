@@ -615,9 +615,7 @@ pub async fn fetch_matching_filings(
         let _ = handle.await?;
     }
 
-    if let Some(tracker) = progress_tracker {
-        tracker.finish();
-    }
+    // Progress bars will be cleared by parent process
 
     Ok(filing_map)
 }

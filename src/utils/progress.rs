@@ -45,7 +45,7 @@ impl ProgressTracker {
 
     pub fn finish(&self) {
         if let Some(pb) = &self.progress_bar {
-            pb.finish_and_clear();
+            pb.finish();
         }
     }
 
