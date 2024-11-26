@@ -24,7 +24,7 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_tracker = Arc::new(ProgressTracker::new(progress));
+    let progress_tracker = Arc::new(ProgressTracker::new(progress, "Document Processing"));
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -564,7 +564,14 @@ async fn process_edgar_filings(
         let pg_pool = pg_pool.clone();
         let mut progress_tracker = progress_tracker.clone();
         if let Some(tracker) = progress_tracker.as_ref() {
-            let task_tracker = Arc::new(ProgressTracker::new(tracker.multi_progress.as_ref()));
+            let task_tracker = Arc::new(ProgressTracker::new(
+                tracker.multi_progress.as_ref(),
+                &format!(
+                    "Filing {} {}",
+                    filing.report_type,
+                    filing.filing_date.format("%Y-%m-%d")
+                ),
+            ));
             task_tracker.start_progress(
                 100,
                 &format!(
