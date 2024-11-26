@@ -24,17 +24,7 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_bar = progress.map(|mp| {
-        let pb = mp.add(ProgressBar::new(100));
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg:>50}")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
-        pb
-    });
-    let progress_tracker = Arc::new(ProgressTracker::new(progress_bar.as_ref()));
+    let progress_tracker = Arc::new(ProgressTracker::new(progress));
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -574,13 +564,15 @@ async fn process_edgar_filings(
         let pg_pool = pg_pool.clone();
         let progress_tracker = progress_tracker.clone();
         if let Some(tracker) = progress_tracker.as_ref() {
-            tracker.start_progress(
+            let task_tracker = Arc::new(ProgressTracker::new(tracker.multi_progress.as_ref()));
+            task_tracker.start_progress(
                 100,
                 &format!(
                     "Processing filing: {} {}",
                     filing.report_type, filing.accession_number
                 ),
             );
+            progress_tracker = task_tracker;
         }
 
         let handle = tokio::spawn(async move {
