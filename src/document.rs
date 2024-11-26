@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use core::fmt;
 use indicatif::{ProgressBar, ProgressStyle};
+use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{schemas::Document, vectorstore::VecStoreOptions};
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,7 @@ use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 pub const COLLECTION_NAME: &str = "advisor";
 
@@ -196,17 +198,19 @@ const CHUNK_SIZE: usize = 4000; // Characters per chunk, keeping well under toke
 pub async fn store_chunked_document(
     content: String,
     metadata: Metadata,
-    store: &dyn VectorStore,
+    store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
     progress: Option<&ProgressBar>,
 ) -> anyhow::Result<()> {
     log::debug!("Storing document with metadata: {:?}", metadata);
-    
+
     if let Some(pb) = progress {
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.red} [{elapsed_precise}] [{bar:40.red/blue}] {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.red} [{elapsed_precise}] [{bar:40.red/blue}] {msg}")
+                .unwrap()
+                .progress_chars("#>-"),
+        );
         pb.set_message("Storing document...");
         pb.set_position(0);
     }

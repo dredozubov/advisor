@@ -8,6 +8,7 @@ use futures::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
+use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
 use sqlx::{Pool, Postgres};
@@ -19,7 +20,7 @@ use std::sync::Arc;
 async fn process_documents(
     query: &Query,
     http_client: &reqwest::Client,
-    store: &dyn VectorStore,
+    store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -54,12 +55,12 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        multi_progress.as_ref().map(|mp| &**mp),
+                        multi_progress.as_deref(),
                     )
                     .await?;
                     process_edgar_filings(
                         filings,
-                        Arc::new(store.clone()),
+                        Arc::clone(&store),
                         pg_pool.clone(),
                         multi_progress.as_ref(),
                     )
@@ -85,13 +86,8 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(
-            transcripts,
-            Arc::new(store.clone()),
-            pg_pool.clone(),
-            multi_progress.as_ref(),
-        )
-        .await?;
+        process_earnings_transcripts(transcripts, store, pg_pool.clone(), multi_progress.as_ref())
+            .await?;
     }
 
     Ok(())
@@ -101,12 +97,12 @@ async fn build_context(
     query: &Query,
     input: &str,
     conversation: &Conversation,
-    store: &dyn VectorStore,
+    store: Arc<Store>,
 ) -> Result<String> {
     log::debug!("Building context for query: {:?}", query);
 
     // Get document context
-    let doc_context = build_document_context(query, input, store).await?;
+    let doc_context = build_document_context(query, input, Arc::clone(&store)).await?;
 
     // Combine with conversation context
     let full_context = format!(
@@ -121,11 +117,7 @@ async fn build_context(
     Ok(full_context)
 }
 
-async fn build_document_context(
-    query: &Query,
-    input: &str,
-    store: &dyn VectorStore,
-) -> Result<String> {
+async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -> Result<String> {
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
 
@@ -460,7 +452,7 @@ pub async fn eval(
     http_client: &reqwest::Client,
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
-    store: &dyn VectorStore,
+    store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
     conversation_manager: Arc<ConversationManager>,
 ) -> Result<(
@@ -490,8 +482,16 @@ pub async fn eval(
         None
     };
 
-    process_documents(&query, http_client, store, pg_pool, multi_progress.as_ref()).await?;
-    let context = build_context(&query, input, conversation, store).await?;
+    let store = Arc::new(store);
+    process_documents(
+        &query,
+        http_client,
+        Arc::clone(&store),
+        pg_pool,
+        multi_progress.as_ref(),
+    )
+    .await?;
+    let context = build_context(&query, input, conversation, Arc::clone(&store)).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
     // Create a new stream for collecting the complete response
@@ -547,7 +547,7 @@ pub async fn eval(
 
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
-    store: Arc<dyn VectorStore>,
+    store: Arc<Store>,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -581,7 +581,7 @@ async fn process_edgar_filings(
             match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
-                store.as_ref(),
+                store,
                 &pg_pool,
                 progress_bar.as_ref(),
             )
@@ -604,7 +604,6 @@ async fn process_edgar_filings(
 
     // Drop the sender to signal no more messages will be sent
     drop(tx);
-
 
     // Collect and process results
     while let Some(result) = rx.recv().await {
@@ -634,7 +633,7 @@ async fn process_edgar_filings(
 
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
-    store: Arc<dyn VectorStore>,
+    store: Arc<Store>,
     pg_pool: Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
@@ -691,7 +690,7 @@ async fn process_earnings_transcripts(
             crate::document::store_chunked_document(
                 content,
                 metadata,
-                store.as_ref(),
+                store,
                 &pg_pool,
                 progress_bar.as_ref(),
             )

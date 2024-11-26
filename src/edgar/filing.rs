@@ -5,7 +5,7 @@ use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use itertools::Itertools;
-use langchain_rust::vectorstore::VectorStore;
+use langchain_rust::vectorstore::pgvector::Store;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
@@ -17,6 +17,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 use url::Url;
 
 use crate::document::{DocType, Metadata};
@@ -620,7 +621,7 @@ pub async fn fetch_matching_filings(
 
     // Wait for all tasks
     for handle in handles {
-        handle.await?;
+        let _ = handle.await?;
     }
 
     // Clear progress bars when done
@@ -634,7 +635,7 @@ pub async fn fetch_matching_filings(
 pub async fn extract_complete_submission_filing(
     filepath: &str,
     report_type: ReportType,
-    store: &dyn VectorStore,
+    store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
     progress: Option<&ProgressBar>,
 ) -> Result<()> {

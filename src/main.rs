@@ -8,12 +8,12 @@ use advisor::{
 };
 use colored::*;
 use futures::StreamExt;
-use langchain_rust::chain::builder::ConversationalChainBuilder;
+use langchain_rust::chain::ConversationalChain;
 use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
 use langchain_rust::llm::OpenAIConfig;
 use langchain_rust::memory::WindowBufferMemory;
 use langchain_rust::vectorstore::pgvector::StoreBuilder;
-use langchain_rust::{chain::ConversationalChain, vectorstore::VectorStore};
+use langchain_rust::{chain::builder::ConversationalChainBuilder, vectorstore::pgvector::Store};
 use rustyline::error::ReadlineError;
 use std::{env, fs, str::FromStr, sync::Arc};
 use std::{error::Error, io::Write};
@@ -38,7 +38,7 @@ async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn E
 async fn initialize_vector_store(
     openai_key: String,
     pg_connection_string: String,
-) -> Result<Box<dyn VectorStore>, Box<dyn Error>> {
+) -> Result<Arc<Store>, Box<dyn Error>> {
     let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(openai_key));
 
@@ -51,7 +51,7 @@ async fn initialize_vector_store(
         .build()
         .await?;
 
-    Ok(Box::new(store))
+    Ok(Arc::new(store))
 }
 
 async fn initialize_chains(
@@ -213,7 +213,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &http_client,
                         &stream_chain,
                         &query_chain,
-                        store.as_ref(),
+                        Arc::clone(&store),
                         &pg_pool,
                         conversation_manager_for_eval.clone(),
                     )
