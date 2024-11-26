@@ -30,7 +30,7 @@ impl ProgressTracker {
 
     pub fn update_message(&self, message: &str) {
         if let Some(pb) = &self.progress_bar {
-            pb.set_message(message.to_string());
+            pb.set_message(format!("Downloading [{}]", message));
         }
     }
 
@@ -44,7 +44,7 @@ impl ProgressTracker {
         if let Some(pb) = &self.progress_bar {
             pb.reset();
             pb.set_length(total);
-            pb.set_message(initial_message.to_string());
+            pb.set_message(format!("Downloading [{}]", initial_message));
             pb.set_position(0);
         }
     }
