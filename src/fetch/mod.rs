@@ -14,12 +14,16 @@ pub enum FetchTask {
         cik: String,
         filing: crate::edgar::filing::Filing,
         output_path: PathBuf,
+        #[serde(skip)]
+        progress: Option<ProgressBar>,
     },
     EarningsTranscript {
         ticker: String,
         quarter: i32,
         year: i32,
         output_path: PathBuf,
+        #[serde(skip)]
+        progress: Option<ProgressBar>,
     },
 }
 
@@ -44,13 +48,13 @@ impl FetchTask {
         client: &Client,
         store: &dyn VectorStore,
         pg_pool: &Pool<Postgres>,
-        progress: Option<&ProgressBar>,
     ) -> Result<FetchResult> {
         match self {
             FetchTask::EdgarFiling {
                 cik,
                 filing,
                 output_path: _,
+                progress,
             } => {
                 if let Some(pb) = progress {
                     pb.set_style(
@@ -127,7 +131,17 @@ impl FetchTask {
                 quarter,
                 year,
                 output_path: _,
+                progress,
             } => {
+                if let Some(pb) = progress {
+                    pb.set_style(
+                        ProgressStyle::default_bar()
+                            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
+                            .unwrap()
+                            .progress_chars("#>-"),
+                    );
+                    pb.set_message("Fetching transcript...");
+                }
                 let date = chrono::NaiveDate::from_ymd_opt(*year, (quarter * 3) as u32, 1)
                     .ok_or_else(|| anyhow::anyhow!("Invalid date"))?;
 
@@ -187,12 +201,6 @@ impl FetchManager {
         for (i, task) in tasks.iter().enumerate() {
             let tx = tx.clone();
             let client = self.client.clone();
-            let task_id = format!("task_{}", i);
-            let progress = self
-                .progress_tracker
-                .as_ref()
-                .and_then(|tracker| tracker.get_bar(&task_id))
-                .cloned();
             let task = task.clone();
 
             let store = self.store.clone();
