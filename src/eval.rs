@@ -650,7 +650,9 @@ async fn process_earnings_transcripts(
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     // Create tasks with progress bars
-    let mut handles = Vec::new();
+    let mut success_count = 0;
+    let mut error_count = 0;
+    let mut handles: Vec<tokio::task::JoinHandle<Result<(), anyhow::Error>>> = Vec::new();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
 
     // Launch tasks concurrently
