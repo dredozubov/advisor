@@ -24,16 +24,8 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    // Use provided progress or create new if in terminal
-    let multi_progress = progress.cloned().or_else(|| {
-        if std::io::stdout().is_terminal() {
-            let mp = MultiProgress::new();
-            mp.set_move_cursor(true);
-            Some(Arc::new(mp))
-        } else {
-            None
-        }
-    });
+    let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
+    let progress_tracker = ProgressTracker::new(progress_bar.as_ref());
 
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -55,14 +47,14 @@ async fn process_documents(
                     let filings = filing::fetch_matching_filings(
                         http_client,
                         &edgar_query,
-                        multi_progress.as_deref(),
+                        Some(&progress_tracker),
                     )
                     .await?;
                     process_edgar_filings(
                         filings,
                         Arc::clone(&store),
                         pg_pool.clone(),
-                        multi_progress.as_ref(),
+                        Some(&progress_tracker),
                     )
                     .await?;
                 }
@@ -549,7 +541,7 @@ async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: Arc<Store>,
     pg_pool: Pool<Postgres>,
-    progress: Option<&Arc<MultiProgress>>,
+    progress_tracker: Option<&ProgressTracker>,
 ) -> Result<()> {
     let mut success_count = 0;
     let mut error_count = 0;
@@ -562,22 +554,12 @@ async fn process_edgar_filings(
         let tx = tx.clone();
         let store = store.clone();
         let pg_pool = pg_pool.clone();
-        let progress_bar = progress.map(|mp| {
-            let pb = mp.add(ProgressBar::new(100));
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template(
-                        "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {wide_msg}",
-                    )
-                    .unwrap()
-                    .progress_chars("#>-"),
-            );
-            pb.set_message(format!(
+        if let Some(tracker) = progress_tracker {
+            tracker.start_progress(100, &format!(
                 "Processing filing: {} {}",
                 filing.report_type, filing.accession_number
             ));
-            pb
-        });
+        }
 
         let handle = tokio::spawn(async move {
             match filing::extract_complete_submission_filing(

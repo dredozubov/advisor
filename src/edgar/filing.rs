@@ -558,15 +558,15 @@ async fn fetch_and_process_filing(
 pub async fn fetch_matching_filings(
     client: &Client,
     query: &Query,
-    progress: Option<&MultiProgress>,
+    progress_tracker: Option<&ProgressTracker>,
 ) -> Result<HashMap<String, Filing>> {
     let cik = get_cik_for_query(query).await?;
 
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
 
-    if let Some(mp) = progress {
-        mp.println("Retrieved filing list").unwrap();
+    if let Some(tracker) = progress_tracker {
+        tracker.update_message("Retrieved filing list");
     }
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
 
@@ -580,9 +580,8 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.clone();
-        let progress_bar = progress.map(|mp| mp.add(ProgressBar::new(100)));
-        let progress_tracker = ProgressTracker::new(progress_bar.as_ref());
-        progress_tracker.start_progress(100, &format!(
+        if let Some(tracker) = progress_tracker {
+            tracker.start_progress(100, &format!(
             "Filing {} {}",
             filing.report_type, filing.accession_number
         ));
@@ -629,17 +628,8 @@ pub async fn extract_complete_submission_filing(
     report_type: ReportType,
     store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&ProgressBar>,
+    progress_tracker: Option<&ProgressTracker>,
 ) -> Result<()> {
-    if let Some(pb) = progress {
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {wide_msg}")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
-    }
-    let progress_tracker = ProgressTracker::new(progress);
     progress_tracker.update_message("Parsing filing...");
     progress_tracker.update_progress(33);
     log::info!("Parsing XBRL file");
