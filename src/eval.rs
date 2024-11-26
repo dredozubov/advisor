@@ -568,7 +568,7 @@ async fn process_edgar_filings(
             task_tracker.start_progress(
                 100,
                 &format!(
-                    "Downloading [{} {}]",
+                    "Downloading [Filing {} {}]",
                     filing.report_type,
                     filing.filing_date.format("%Y-%m-%d")
                 ),
@@ -734,7 +734,7 @@ async fn process_earnings_transcripts(
             tracker.start_progress(
                 100,
                 &format!(
-                    "Processing transcript: {} Q{} {}",
+                    "Downloading [Earnings {} Q{} {}]",
                     transcript.symbol, transcript.quarter, transcript.year
                 ),
             );
