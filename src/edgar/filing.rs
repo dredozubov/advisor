@@ -582,13 +582,13 @@ pub async fn fetch_matching_filings(
         let cik = cik.clone();
         if let Some(tracker) = progress_tracker {
             tracker.start_progress(100, &format!(
-            "Filing {} {}",
-            filing.report_type, filing.accession_number
-        ));
+                "Filing {} {}",
+                filing.report_type, filing.accession_number
+            ));
+        }
 
         let handle = tokio::spawn(async move {
-            let result =
-                fetch_and_process_filing(&client, &cik, &filing, progress_bar.as_ref()).await;
+            let result = fetch_and_process_filing(&client, &cik, &filing, None).await;
             if let Ok(ref r) = result {
                 tx.send(Ok(r.clone())).await.expect("Channel send failed");
             }
@@ -615,9 +615,8 @@ pub async fn fetch_matching_filings(
         let _ = handle.await?;
     }
 
-    // Clear progress bars when done
-    if let Some(mp) = progress {
-        mp.clear()?;
+    if let Some(tracker) = progress_tracker {
+        tracker.finish();
     }
 
     Ok(filing_map)
