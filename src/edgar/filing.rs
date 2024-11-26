@@ -583,7 +583,7 @@ pub async fn fetch_matching_filings(
             let pb = mp.add(ProgressBar::new(100));
             pb.set_style(
                 ProgressStyle::with_template(
-                    "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+                    "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {wide_msg}",
                 )
                 .unwrap()
                 .progress_chars("##-"),
@@ -642,7 +642,7 @@ pub async fn extract_complete_submission_filing(
     if let Some(pb) = progress {
         pb.set_style(
             ProgressStyle::default_bar()
-                .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {msg}")
+                .template("{spinner:.yellow} [{elapsed_precise}] [{bar:40.yellow/blue}] {wide_msg}")
                 .unwrap()
                 .progress_chars("#>-"),
         );
