@@ -5,7 +5,7 @@ use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::StreamExt;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
@@ -572,7 +572,7 @@ async fn process_edgar_filings(
                     filing.report_type, filing.accession_number
                 ),
             );
-            progress_tracker = task_tracker;
+            progress_tracker = Some(task_tracker);
         }
 
         let handle = tokio::spawn(async move {

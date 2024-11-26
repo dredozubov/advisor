@@ -5,7 +5,7 @@ use std::time::Duration;
 
 #[derive(Clone)] 
 pub struct ProgressTracker {
-    multi_progress: Option<Arc<MultiProgress>>,
+    pub(crate) multi_progress: Option<Arc<MultiProgress>>,
     progress_bar: Option<ProgressBar>,
 }
 
