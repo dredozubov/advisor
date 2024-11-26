@@ -637,9 +637,10 @@ pub async fn extract_complete_submission_filing(
                 .unwrap()
                 .progress_chars("#>-"),
         );
-        pb.set_message("Parsing filing...");
-        pb.set_position(33);
     }
+    let progress_tracker = ProgressTracker::new(progress.cloned());
+    progress_tracker.update_message("Parsing filing...");
+    progress_tracker.update_progress(33);
     log::info!("Parsing XBRL file");
 
     // Read and decode the file content
