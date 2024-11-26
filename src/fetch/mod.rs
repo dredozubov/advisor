@@ -28,6 +28,13 @@ pub enum FetchTask {
 }
 
 impl FetchTask {
+    pub fn progress_bar(&self) -> Option<&ProgressBar> {
+        match self {
+            FetchTask::EdgarFiling { progress_bar, .. } => progress_bar.as_ref(),
+            FetchTask::EarningsTranscript { progress_bar, .. } => progress_bar.as_ref(),
+        }
+    }
+
     pub fn new_edgar_filing(
         multi: &MultiProgress,
         cik: String,
@@ -76,7 +83,7 @@ impl FetchTask {
             quarter,
             year,
             output_path,
-            progress_bar: pb,
+            progress_bar: Some(pb),
         }
     }
 }
@@ -122,7 +129,7 @@ impl FetchTask {
                 // Download the filing
                 match crate::edgar::filing::fetch_filing_document(client, cik, filing).await {
                     Ok(path) => {
-                        if let Some(pb) = progress {
+                        if let Some(pb) = progress_bar {
                             pb.set_message("Parsing and storing...");
                             pb.inc(25);
                         }
@@ -260,25 +267,24 @@ impl FetchManager {
                 let result = task
                     .execute(&client, &*store, &pg_pool)
                     .await;
-                if let Some(mp) = &self.multi_progress {
+                if let Some(progress_bar) = task.progress_bar() {
                     match &result {
                         Ok(fetch_result) => {
                             match fetch_result.status {
                                 FetchStatus::Success => {
-                                    pb.inc(50); // Increment progress
-                                    pb.finish_with_message("✓");
-                                    pb.finish_with_message("✓");
+                                    progress_bar.inc(50);
+                                    progress_bar.finish_with_message("✓");
                                 }
                                 FetchStatus::Failed => {
-                                    pb.finish_with_message("✗");
+                                    progress_bar.finish_with_message("✗");
                                 }
                                 FetchStatus::Skipped => {
-                                    pb.finish_with_message("-");
+                                    progress_bar.finish_with_message("-");
                                 }
                             }
                         }
                         Err(_) => {
-                            pb.finish_with_message("✗");
+                            progress_bar.finish_with_message("✗");
                         }
                     }
                 }

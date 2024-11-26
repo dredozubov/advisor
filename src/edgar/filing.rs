@@ -625,7 +625,7 @@ pub async fn extract_complete_submission_filing(
     report_type: ReportType,
     store: &dyn VectorStore,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&crate::utils::progress::ProgressTracker>,
+    progress: Option<&MultiProgress>,
 ) -> Result<()> {
     if let Some(p) = &progress {
         if let Some(pb) = p.get_bar("parse") {
