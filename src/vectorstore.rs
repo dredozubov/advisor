@@ -3,6 +3,7 @@ use langchain_rust::schemas::Document;
 use langchain_rust::vectorstore::VectorStore;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 const CHUNK_SIZE: usize = 4000; // Characters per chunk
 
@@ -13,10 +14,11 @@ use std::env;
 
 pub async fn get_store() -> Result<Arc<dyn VectorStore>> {
     let openai_key = env::var("OPENAI_KEY").map_err(|_| anyhow::anyhow!("OPENAI_KEY not set"))?;
-    let database_url = env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!("DATABASE_URL not set"))?;
+    let database_url =
+        env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!("DATABASE_URL not set"))?;
 
-    let embedder = OpenAiEmbedder::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key));
+    let embedder =
+        OpenAiEmbedder::default().with_config(OpenAIConfig::default().with_api_key(openai_key));
 
     let store = StoreBuilder::new()
         .embedder(embedder)
