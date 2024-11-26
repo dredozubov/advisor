@@ -24,8 +24,11 @@ async fn process_documents(
     pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let progress_tracker = Arc::new(ProgressTracker::new(progress, "Document Processing"));
     let multi = Arc::new(MultiProgress::new());
+    let progress_tracker = Arc::new(ProgressTracker::new(
+        Some(&multi),
+        &format!("Processing documents for {}", query.tickers.join(", "))
+    ));
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
@@ -581,12 +584,21 @@ async fn process_edgar_filings(
         }
 
         let handle = tokio::spawn(async move {
+            let task_tracker = Arc::new(ProgressTracker::new(
+                progress_tracker.as_ref().and_then(|t| t.multi_progress.as_ref()),
+                &format!(
+                    "Earnings {} Q{} {}",
+                    transcript.symbol, transcript.quarter, transcript.year
+                ),
+            ));
+            task_tracker.start_progress(100, "Processing transcript");
+        
             match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
                 store,
                 &pg_pool,
-                progress_tracker.clone(),
+                Some(task_tracker),
             )
             .await
             {
