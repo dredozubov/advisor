@@ -12,15 +12,16 @@ impl ProgressTracker {
         let multi = MultiProgress::new();
         let mut task_bars = HashMap::new();
 
+        let style = ProgressStyle::with_template(
+            "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+        )
+        .unwrap()
+        .progress_chars("##-");
+
         for (i, task) in tasks.iter().enumerate() {
             let task_id = format!("task_{}", i);
             let bar = multi.add(ProgressBar::new(100));
-            bar.set_style(
-                ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {msg}")
-                    .unwrap()
-                    .progress_chars("#>-"),
-            );
+            bar.set_style(style.clone());
 
             let desc = match task {
                 crate::fetch::FetchTask::EdgarFiling { filing, .. } => {
