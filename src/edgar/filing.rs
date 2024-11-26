@@ -517,7 +517,7 @@ async fn fetch_and_process_filing(
     client: &Client,
     cik: &str,
     filing: &Filing,
-    _progress: Option<&ProgressBar>,
+    progress: Option<&ProgressBar>,
 ) -> Result<(String, Filing)> {
     let base = "https://www.sec.gov/Archives/edgar/data";
     let accession_number = filing.accession_number.replace("-", "");
