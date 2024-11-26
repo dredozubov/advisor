@@ -59,7 +59,7 @@ async fn process_documents(
                     .await?;
                     process_edgar_filings(
                         filings,
-                        Arc::new(store),
+                        store.clone(),
                         pg_pool.clone(),
                         multi_progress.as_ref(),
                     )
@@ -87,7 +87,7 @@ async fn process_documents(
         .await?;
         process_earnings_transcripts(
             transcripts,
-            Arc::new(store),
+            store.clone(),
             pg_pool.clone(),
             multi_progress.as_ref(),
         )
@@ -555,10 +555,6 @@ async fn process_edgar_filings(
     let mut error_count = 0;
     let mut handles: Vec<tokio::task::JoinHandle<Result<(), anyhow::Error>>> = Vec::new();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
-    let mut success_count = 0;
-    let mut error_count = 0;
-    let mut handles = Vec::new();
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<(), anyhow::Error>>(100);
 
     // Launch tasks concurrently
     for (filepath, filing) in filings {
@@ -634,11 +630,6 @@ async fn process_edgar_filings(
         success_count,
         error_count
     );
-
-    // Wait for all tasks
-    for handle in handles {
-        handle.await??;
-    }
 
     Ok(())
 }
