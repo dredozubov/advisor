@@ -136,8 +136,8 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filing_types_str = filing_types.join("','");
             let mut filter = std::collections::HashMap::new();
-            filter.insert("doc_type".to_string(), "filing".to_string());
-            filter.insert("filing_type".to_string(), filing_types[0].to_string());
+            filter.insert("doc_type".to_string(), "edgar_filing".to_string());
+            filter.insert("report_type".to_string(), filing_types[0].to_string());
             filter.insert("filing_date".to_string(), start_date.to_string());
             log::info!("Using filter for similarity search: {:?}", filter);
             let docs = store

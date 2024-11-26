@@ -141,13 +141,13 @@ impl From<Metadata> for HashMap<String, Value> {
                 total_chunks,
                 ..
             } => {
-                map.insert("doc_type".to_string(), Value::String("filing".to_string()));
+                map.insert("doc_type".to_string(), Value::String("edgar_filing".to_string()));
                 map.insert(
                     "filepath".to_string(),
                     Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
                 );
                 map.insert(
-                    "filing_type".to_string(),
+                    "report_type".to_string(),
                     Value::String(filing_type.to_string()),
                 );
                 map.insert("cik".to_string(), Value::String(cik));
