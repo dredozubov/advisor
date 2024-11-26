@@ -587,11 +587,12 @@ async fn process_edgar_filings(
             let task_tracker = Arc::new(ProgressTracker::new(
                 progress_tracker.as_ref().and_then(|t| t.multi_progress.as_ref()),
                 &format!(
-                    "Earnings {} Q{} {}",
-                    transcript.symbol, transcript.quarter, transcript.year
+                    "Filing {} {}",
+                    filing.report_type,
+                    filing.filing_date.format("%Y-%m-%d")
                 ),
             ));
-            task_tracker.start_progress(100, "Processing transcript");
+            task_tracker.start_progress(100, "Processing filing");
         
             match filing::extract_complete_submission_filing(
                 &filepath,
