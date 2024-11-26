@@ -201,11 +201,9 @@ pub async fn store_chunked_document(
     metadata: Metadata,
     store: Arc<Store>,
     pg_pool: &Pool<Postgres>,
-    progress: Option<&ProgressBar>,
+    progress_tracker: Option<&ProgressTracker>,
 ) -> anyhow::Result<()> {
     log::debug!("Storing document with metadata: {:?}", metadata);
-
-    let progress_tracker = ProgressTracker::new(progress.cloned());
     progress_tracker.start_progress(100, "Storing document");
 
     // Split content into smaller chunks
