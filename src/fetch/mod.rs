@@ -121,6 +121,10 @@ impl FetchTask {
             pb.set_message("Starting task...");
             pb.set_position(0);
         }
+
+        // Initialize progress tracking
+        let mut progress = 0;
+        let progress_increment = 10;
         match self {
             FetchTask::EdgarFiling {
                 cik,
@@ -130,7 +134,8 @@ impl FetchTask {
             } => {
                 if let Some(pb) = progress_bar {
                     pb.set_message("Downloading filing...");
-                    pb.inc(25);
+                    progress += progress_increment * 3;
+                    pb.set_position(progress);
                 }
 
                 // Download the filing
@@ -138,7 +143,8 @@ impl FetchTask {
                     Ok(path) => {
                         if let Some(pb) = progress_bar {
                             pb.set_message("Parsing and storing...");
-                            pb.inc(25);
+                            progress += progress_increment * 3;
+                            pb.set_position(progress);
                         }
 
                         // Parse and store the filing immediately after download
@@ -153,7 +159,8 @@ impl FetchTask {
                         {
                             Ok(_) => {
                                 if let Some(pb) = progress_bar {
-                                    pb.inc(50);
+                                    progress += progress_increment * 4;
+                                    pb.set_position(progress);
                                     pb.finish_with_message("✓ Complete");
                                 }
                                 Ok(FetchResult {

@@ -562,6 +562,8 @@ pub async fn fetch_matching_filings(
 
     crate::utils::dirs::ensure_edgar_dirs()?;
 
+    let multi = progress.expect("Progress bar required for filing downloads");
+
     log::info!(
         "Found {} matching filings for query parameters:\n\
          - Report types: {}\n\
@@ -578,8 +580,7 @@ pub async fn fetch_matching_filings(
         query.end_date
     );
 
-    // Convert filings to tasks
-    let multi = MultiProgress::new();
+    // Convert filings to tasks with progress bars
     let tasks: Vec<crate::fetch::FetchTask> = matching_filings
         .into_iter()
         .map(|filing| {
@@ -592,7 +593,7 @@ pub async fn fetch_matching_filings(
             ));
 
             crate::fetch::FetchTask::new_edgar_filing(
-                &multi,
+                multi,
                 cik.clone(),
                 filing.clone(),
                 output_path,
