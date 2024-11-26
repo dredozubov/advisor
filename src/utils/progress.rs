@@ -51,6 +51,13 @@ impl ProgressTracker {
 
     pub fn finish(&self) {
         if let Some(pb) = &self.progress_bar {
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] {msg:>50}")
+                    .unwrap()
+                    .progress_chars("#>-"),
+            );
+            pb.set_message("Complete");
             pb.finish();
         }
     }
