@@ -136,8 +136,8 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filing_types_str = filing_types.join("','");
             let filter = format!(
-                "doc_type = 'filing' AND filing_type IN ('{}') AND filing_date BETWEEN '{}' AND '{}'",
-                filing_types_str, start_date, end_date
+                "doc_type = 'filing' AND filing_type = '{}' AND filing_date = '{}'",
+                filing_types[0], start_date
             );
             log::info!("Using filter for similarity search: {}", filter);
             let docs = store
@@ -168,11 +168,8 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         let start_year = start_date.split("-").next().unwrap();
         let end_year = end_date.split("-").next().unwrap();
         let filter = format!(
-            "doc_type = 'earnings_transcript' AND (
-                (date BETWEEN '{}' AND '{}') OR 
-                (year BETWEEN {} AND {} AND quarter IS NOT NULL)
-            )",
-            start_date, end_date, start_year, end_year
+            "doc_type = 'earnings_transcript' AND year = {}",
+            start_year
         );
         log::info!("Using filter for similarity search: {}", filter);
         let docs = store
