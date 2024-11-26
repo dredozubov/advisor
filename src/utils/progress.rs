@@ -2,6 +2,7 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct ProgressTracker {
     progress_bar: Option<ProgressBar>,
 }

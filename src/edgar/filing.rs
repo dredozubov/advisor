@@ -565,7 +565,7 @@ pub async fn fetch_matching_filings(
     // Fetch filings using the CIK and ADR status from query
     let filings = get_company_filings(client, &cik, None, query.is_adr).await?;
 
-    if let Some(tracker) = progress_tracker {
+    if let Some(ref tracker) = progress_tracker {
         tracker.update_message("Retrieved filing list");
     }
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
