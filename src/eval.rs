@@ -78,17 +78,23 @@ async fn process_documents(
             "Fetching earnings data for ticker: {}",
             earnings_query.ticker
         );
-        let earnings_future = async {
+        let ticker = earnings_query.ticker.clone();
+        let start_date = earnings_query.start_date;
+        let end_date = earnings_query.end_date;
+        let store = Arc::clone(&store);
+        let progress_tracker = progress_tracker.clone();
+        
+        let earnings_future = async move {
             let transcripts = earnings::fetch_transcripts(
                 http_client,
-                &earnings_query.ticker,
-                earnings_query.start_date,
-                earnings_query.end_date,
+                &ticker,
+                start_date,
+                end_date,
             ).await?;
             process_earnings_transcripts(
                 transcripts,
                 store,
-                Some(progress_tracker.clone())
+                Some(progress_tracker)
             ).await?;
             Ok::<_, anyhow::Error>(())
         };
