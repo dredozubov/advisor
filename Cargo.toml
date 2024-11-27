@@ -12,6 +12,9 @@ name = "advisor"
 path = "src/lib.rs"
 
 [dependencies]
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
 colored = "2.1.0"
 security-framework = "3.0.0"
 structopt = "0.3"
