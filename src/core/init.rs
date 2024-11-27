@@ -1,5 +1,6 @@
 use crate::core::config::AdvisorConfig;
-use anyhow::Result;
+use anyhow::{Result, Error};
+use std::error::Error as StdError;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     embedding::openai::OpenAiEmbedder,
@@ -35,7 +36,8 @@ pub async fn initialize_vector_store(
         .embedder_table_name(db::EMBEDDER_TABLE)
         .vector_dimensions(1536)
         .build()
-        .await?;
+        .await
+        .map_err(|e| Error::msg(e.to_string()))?;
 
     Ok(Arc::new(store))
 }
