@@ -11,8 +11,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use hyper::server::Server;
 use futures::StreamExt;
+use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -164,8 +164,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         chain_manager: Arc::new(chain_manager),
         store,
         http_client,
-        stream_chain,
-        query_chain,
+        stream_chain: Arc::new(stream_chain),
+        query_chain: Arc::new(query_chain),
     };
 
     let app = Router::new()
