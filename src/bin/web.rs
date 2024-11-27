@@ -12,7 +12,7 @@ use axum::{
     Json, Router,
 };
 use futures::StreamExt;
-use axum::serve::Server;
+use hyper::server::Server;
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -180,7 +180,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     log::info!("Starting server on {}", addr);
     
-    Server::bind(&addr)
+    axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await?;
 
