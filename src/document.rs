@@ -113,7 +113,6 @@ impl Metadata {
     }
 }
 
-
 impl From<Metadata> for HashMap<String, Value> {
     fn from(val: Metadata) -> Self {
         let mut map = HashMap::new();
@@ -134,14 +133,23 @@ impl From<Metadata> for HashMap<String, Value> {
                     Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
                 );
                 map.insert(
-                    "filing_type".to_string(), 
+                    "filing_type".to_string(),
                     Value::String(filing_type.to_string()),
                 );
                 map.insert("cik".to_string(), Value::String(cik));
-                map.insert("accession_number".to_string(), Value::String(accession_number));
+                map.insert(
+                    "accession_number".to_string(),
+                    Value::String(accession_number),
+                );
                 map.insert("symbol".to_string(), Value::String(symbol));
-                map.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(chunk_index)));
-                map.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(total_chunks)));
+                map.insert(
+                    "chunk_index".to_string(),
+                    Value::Number(serde_json::Number::from(chunk_index)),
+                );
+                map.insert(
+                    "total_chunks".to_string(),
+                    Value::Number(serde_json::Number::from(total_chunks)),
+                );
             }
             Metadata::MetaEarningsTranscript {
                 filepath,
@@ -158,10 +166,22 @@ impl From<Metadata> for HashMap<String, Value> {
                     Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
                 );
                 map.insert("symbol".to_string(), Value::String(symbol));
-                map.insert("quarter".to_string(), Value::Number(serde_json::Number::from(quarter)));
-                map.insert("year".to_string(), Value::Number(serde_json::Number::from(year)));
-                map.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(chunk_index)));
-                map.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(total_chunks)));
+                map.insert(
+                    "quarter".to_string(),
+                    Value::Number(serde_json::Number::from(quarter)),
+                );
+                map.insert(
+                    "year".to_string(),
+                    Value::Number(serde_json::Number::from(year)),
+                );
+                map.insert(
+                    "chunk_index".to_string(),
+                    Value::Number(serde_json::Number::from(chunk_index)),
+                );
+                map.insert(
+                    "total_chunks".to_string(),
+                    Value::Number(serde_json::Number::from(total_chunks)),
+                );
             }
         }
         map
