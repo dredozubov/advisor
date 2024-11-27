@@ -3,6 +3,7 @@ use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
 use crate::{earnings, ProgressTracker};
+use tokio::sync::RwLock;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::{StreamExt, FutureExt};
