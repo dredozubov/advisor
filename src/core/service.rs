@@ -65,11 +65,13 @@ impl AdvisorBackend for AdvisorService {
             &self.stream_chain,
             &self.query_chain,
             Arc::clone(&self.store),
-            Arc::clone(&self.conversation_manager),
+            self.conversation_manager.clone(),
         )
         .await?;
 
         self.conversation_manager
+            .write()
+            .await
             .update_summary(conversation_id, summary)
             .await?;
 
