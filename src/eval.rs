@@ -475,6 +475,8 @@ pub async fn eval(
 )> {
     // Store user message
     conversation_manager
+        .write()
+        .await
         .add_message(
             &conversation.id,
             MessageRole::User,
@@ -542,6 +544,8 @@ pub async fn eval(
             response_content.push_str(&chunk);
         }
         let _ = conversation_manager
+            .write()
+            .await
             .add_message(
                 &conversation_id,
                 MessageRole::Assistant,
