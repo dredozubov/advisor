@@ -766,24 +766,21 @@ async fn process_earnings_transcripts(
         }
 
         let handle = tokio::spawn(async move {
-            // Store the transcript
-            let metadata = crate::document::Metadata::MetaEarningsTranscript {
-                doc_type: crate::document::DocType::EarningTranscript,
-                filepath: filepath.clone(),
-                symbol: transcript.symbol.clone(),
-                year: transcript.year as usize,
-                quarter: transcript.quarter as usize,
-                chunk_index: 0,
-                total_chunks: 1,
-            };
+            // Create metadata directly as HashMap
+            let mut metadata = std::collections::HashMap::new();
+            metadata.insert("doc_type".to_string(), serde_json::Value::String("earnings_transcript".to_string()));
+            metadata.insert("filepath".to_string(), serde_json::Value::String(filepath.to_string_lossy().to_string()));
+            metadata.insert("symbol".to_string(), serde_json::Value::String(transcript.symbol.clone()));
+            metadata.insert("year".to_string(), serde_json::Value::Number(serde_json::Number::from(transcript.year)));
+            metadata.insert("quarter".to_string(), serde_json::Value::Number(serde_json::Number::from(transcript.quarter)));
+            metadata.insert("chunk_index".to_string(), serde_json::Value::Number(serde_json::Number::from(0)));
+            metadata.insert("total_chunks".to_string(), serde_json::Value::Number(serde_json::Number::from(1)));
 
             let content = transcript.content.clone();
-            crate::document::store_chunked_document(
+            crate::vectorstore::store_document(
                 content,
                 metadata,
-                store,
-                &pg_pool,
-                task_tracker.as_deref(),
+                store.as_ref(),
             )
             .await?;
 
