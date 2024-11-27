@@ -1,6 +1,5 @@
 use advisor::{
     core::init,
-    db,
     edgar::filing,
     eval,
     memory::{ConversationChainManager, ConversationManager},
@@ -9,18 +8,12 @@ use advisor::{
 };
 use colored::*;
 use futures::StreamExt;
-use langchain_rust::chain::ConversationalChain;
-use langchain_rust::llm::openai::{OpenAI, OpenAIModel};
-use langchain_rust::llm::OpenAIConfig;
-use langchain_rust::memory::WindowBufferMemory;
-use langchain_rust::vectorstore::pgvector::StoreBuilder;
-use langchain_rust::{chain::builder::ConversationalChainBuilder, vectorstore::pgvector::Store};
+use langchain_rust::llm::openai::{OpenAI, OpenAIConfig};
 use rustyline::error::ReadlineError;
-use std::{env, fs, str::FromStr, sync::Arc};
 use std::{error::Error, io::Write};
+use std::{fs, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
 
 async fn handle_command(
     cmd: &str,
@@ -81,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Logger initialized");
 
     let config = advisor::core::config::AdvisorConfig::from_env()?;
-    
+
     let llm = init::initialize_openai(&config).await?;
     let store = init::initialize_vector_store(&config).await?;
 

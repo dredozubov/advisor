@@ -1,6 +1,5 @@
 use crate::core::config::AdvisorConfig;
-use anyhow::{Result, Error};
-use std::error::Error as StdError;
+use anyhow::{Error, Result};
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     embedding::openai::OpenAiEmbedder,
@@ -23,9 +22,7 @@ pub async fn initialize_openai(config: &AdvisorConfig) -> Result<OpenAI<OpenAICo
     Ok(llm)
 }
 
-pub async fn initialize_vector_store(
-    config: &AdvisorConfig,
-) -> Result<Arc<Store>> {
+pub async fn initialize_vector_store(config: &AdvisorConfig) -> Result<Arc<Store>> {
     let embedder = OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(config.openai_key.clone()));
 
