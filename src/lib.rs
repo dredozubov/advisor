@@ -1,3 +1,4 @@
+pub mod core;
 pub mod db;
 pub mod document;
 pub mod earnings;
@@ -9,5 +10,6 @@ pub mod repl;
 pub mod utils;
 pub mod vectorstore;
 
-// Re-export progress tracker
+// Re-exports
+pub use core::init;
 pub use utils::progress::ProgressTracker;

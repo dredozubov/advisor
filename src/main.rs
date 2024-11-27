@@ -1,4 +1,5 @@
 use advisor::{
+    core::init,
     db,
     edgar::filing,
     eval,
@@ -20,58 +21,6 @@ use std::{error::Error, io::Write};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
-    let openai_key = env::var("OPENAI_KEY").map_err(|_| -> Box<dyn Error> {
-        Box::new(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "OPENAI_KEY environment variable not set. Please run with: OPENAI_KEY=your-key-here cargo run"
-        ))
-    })?;
-
-    let llm = OpenAI::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()))
-        .with_model(OpenAIModel::Gpt4oMini.to_string());
-
-    Ok((llm, openai_key))
-}
-
-async fn initialize_vector_store(
-    openai_key: String,
-    pg_connection_string: String,
-) -> Result<Arc<Store>, Box<dyn Error>> {
-    let embedder = langchain_rust::embedding::openai::OpenAiEmbedder::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key));
-
-    let store = StoreBuilder::new()
-        .embedder(embedder)
-        .connection_url(&pg_connection_string[..])
-        .collection_table_name(db::COLLECTIONS_TABLE)
-        .embedder_table_name(db::EMBEDDER_TABLE)
-        .vector_dimensions(1536)
-        .build()
-        .await?;
-
-    Ok(Arc::new(store))
-}
-
-async fn initialize_chains(
-    llm: OpenAI<OpenAIConfig>,
-) -> Result<(ConversationalChain, ConversationalChain), Box<dyn Error>> {
-    let stream_memory = WindowBufferMemory::new(10);
-    let query_memory = WindowBufferMemory::new(10);
-
-    let stream_chain = ConversationalChainBuilder::new()
-        .llm(llm.clone())
-        .memory(stream_memory.into())
-        .build()?;
-
-    let query_chain = ConversationalChainBuilder::new()
-        .llm(llm)
-        .memory(query_memory.into())
-        .build()?;
-
-    Ok((stream_chain, query_chain))
-}
 
 async fn handle_command(
     cmd: &str,
@@ -131,11 +80,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    let (llm, openai_key) = initialize_openai().await?;
+    let (llm, openai_key) = init::initialize_openai().await?;
 
     let pg_connection_string = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let store = initialize_vector_store(openai_key, pg_connection_string.clone()).await?;
+    let store = init::initialize_vector_store(openai_key, pg_connection_string.clone()).await?;
 
     let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
@@ -145,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
 
-    let (stream_chain, query_chain) = initialize_chains(llm.clone()).await?;
+    let (stream_chain, query_chain) = init::initialize_chains(llm.clone()).await?;
 
     let mut rl = repl::create_editor().await?;
 
