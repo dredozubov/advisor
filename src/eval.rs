@@ -136,9 +136,9 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filing_types_str = filing_types.join("','");
             let mut filter = std::collections::HashMap::new();
-            filter.insert("doc_type".to_string(), serde_json::Value::String("edgar_filing".to_string()).to_string());
-            filter.insert("report_type".to_string(), serde_json::Value::String(filing_types[0].to_string()).to_string());
-            filter.insert("filing_date".to_string(), serde_json::Value::String(start_date.to_string()).to_string());
+            filter.insert("doc_type".to_string(), "edgar_filing".to_string());
+            filter.insert("report_type".to_string(), filing_types[0].to_string());
+            filter.insert("filing_date".to_string(), start_date.to_string());
             log::info!("Using filter for similarity search: {:?}", filter);
             let docs = store
                 .similarity_search(
@@ -170,8 +170,8 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         let start_year = start_date.split("-").next().unwrap();
         let end_year = end_date.split("-").next().unwrap();
         let mut filter = std::collections::HashMap::new();
-        filter.insert("doc_type".to_string(), serde_json::Value::String("earnings_transcript".to_string()).to_string());
-        filter.insert("year".to_string(), serde_json::Value::String(start_year.to_string()).to_string());
+        filter.insert("doc_type".to_string(), "earnings_transcript".to_string());
+        filter.insert("year".to_string(), start_year.to_string());
         log::info!("Using filter for similarity search: {:?}", filter);
         let docs = store
             .similarity_search(
