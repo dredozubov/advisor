@@ -12,7 +12,7 @@ use axum::{
     Json, Router,
 };
 use futures::StreamExt;
-use hyper::Server;
+use axum::serve::Server;
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
