@@ -1,5 +1,5 @@
-use std::error::Error;
 use crate::core::config::AdvisorConfig;
+use anyhow::Result;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     embedding::openai::OpenAiEmbedder,
@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use crate::db;
 
-pub async fn initialize_openai(config: &AdvisorConfig) -> anyhow::Result<OpenAI<OpenAIConfig>> {
+pub async fn initialize_openai(config: &AdvisorConfig) -> Result<OpenAI<OpenAIConfig>> {
     let llm = OpenAI::default()
         .with_config(OpenAIConfig::default().with_api_key(config.openai_key.clone()))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
@@ -24,7 +24,7 @@ pub async fn initialize_openai(config: &AdvisorConfig) -> anyhow::Result<OpenAI<
 
 pub async fn initialize_vector_store(
     config: &AdvisorConfig,
-) -> anyhow::Result<Arc<Store>> {
+) -> Result<Arc<Store>> {
     let embedder = OpenAiEmbedder::default()
         .with_config(OpenAIConfig::default().with_api_key(config.openai_key.clone()));
 
@@ -42,7 +42,7 @@ pub async fn initialize_vector_store(
 
 pub async fn initialize_chains(
     llm: OpenAI<OpenAIConfig>,
-) -> anyhow::Result<(ConversationalChain, ConversationalChain)> {
+) -> Result<(ConversationalChain, ConversationalChain)> {
     let stream_memory = WindowBufferMemory::new(10);
     let query_memory = WindowBufferMemory::new(10);
 
