@@ -5,7 +5,7 @@ use crate::query::Query;
 use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use futures::StreamExt;
+use futures::{StreamExt, future::BoxFuture};
 use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
@@ -28,38 +28,48 @@ async fn process_documents(
         Some(&multi),
         &format!("Processing documents for {}", query.tickers.join(", ")),
     ));
+
+    // Create futures for both processing tasks
+    let mut futures = Vec::new();
+    
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
-        match query.to_edgar_query() {
-            Ok(edgar_query) => {
-                for ticker in &edgar_query.tickers {
-                    log::debug!(
-                        "Fetching EDGAR filings ({}) for ticker: {} in date range {} to {}",
-                        edgar_query
-                            .report_types
-                            .iter()
-                            .map(|rt| rt.to_string())
-                            .join(", "),
-                        ticker,
-                        edgar_query.start_date,
-                        edgar_query.end_date
-                    );
-                    let filings =
-                        filing::fetch_matching_filings(http_client, &edgar_query, Some(&multi))
-                            .await?;
-                    process_edgar_filings(
-                        filings,
-                        Arc::clone(&store),
-                        Some(Arc::clone(&progress_tracker)),
-                    )
-                    .await?;
+        let edgar_future = async {
+            match query.to_edgar_query() {
+                Ok(edgar_query) => {
+                    for ticker in &edgar_query.tickers {
+                        log::debug!(
+                            "Fetching EDGAR filings ({}) for ticker: {} in date range {} to {}",
+                            edgar_query
+                                .report_types
+                                .iter()
+                                .map(|rt| rt.to_string())
+                                .join(", "),
+                            ticker,
+                            edgar_query.start_date,
+                            edgar_query.end_date
+                        );
+                        let filings = filing::fetch_matching_filings(
+                            http_client, 
+                            &edgar_query,
+                            Some(&multi)
+                        ).await?;
+                        process_edgar_filings(
+                            filings,
+                            Arc::clone(&store),
+                            Some(Arc::clone(&progress_tracker)),
+                        ).await?;
+                    }
+                    Ok::<_, anyhow::Error>(())
+                }
+                Err(e) => {
+                    log::error!("Failed to create EDGAR query: {}", e);
+                    Err(anyhow::anyhow!(e))
                 }
             }
-            Err(e) => {
-                log::error!("Failed to create EDGAR query: {}", e);
-            }
-        }
+        };
+        futures.push(edgar_future.boxed());
     }
 
     // Process earnings data if requested
@@ -68,15 +78,25 @@ async fn process_documents(
             "Fetching earnings data for ticker: {}",
             earnings_query.ticker
         );
-        let transcripts = earnings::fetch_transcripts(
-            http_client,
-            &earnings_query.ticker,
-            earnings_query.start_date,
-            earnings_query.end_date,
-        )
-        .await?;
-        process_earnings_transcripts(transcripts, store, Some(progress_tracker.clone())).await?;
+        let earnings_future = async {
+            let transcripts = earnings::fetch_transcripts(
+                http_client,
+                &earnings_query.ticker,
+                earnings_query.start_date,
+                earnings_query.end_date,
+            ).await?;
+            process_earnings_transcripts(
+                transcripts,
+                store,
+                Some(progress_tracker.clone())
+            ).await?;
+            Ok::<_, anyhow::Error>(())
+        };
+        futures.push(earnings_future.boxed());
     }
+
+    // Wait for all futures to complete
+    futures::future::try_join_all(futures).await?;
 
     // Clear all progress bars at the end
     if let Some(mp) = progress {
