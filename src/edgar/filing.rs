@@ -2,9 +2,9 @@ use crate::ProgressTracker;
 use anyhow::{anyhow, Result};
 use chardet::detect;
 use chrono::NaiveDate;
-use indicatif::MultiProgress;
 use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use indicatif::MultiProgress;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use langchain_rust::vectorstore::pgvector::Store;
@@ -13,7 +13,6 @@ use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
@@ -22,7 +21,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use url::Url;
 
-use crate::document::{DocType, Metadata};
 use crate::utils::http::fetch_and_save;
 
 use super::query::Query;
@@ -569,10 +567,10 @@ pub async fn fetch_matching_filings(
     let progress_tracker = multi_progress.map(|mp| {
         Arc::new(ProgressTracker::new(
             Some(mp),
-            &format!("Filing list for {}", query.tickers[0])
+            &format!("Filing list for {}", query.tickers[0]),
         ))
     });
-    if let Some(ref tracker) = progress_tracker.as_ref() {
+    if let Some(tracker) = progress_tracker.as_ref() {
         tracker.update_message("Retrieved filing list");
     }
     let matching_filings = process_filing_entries(&filings.filings.recent, query)?;
@@ -587,7 +585,7 @@ pub async fn fetch_matching_filings(
         let tx = tx.clone();
         let client = client.clone();
         let cik = cik.clone();
-        if let Some(ref tracker) = progress_tracker.as_ref() {
+        if let Some(tracker) = progress_tracker.as_ref() {
             tracker.start_progress(
                 100,
                 &format!("Filing {} {}", filing.report_type, filing.accession_number),
@@ -631,7 +629,6 @@ pub async fn extract_complete_submission_filing(
     filepath: &str,
     report_type: ReportType,
     store: Arc<Store>,
-    pg_pool: &Pool<Postgres>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     if let Some(ref tracker) = progress_tracker {
@@ -693,14 +690,29 @@ pub async fn extract_complete_submission_filing(
 
     // Create metadata directly as HashMap
     let mut metadata = HashMap::new();
-    metadata.insert("doc_type".to_string(), Value::String("edgar_filing".to_string()));
+    metadata.insert(
+        "doc_type".to_string(),
+        Value::String("edgar_filing".to_string()),
+    );
     metadata.insert("filepath".to_string(), Value::String(filepath.to_string()));
-    metadata.insert("report_type".to_string(), Value::String(report_type.to_string()));
+    metadata.insert(
+        "report_type".to_string(),
+        Value::String(report_type.to_string()),
+    );
     metadata.insert("cik".to_string(), Value::String(cik.to_string()));
-    metadata.insert("accession_number".to_string(), Value::String(accession_number.to_string()));
+    metadata.insert(
+        "accession_number".to_string(),
+        Value::String(accession_number.to_string()),
+    );
     metadata.insert("symbol".to_string(), Value::String(symbol));
-    metadata.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(0)));
-    metadata.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(1)));
+    metadata.insert(
+        "chunk_index".to_string(),
+        Value::Number(serde_json::Number::from(0)),
+    );
+    metadata.insert(
+        "total_chunks".to_string(),
+        Value::Number(serde_json::Number::from(1)),
+    );
 
     // Save metadata alongside markdown
     let metadata_path = format!("{}/filing.json", markdown_dir);
@@ -708,12 +720,7 @@ pub async fn extract_complete_submission_filing(
     log::info!("Saved metadata to: {}", metadata_path);
 
     // Store the markdown content using the chunking utility
-    crate::vectorstore::store_document(
-        markdown_content,
-        metadata,
-        store.as_ref(),
-    )
-    .await?;
+    crate::vectorstore::store_document(markdown_content, metadata, store.as_ref()).await?;
 
     log::info!("Added filing document to vector store: {}", filepath);
 

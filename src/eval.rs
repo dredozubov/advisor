@@ -115,14 +115,15 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
     let mut required_docs = Vec::new();
 
     if let Some(filings) = query.parameters.get("filings") {
-        let start_date = filings
-            .get("start_date")
-            .and_then(|d| d.as_str())
-            .ok_or_else(|| anyhow!("Missing start_date"))?;
-        let end_date = filings
-            .get("end_date")
-            .and_then(|d| d.as_str())
-            .ok_or_else(|| anyhow!("Missing end_date"))?;
+        // can't use dates, because filtering works only on equality for vectorstore::pgvector
+        // let start_date = filings
+        //     .get("start_date")
+        //     .and_then(|d| d.as_str())
+        //     .ok_or_else(|| anyhow!("Missing start_date"))?;
+        // let end_date = filings
+        //     .get("end_date")
+        //     .and_then(|d| d.as_str())
+        //     .ok_or_else(|| anyhow!("Missing end_date"))?;
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();

@@ -214,7 +214,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &stream_chain,
                         &query_chain,
                         Arc::clone(&store),
-                        &pg_pool,
                         conversation_manager_for_eval.clone(),
                     )
                     .await
