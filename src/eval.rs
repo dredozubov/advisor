@@ -531,7 +531,7 @@ pub async fn eval(
     let conversation_id = conversation.id;
     let query = query.clone();
     let summary = summary.clone();
-    let conversation_manager = Arc::clone(&conversation_manager);
+    let conversation_manager: Arc<RwLock<ConversationManager>> = Arc::clone(&conversation_manager);
 
     let summary_clone = summary.clone();
 
