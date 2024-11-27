@@ -11,6 +11,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use hyper::server::Server;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -36,7 +38,7 @@ struct QueryResponse {
 
 #[derive(Clone)]
 struct AppState {
-    conversation_manager: Arc<ConversationManager>,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
     chain_manager: Arc<ConversationChainManager>,
     store: Arc<langchain_rust::vectorstore::pgvector::Store>,
     http_client: reqwest::Client,
@@ -146,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chain_manager = ConversationChainManager::new(pg_pool);
 
     let app_state = AppState {
-        conversation_manager: Arc::new(conversation_manager),
+        conversation_manager: Arc::new(RwLock::new(conversation_manager)),
         chain_manager: Arc::new(chain_manager),
         store,
         http_client,

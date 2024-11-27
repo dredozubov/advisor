@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Keep one Arc<ConversationManager> for eval
-    let conversation_manager_for_eval = Arc::new(conversation_manager.clone());
+    let conversation_manager_for_eval = Arc::clone(&conversation_manager);
     // And one Arc<RwLock<ConversationManager>> for thread-safe access
     let conversation_manager = Arc::new(RwLock::new(conversation_manager));
 
