@@ -113,19 +113,6 @@ impl Metadata {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetadataJson {
-    pub doc_type: String,
-    pub filepath: String,
-    pub filing_type: Option<ReportType>,
-    pub cik: Option<String>,
-    pub accession_number: Option<String>,
-    pub symbol: String,
-    pub quarter: Option<usize>,
-    pub year: Option<usize>,
-    pub chunk_index: usize,
-    pub total_chunks: usize,
-}
 
 impl From<Metadata> for HashMap<String, Value> {
     fn from(val: Metadata) -> Self {
@@ -139,28 +126,22 @@ impl From<Metadata> for HashMap<String, Value> {
                 symbol,
                 chunk_index,
                 total_chunks,
-                ..
+                doc_type,
             } => {
-                map.insert("doc_type".to_string(), Value::String("edgar_filing".to_string()));
+                map.insert("doc_type".to_string(), Value::String(doc_type.to_string()));
                 map.insert(
                     "filepath".to_string(),
                     Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
                 );
                 map.insert(
-                    "report_type".to_string(),
+                    "filing_type".to_string(), 
                     Value::String(filing_type.to_string()),
                 );
                 map.insert("cik".to_string(), Value::String(cik));
-                map.insert(
-                    "accession_number".to_string(),
-                    Value::String(accession_number),
-                );
+                map.insert("accession_number".to_string(), Value::String(accession_number));
                 map.insert("symbol".to_string(), Value::String(symbol));
-                map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
-                map.insert(
-                    "total_chunks".to_string(),
-                    Value::Number(total_chunks.into()),
-                );
+                map.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(chunk_index)));
+                map.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(total_chunks)));
             }
             Metadata::MetaEarningsTranscript {
                 filepath,
@@ -169,24 +150,18 @@ impl From<Metadata> for HashMap<String, Value> {
                 year,
                 chunk_index,
                 total_chunks,
-                ..
+                doc_type,
             } => {
-                map.insert(
-                    "doc_type".to_string(),
-                    Value::String("earnings_transcript".to_string()),
-                );
+                map.insert("doc_type".to_string(), Value::String(doc_type.to_string()));
                 map.insert(
                     "filepath".to_string(),
                     Value::String(filepath.to_str().unwrap_or("unknown").to_string()),
                 );
                 map.insert("symbol".to_string(), Value::String(symbol));
-                map.insert("quarter".to_string(), Value::Number(quarter.into()));
-                map.insert("year".to_string(), Value::Number(year.into()));
-                map.insert("chunk_index".to_string(), Value::Number(chunk_index.into()));
-                map.insert(
-                    "total_chunks".to_string(),
-                    Value::Number(total_chunks.into()),
-                );
+                map.insert("quarter".to_string(), Value::Number(serde_json::Number::from(quarter)));
+                map.insert("year".to_string(), Value::Number(serde_json::Number::from(year)));
+                map.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(chunk_index)));
+                map.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(total_chunks)));
             }
         }
         map
