@@ -36,14 +36,26 @@ struct QueryResponse {
     summary: String,
 }
 
-#[derive(Clone)]
 struct AppState {
     conversation_manager: Arc<RwLock<ConversationManager>>,
     chain_manager: Arc<ConversationChainManager>,
     store: Arc<langchain_rust::vectorstore::pgvector::Store>,
     http_client: reqwest::Client,
-    stream_chain: langchain_rust::chain::ConversationalChain,
-    query_chain: langchain_rust::chain::ConversationalChain,
+    stream_chain: Arc<langchain_rust::chain::ConversationalChain>,
+    query_chain: Arc<langchain_rust::chain::ConversationalChain>,
+}
+
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        Self {
+            conversation_manager: Arc::clone(&self.conversation_manager),
+            chain_manager: Arc::clone(&self.chain_manager),
+            store: Arc::clone(&self.store),
+            http_client: self.http_client.clone(),
+            stream_chain: Arc::clone(&self.stream_chain),
+            query_chain: Arc::clone(&self.query_chain),
+        }
+    }
 }
 
 async fn health_check() -> impl IntoResponse {
