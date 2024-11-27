@@ -145,7 +145,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                     input,
                     50,
                     &langchain_rust::vectorstore::VecStoreOptions {
-                        filters: Some(serde_json::Value::Object(filter.iter().map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))).collect())),
+                        filters: Some(filter),
                         ..Default::default()
                     },
                 )
@@ -176,7 +176,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                 input,
                 50,
                 &langchain_rust::vectorstore::VecStoreOptions {
-                    filters: Some(serde_json::Value::Object(filter.iter().map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone()))).collect())),
+                    filters: Some(filter),
                     ..Default::default()
                 },
             )
