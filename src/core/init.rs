@@ -13,27 +13,19 @@ use std::sync::Arc;
 
 use crate::db;
 
-pub async fn initialize_openai() -> Result<(OpenAI<OpenAIConfig>, String), Box<dyn Error>> {
-    let openai_key = std::env::var("OPENAI_KEY").map_err(|_| -> Box<dyn Error> {
-        Box::new(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "OPENAI_KEY environment variable not set. Please run with: OPENAI_KEY=your-key-here cargo run"
-        ))
-    })?;
-
+pub async fn initialize_openai(config: &AdvisorConfig) -> Result<OpenAI<OpenAIConfig>, Box<dyn Error>> {
     let llm = OpenAI::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key.clone()))
+        .with_config(OpenAIConfig::default().with_api_key(config.openai_key.clone()))
         .with_model(OpenAIModel::Gpt4oMini.to_string());
 
-    Ok((llm, openai_key))
+    Ok(llm)
 }
 
 pub async fn initialize_vector_store(
-    openai_key: String,
-    pg_connection_string: String,
+    config: &AdvisorConfig,
 ) -> Result<Arc<Store>, Box<dyn Error>> {
     let embedder = OpenAiEmbedder::default()
-        .with_config(OpenAIConfig::default().with_api_key(openai_key));
+        .with_config(OpenAIConfig::default().with_api_key(config.openai_key.clone()));
 
     let store = StoreBuilder::new()
         .embedder(embedder)

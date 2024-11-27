@@ -80,15 +80,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     log::debug!("Logger initialized");
 
-    let (llm, openai_key) = init::initialize_openai().await?;
-
-    let pg_connection_string = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    let store = init::initialize_vector_store(openai_key, pg_connection_string.clone()).await?;
+    let config = advisor::core::config::AdvisorConfig::from_env()?;
+    
+    let llm = init::initialize_openai(&config).await?;
+    let store = init::initialize_vector_store(&config).await?;
 
     let pg_pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(16)
-        .connect(&pg_connection_string[..])
+        .connect(&config.database_url)
         .await?;
 
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
