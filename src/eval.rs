@@ -12,7 +12,6 @@ use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{chain::Chain, prompt_args};
-use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -22,7 +21,6 @@ async fn process_documents(
     query: &Query,
     http_client: &reqwest::Client,
     store: Arc<Store>,
-    pg_pool: &Pool<Postgres>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
     let multi = Arc::new(MultiProgress::new());
@@ -53,7 +51,6 @@ async fn process_documents(
                     process_edgar_filings(
                         filings,
                         Arc::clone(&store),
-                        pg_pool.clone(),
                         Some(Arc::clone(&progress_tracker)),
                     )
                     .await?;
@@ -78,13 +75,7 @@ async fn process_documents(
             earnings_query.end_date,
         )
         .await?;
-        process_earnings_transcripts(
-            transcripts,
-            store,
-            pg_pool.clone(),
-            Some(progress_tracker.clone()),
-        )
-        .await?;
+        process_earnings_transcripts(transcripts, store, Some(progress_tracker.clone())).await?;
     }
 
     // Clear all progress bars at the end
@@ -449,7 +440,6 @@ pub async fn eval(
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
     store: Arc<Store>,
-    pg_pool: &Pool<Postgres>,
     conversation_manager: Arc<ConversationManager>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
@@ -483,7 +473,6 @@ pub async fn eval(
         &query,
         http_client,
         Arc::clone(&store),
-        pg_pool,
         multi_progress.as_ref(),
     )
     .await?;
@@ -544,7 +533,6 @@ pub async fn eval(
 async fn process_edgar_filings(
     filings: HashMap<String, filing::Filing>,
     store: Arc<Store>,
-    pg_pool: Pool<Postgres>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     let mut success_count = 0;
@@ -556,7 +544,6 @@ async fn process_edgar_filings(
     for (filepath, filing) in filings {
         let tx = tx.clone();
         let store = store.clone();
-        let pg_pool = pg_pool.clone();
         let mut progress_tracker = progress_tracker.clone();
         if let Some(tracker) = progress_tracker.as_ref() {
             let task_tracker = Arc::new(ProgressTracker::new(
@@ -595,7 +582,6 @@ async fn process_edgar_filings(
                 &filepath,
                 filing.report_type,
                 store,
-                &pg_pool,
                 Some(task_tracker),
             )
             .await
@@ -730,7 +716,6 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
 async fn process_earnings_transcripts(
     transcripts: Vec<(earnings::Transcript, PathBuf)>,
     store: Arc<Store>,
-    pg_pool: Pool<Postgres>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
     // Create tasks with progress bars
@@ -743,7 +728,6 @@ async fn process_earnings_transcripts(
     for (transcript, filepath) in transcripts {
         let tx = tx.clone();
         let store = store.clone();
-        let pg_pool = pg_pool.clone();
         let task_tracker = progress_tracker.as_ref().map(|tracker| {
             Arc::new(ProgressTracker::new(
                 tracker.multi_progress.as_ref(),
@@ -761,21 +745,37 @@ async fn process_earnings_transcripts(
         let handle = tokio::spawn(async move {
             // Create metadata directly as HashMap
             let mut metadata = std::collections::HashMap::new();
-            metadata.insert("doc_type".to_string(), serde_json::Value::String("earnings_transcript".to_string()));
-            metadata.insert("filepath".to_string(), serde_json::Value::String(filepath.to_string_lossy().to_string()));
-            metadata.insert("symbol".to_string(), serde_json::Value::String(transcript.symbol.clone()));
-            metadata.insert("year".to_string(), serde_json::Value::Number(serde_json::Number::from(transcript.year)));
-            metadata.insert("quarter".to_string(), serde_json::Value::Number(serde_json::Number::from(transcript.quarter)));
-            metadata.insert("chunk_index".to_string(), serde_json::Value::Number(serde_json::Number::from(0)));
-            metadata.insert("total_chunks".to_string(), serde_json::Value::Number(serde_json::Number::from(1)));
+            metadata.insert(
+                "doc_type".to_string(),
+                serde_json::Value::String("earnings_transcript".to_string()),
+            );
+            metadata.insert(
+                "filepath".to_string(),
+                serde_json::Value::String(filepath.to_string_lossy().to_string()),
+            );
+            metadata.insert(
+                "symbol".to_string(),
+                serde_json::Value::String(transcript.symbol.clone()),
+            );
+            metadata.insert(
+                "year".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(transcript.year)),
+            );
+            metadata.insert(
+                "quarter".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(transcript.quarter)),
+            );
+            metadata.insert(
+                "chunk_index".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(0)),
+            );
+            metadata.insert(
+                "total_chunks".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(1)),
+            );
 
             let content = transcript.content.clone();
-            crate::vectorstore::store_document(
-                content,
-                metadata,
-                store.as_ref(),
-            )
-            .await?;
+            crate::vectorstore::store_document(content, metadata, store.as_ref()).await?;
 
             let _ = tx.send(Ok(())).await;
             Ok::<_, anyhow::Error>(())
