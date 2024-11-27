@@ -691,32 +691,27 @@ pub async fn extract_complete_submission_filing(
 
     let symbol = crate::edgar::tickers::get_ticker_for_cik(cik).await?;
 
-    // Create metadata for the document
-    log::debug!("Creating metadata with report_type: {}", report_type);
-    let metadata = Metadata::MetaEdgarFiling {
-        doc_type: DocType::EdgarFiling,
-        filepath: filepath.into(),
-        filing_type: report_type,
-        cik: cik.to_string(),
-        accession_number: accession_number.to_string(),
-        symbol,
-        chunk_index: 0,  // Set appropriately
-        total_chunks: 1, // Set appropriately
-    };
+    // Create metadata directly as HashMap
+    let mut metadata = HashMap::new();
+    metadata.insert("doc_type".to_string(), Value::String("edgar_filing".to_string()));
+    metadata.insert("filepath".to_string(), Value::String(filepath.to_string()));
+    metadata.insert("report_type".to_string(), Value::String(report_type.to_string()));
+    metadata.insert("cik".to_string(), Value::String(cik.to_string()));
+    metadata.insert("accession_number".to_string(), Value::String(accession_number.to_string()));
+    metadata.insert("symbol".to_string(), Value::String(symbol));
+    metadata.insert("chunk_index".to_string(), Value::Number(serde_json::Number::from(0)));
+    metadata.insert("total_chunks".to_string(), Value::Number(serde_json::Number::from(1)));
 
     // Save metadata alongside markdown
     let metadata_path = format!("{}/filing.json", markdown_dir);
-    let hashmap: HashMap<String, Value> = metadata.clone().into();
-    fs::write(&metadata_path, serde_json::to_string_pretty(&hashmap)?)?;
+    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata)?)?;
     log::info!("Saved metadata to: {}", metadata_path);
 
-    // Store the markdown content using the chunking utility with caching
-    crate::document::store_chunked_document(
+    // Store the markdown content using the chunking utility
+    crate::vectorstore::store_document(
         markdown_content,
         metadata,
-        store,
-        pg_pool,
-        progress_tracker.as_deref(),
+        store.as_ref(),
     )
     .await?;
 
