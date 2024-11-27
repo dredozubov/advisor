@@ -135,7 +135,6 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
-            let filing_types_str = filing_types.join("','");
             let mut filter = serde_json::Map::new();
             filter.insert(
                 "doc_type".to_string(),
@@ -169,13 +168,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             .get("start_date")
             .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing earnings start_date"))?;
-        let end_date = earnings
-            .get("end_date")
-            .and_then(|d| d.as_str())
-            .ok_or_else(|| anyhow!("Missing earnings end_date"))?;
-
         let start_year = start_date.split("-").next().unwrap();
-        let end_year = end_date.split("-").next().unwrap();
         let docs = store
             .similarity_search(
                 input,
