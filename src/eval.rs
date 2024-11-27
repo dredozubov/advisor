@@ -467,7 +467,7 @@ pub async fn eval(
     stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
     store: Arc<Store>,
-    conversation_manager: Arc<ConversationManager>,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
