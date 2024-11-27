@@ -1,3 +1,4 @@
+use crate::edgar::report::ReportType;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
@@ -27,7 +28,7 @@ async fn process_documents(
     let multi = Arc::new(MultiProgress::new());
     let progress_tracker = Arc::new(ProgressTracker::new(
         Some(&multi),
-        &format!("Processing documents for {}", query.tickers.join(", "))
+        &format!("Processing documents for {}", query.tickers.join(", ")),
     ));
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
@@ -135,19 +136,25 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
             let filing_types_str = filing_types.join("','");
-            let mut filter = std::collections::HashMap::new();
-            filter.insert("doc_type".to_string(), "edgar_filing".to_string());
-            filter.insert("report_type".to_string(), filing_types[0].to_string());
-            filter.insert("filing_date".to_string(), start_date.to_string());
+            let mut filter = serde_json::Map::new();
+            filter.insert(
+                "doc_type".to_string(),
+                serde_json::Value::String("edgar_filing".to_string()),
+            );
+            filter.insert(
+                "report_type".to_string(),
+                serde_json::Value::String(
+                    ReportType::Other(filing_types[0].to_string()).to_string(),
+                ),
+            );
+            // filter.insert("filing_date".to_string(), start_date.to_string());
             log::info!("Using filter for similarity search: {:?}", filter);
             let docs = store
                 .similarity_search(
                     input,
                     50,
                     &langchain_rust::vectorstore::VecStoreOptions {
-                        filters: Some(serde_json::Value::Object(
-                            filter.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()
-                        )),
+                        filters: Some(serde_json::Value::Object(filter)),
                         ..Default::default()
                     },
                 )
@@ -169,18 +176,16 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
 
         let start_year = start_date.split("-").next().unwrap();
         let end_year = end_date.split("-").next().unwrap();
-        let mut filter = std::collections::HashMap::new();
-        filter.insert("doc_type".to_string(), "earnings_transcript".to_string());
-        filter.insert("year".to_string(), start_year.to_string());
-        log::info!("Using filter for similarity search: {:?}", filter);
         let docs = store
             .similarity_search(
                 input,
                 50,
                 &langchain_rust::vectorstore::VecStoreOptions {
-                    filters: Some(serde_json::Value::Object(
-                        filter.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()
-                    )),
+                    filters: Some(serde_json::json!(
+                    {
+                        "doc_type": serde_json::Value::from("earnings_transcript"),
+                        "year": start_year.parse::<usize>().unwrap()
+                    })),
                     ..Default::default()
                 },
             )
@@ -348,8 +353,16 @@ fn build_metadata_summary(
                 format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
             }
             (Some("doc_type"), Some("earnings_transcript"), _, _, Some(total)) => {
-                let quarter = doc.metadata.get("quarter").and_then(|v| v.as_u64()).unwrap_or(0);
-                let year = doc.metadata.get("year").and_then(|v| v.as_u64()).unwrap_or(0);
+                let quarter = doc
+                    .metadata
+                    .get("quarter")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let year = doc
+                    .metadata
+                    .get("year")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
                 format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
             }
             _ => {
@@ -574,7 +587,9 @@ async fn process_edgar_filings(
 
         let handle = tokio::spawn(async move {
             let task_tracker = Arc::new(ProgressTracker::new(
-                progress_tracker.as_ref().and_then(|t| t.multi_progress.as_ref()),
+                progress_tracker
+                    .as_ref()
+                    .and_then(|t| t.multi_progress.as_ref()),
                 &format!(
                     "Filing {} {}",
                     filing.report_type,
@@ -582,7 +597,7 @@ async fn process_edgar_filings(
                 ),
             ));
             task_tracker.start_progress(100, "Processing filing");
-        
+
             match filing::extract_complete_submission_filing(
                 &filepath,
                 filing.report_type,
@@ -739,7 +754,10 @@ async fn process_earnings_transcripts(
         let task_tracker = progress_tracker.as_ref().map(|tracker| {
             Arc::new(ProgressTracker::new(
                 tracker.multi_progress.as_ref(),
-                &format!("Earnings {} Q{} {}", transcript.symbol, transcript.quarter, transcript.year),
+                &format!(
+                    "Earnings {} Q{} {}",
+                    transcript.symbol, transcript.quarter, transcript.year
+                ),
             ))
         });
 
@@ -760,8 +778,14 @@ async fn process_earnings_transcripts(
             };
 
             let content = transcript.content.clone();
-            crate::document::store_chunked_document(content, metadata, store, &pg_pool, task_tracker.as_deref())
-                .await?;
+            crate::document::store_chunked_document(
+                content,
+                metadata,
+                store,
+                &pg_pool,
+                task_tracker.as_deref(),
+            )
+            .await?;
 
             let _ = tx.send(Ok(())).await;
             Ok::<_, anyhow::Error>(())
