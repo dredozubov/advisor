@@ -5,7 +5,7 @@ use crate::query::Query;
 use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use futures::{StreamExt, future::BoxFuture};
+use futures::{StreamExt, FutureExt};
 use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
