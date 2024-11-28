@@ -7,15 +7,15 @@ edition = "2021"
 name = "advisor-cli"
 path = "src/bin/cli.rs"
 
+[[bin]]
+name = "advisor-web"
+path = "src/bin/web.rs"
+
 [lib]
 name = "advisor"
 path = "src/lib.rs"
 
 [dependencies]
-axum = { version = "0.7", features = ["http2"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors"] }
-hyper = { version = "1.0", features = ["full"] }
 colored = "2.1.0"
 security-framework = "3.0.0"
 structopt = "0.3"
@@ -41,7 +41,7 @@ uuencode = "0.1.5"
 rustyline = "14.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.21.0"
-tokenizers = { version = "0.20.1", features = ["progressbar", "http"] }
+tokenizers = { version = "0.21", features = ["progressbar", "http"] }
 langchain-rust = { git="https://github.com/dredozubov/langchain-rust.git", branch = "upstream", warnings = false, features = ["postgres"] }
 strum = { version = "0.26.3", features = ["derive"] }
 quick-xml = "0.37.0"

@@ -1,14 +1,8 @@
 use super::types::{AdvisorBackend, ConversationInfo};
-use crate::{
-    eval,
-    memory::{ConversationChainManager, ConversationManager},
-};
+use crate::{eval, memory::ConversationManager};
 use anyhow::Result;
 use futures::stream::BoxStream;
-use langchain_rust::{
-    chain::ConversationalChain,
-    vectorstore::pgvector::Store,
-};
+use langchain_rust::{chain::ConversationalChain, vectorstore::pgvector::Store};
 use reqwest::Client;
 use std::{error::Error, sync::Arc};
 use tokio::sync::RwLock;
@@ -16,7 +10,6 @@ use uuid::Uuid;
 
 pub struct AdvisorService {
     conversation_manager: Arc<RwLock<ConversationManager>>,
-    chain_manager: Arc<ConversationChainManager>,
     store: Arc<Store>,
     http_client: Client,
     stream_chain: ConversationalChain,
@@ -26,7 +19,6 @@ pub struct AdvisorService {
 impl AdvisorService {
     pub fn new(
         conversation_manager: ConversationManager,
-        chain_manager: Arc<ConversationChainManager>,
         store: Arc<Store>,
         http_client: Client,
         stream_chain: ConversationalChain,
@@ -34,7 +26,6 @@ impl AdvisorService {
     ) -> Self {
         Self {
             conversation_manager: Arc::new(RwLock::new(conversation_manager)),
-            chain_manager,
             store,
             http_client,
             stream_chain,
@@ -87,7 +78,12 @@ impl AdvisorBackend for AdvisorService {
     }
 
     async fn get_conversation(&self, id: &Uuid) -> Result<Option<ConversationInfo>> {
-        let conv = self.conversation_manager.read().await.get_conversation(id).await?;
+        let conv = self
+            .conversation_manager
+            .read()
+            .await
+            .get_conversation(id)
+            .await?;
         Ok(conv.map(|c| ConversationInfo {
             id: c.id,
             summary: c.summary,
@@ -96,7 +92,12 @@ impl AdvisorBackend for AdvisorService {
     }
 
     async fn list_conversations(&self) -> Result<Vec<ConversationInfo>> {
-        let convs = self.conversation_manager.read().await.list_conversations().await?;
+        let convs = self
+            .conversation_manager
+            .read()
+            .await
+            .list_conversations()
+            .await?;
         Ok(convs
             .into_iter()
             .map(|c| ConversationInfo {
