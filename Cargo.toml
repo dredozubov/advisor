@@ -7,10 +7,6 @@ edition = "2021"
 name = "advisor-cli"
 path = "src/bin/cli.rs"
 
-[[bin]]
-name = "advisor-web"
-path = "src/bin/web.rs"
-
 [lib]
 name = "advisor"
 path = "src/lib.rs"
