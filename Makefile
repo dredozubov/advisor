@@ -27,8 +27,13 @@ dev:
 
 # Database commands
 init-db:
-	docker-compose exec app bash -c "cargo install sqlx-cli --no-default-features --features native-tls,postgres || true"
+	@echo "Cleaning cargo cache..."
+	docker-compose exec app cargo clean
+	@echo "Installing sqlx-cli..."
+	docker-compose exec app bash -c "CARGO_HOME=/usr/local/cargo cargo install sqlx-cli --no-default-features --features native-tls,postgres --force"
+	@echo "Creating database..."
 	docker-compose exec app cargo sqlx database create
+	@echo "Running migrations..."
 	docker-compose exec app cargo sqlx migrate run
 
 migrate:
