@@ -191,7 +191,7 @@ impl ConversationManager {
         summary: String,
         tickers: Vec<String>,
     ) -> Result<Uuid> {
-        let id = crate::db::create_conversation(&self.pool, summary, tickers.clone()).await?;
+        let id = crate::db::create_conversation(&self.pool, &self.user_id, summary, tickers.clone()).await?;
 
         // Add initial system message
         let system_prompt = format!(
@@ -235,7 +235,7 @@ impl ConversationManager {
     }
 
     pub async fn get_conversation(&self, id: &Uuid) -> Result<Option<Conversation>> {
-        crate::db::get_conversation(&self.pool, id).await
+        crate::db::get_conversation(&self.pool, id, &self.user_id).await
     }
 
     pub async fn list_conversations(&self) -> Result<Vec<Conversation>> {

@@ -59,12 +59,13 @@ pub async fn update_conversation_summary(
     Ok(())
 }
 
-pub async fn get_conversation(pool: &Pool<Postgres>, id: &Uuid) -> Result<Option<Conversation>> {
+pub async fn get_conversation(pool: &Pool<Postgres>, id: &Uuid, user_id: &Uuid) -> Result<Option<Conversation>> {
     sqlx::query_as!(
         Conversation,
-        "SELECT id, summary, created_at, updated_at, tickers 
-         FROM conversations WHERE id = $1",
-        id
+        "SELECT id, user_id, summary, created_at, updated_at, tickers 
+         FROM conversations WHERE id = $1 AND user_id = $2",
+        id,
+        user_id
     )
     .fetch_optional(pool)
     .await
