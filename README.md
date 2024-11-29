@@ -9,8 +9,7 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 ### Prerequisites
 
 - Docker and Docker Compose
-- LLM access (any of the following):
-  - OpenAI API keys (OPENAI_API_KEY environment variable)
+- OpenAI API key (OPENAI_API_KEY environment variable)
 
 ### Quick Start
 
@@ -30,10 +29,8 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 2. **Configure API Keys**:
    Edit the `.env` file in the project root with your API keys:
    ```bash
-   ANTHROPIC_API_KEY=your_anthropic_key_here
    OPENAI_API_KEY=your_openai_key_here
    OPENAI_KEY=your_openai_key_here
-   GROQ_API_KEY=your_groq_key_here
    ```
 
 3. **Start Development**:
