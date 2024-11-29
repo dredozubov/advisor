@@ -5,7 +5,7 @@ up:
 	docker-compose up -d
 
 down:
-	docker-compose down
+	docker-compose down -v
 
 build:
 	docker-compose build
@@ -49,5 +49,3 @@ setup: down
 # Clean everything
 clean:
 	docker-compose down -v
-	rm -rf target
-	rm -rf .cargo
