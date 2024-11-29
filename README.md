@@ -2,22 +2,20 @@
 
 An AI-powered financial document analysis tool that helps analyze SEC filings and earnings transcripts.
 
-**Full disclaimer: ** this software is a tool to help you assess the documents and access Large Language Models (LLMs). It's not qualified to give you a financial advise, may produce mistakes, and it's not a financial advisor. Neither this software, nor its developers are not liable for your financial decisions and analysis.
-
+**Full disclaimer:** this software is a tool to help you assess the documents and access Large Language Models (LLMs). It's not qualified to give you a financial advise, may produce mistakes, and it's not a financial advisor. Neither this software, nor its developers are not liable for your financial decisions and analysis.
 
 ## Development Setup
 
 ### Prerequisites
+
 - Docker and Docker Compose
-- VS Code with Remote Containers extension
-- API keys for:
-  - OpenAI (OPENAI_KEY and OPENAI_API_KEY)
-  - Anthropic (ANTHROPIC_API_KEY)
-  - Groq (GROQ_API_KEY)
+- LLM access (any of the following):
+  - OpenAI API keys (OPENAI_API_KEY environment variable)
 
 ### Quick Start with VS Code DevContainer
 
 1. **Clone and Setup**:
+
    ```bash
    git clone https://github.com/yourusername/advisor.git
    cd advisor
@@ -25,6 +23,7 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 
 2. **Configure API Keys**:
    Create a `.env` file in the project root:
+
    ```bash
    ANTHROPIC_API_KEY=your_anthropic_key_here
    OPENAI_API_KEY=your_openai_key_here
@@ -33,14 +32,17 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
    ```
 
 3. **Open in VS Code**:
+
    ```bash
    code .
    ```
+
    Then press F1 and select "Remote-Containers: Reopen in Container"
 
 ### Alternative: Docker Compose Setup
 
 1. **Start Services**:
+
    ```bash
    make up
    # or
@@ -48,6 +50,7 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
    ```
 
 2. **View Logs**:
+
    ```bash
    make logs
    # or
@@ -55,6 +58,7 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
    ```
 
 3. **Access Shell**:
+
    ```bash
    make shell
    # or
@@ -92,6 +96,7 @@ make clean
 ## Database Setup
 
 The project uses PostgreSQL with pgvector for vector similarity search. The database is automatically initialized with:
+
 - Required extensions (vector, uuid-ossp)
 - Optimized indices for conversations, embeddings, and documents
 - Vector similarity search capabilities
@@ -99,11 +104,13 @@ The project uses PostgreSQL with pgvector for vector similarity search. The data
 ### Database Migrations
 
 Migrations are handled automatically when starting the container. To manually run migrations:
+
 ```bash
 sqlx migrate run
 ```
 
 To revert migrations:
+
 ```bash
 sqlx migrate revert
 ```
@@ -111,6 +118,7 @@ sqlx migrate revert
 ### Setting Up the Database
 
 1. **Initial Setup**:
+
    ```bash
    # Copy default environment configuration
    cp .env.default .env
@@ -123,15 +131,18 @@ sqlx migrate revert
 
 2. **Reset Database**:
    To reset the database (useful during development):
+
    ```bash
    ./scripts/setup_db.sh
    ```
+
    This will:
    - Stop and remove the existing database container
    - Create a fresh database container
    - Run all migrations
 
 3. **Manual Database Access**:
+
    ```bash
    # Using psql directly
    psql postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
@@ -142,15 +153,20 @@ sqlx migrate revert
 
 4. **Troubleshooting**:
    - Check container status:
+
      ```bash
      docker ps | grep advisor-db
      ```
+
    - View container logs:
+
      ```bash
      docker logs advisor-db
      ```
+
    - Ensure your `.env` file has the correct configuration
    - Check if the PostgreSQL port is available:
+
      ```bash
      lsof -i :5432
      ```
@@ -167,6 +183,7 @@ sqlx migrate revert
 ## Container Features
 
 ### Development Container
+
 - Full Rust development environment
 - Hot reload with cargo-watch
 - Integrated debugging support
@@ -175,6 +192,7 @@ sqlx migrate revert
 - VS Code extensions pre-configured
 
 ### Production Container
+
 - Multi-stage build for minimal image size
 - Only runtime dependencies included
 - Health checks configured
@@ -192,6 +210,7 @@ sqlx migrate revert
 ## Troubleshooting
 
 1. **Database Connection Issues**:
+
    ```bash
    # Check database status
    docker-compose ps db
@@ -200,6 +219,7 @@ sqlx migrate revert
    ```
 
 2. **Rebuild Development Environment**:
+
    ```bash
    # Full rebuild
    docker-compose down
@@ -208,6 +228,7 @@ sqlx migrate revert
    ```
 
 3. **Reset Development Environment**:
+
    ```bash
    # Remove all containers and volumes
    make clean
