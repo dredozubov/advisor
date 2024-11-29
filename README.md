@@ -108,6 +108,53 @@ To revert migrations:
 sqlx migrate revert
 ```
 
+### Setting Up the Database
+
+1. **Initial Setup**:
+   ```bash
+   # Copy default environment configuration
+   cp .env.default .env
+   
+   # Edit .env with your preferred settings if needed
+   
+   # Run the database setup script
+   ./scripts/setup_db.sh
+   ```
+
+2. **Reset Database**:
+   To reset the database (useful during development):
+   ```bash
+   ./scripts/setup_db.sh
+   ```
+   This will:
+   - Stop and remove the existing database container
+   - Create a fresh database container
+   - Run all migrations
+
+3. **Manual Database Access**:
+   ```bash
+   # Using psql directly
+   psql postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB
+   
+   # Or via Docker
+   docker exec -it advisor-db psql -U $POSTGRES_USER -d $POSTGRES_DB
+   ```
+
+4. **Troubleshooting**:
+   - Check container status:
+     ```bash
+     docker ps | grep advisor-db
+     ```
+   - View container logs:
+     ```bash
+     docker logs advisor-db
+     ```
+   - Ensure your `.env` file has the correct configuration
+   - Check if the PostgreSQL port is available:
+     ```bash
+     lsof -i :5432
+     ```
+
 ## Security Notes
 
 - All sensitive data (API keys, database passwords) is managed via environment variables or Docker secrets
