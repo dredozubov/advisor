@@ -19,6 +19,7 @@ use time::OffsetDateTime;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
     pub id: Uuid,
+    pub user_id: Uuid,
     pub summary: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
@@ -161,6 +162,7 @@ impl BaseMemory for DatabaseMemory {
 pub struct ConversationManager {
     pool: PgPool,
     current_conversation: Option<Uuid>,
+    user_id: Uuid,
 }
 
 impl ConversationManager {
@@ -168,6 +170,15 @@ impl ConversationManager {
         Self {
             pool,
             current_conversation: None,
+            user_id: Uuid::nil(), // Default to CLI user (all zeros)
+        }
+    }
+
+    pub fn new_web(pool: PgPool, user_id: Uuid) -> Self {
+        Self {
+            pool,
+            current_conversation: None,
+            user_id,
         }
     }
 

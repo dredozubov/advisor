@@ -8,13 +8,15 @@ pub const COLLECTIONS_TABLE: &str = "vs_collections";
 pub const EMBEDDER_TABLE: &str = "vs_embeddings";
 
 // Conversation Database Operations
-pub async fn get_most_recent_conversation(pool: &Pool<Postgres>) -> Result<Option<Conversation>> {
+pub async fn get_most_recent_conversation(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<Option<Conversation>> {
     sqlx::query_as!(
         Conversation,
-        "SELECT id, summary, created_at, updated_at, tickers 
+        "SELECT id, user_id, summary, created_at, updated_at, tickers 
          FROM conversations 
+         WHERE user_id = $1
          ORDER BY updated_at DESC 
-         LIMIT 1"
+         LIMIT 1",
+        user_id
     )
     .fetch_optional(pool)
     .await
@@ -23,14 +25,16 @@ pub async fn get_most_recent_conversation(pool: &Pool<Postgres>) -> Result<Optio
 
 pub async fn create_conversation(
     pool: &Pool<Postgres>,
+    user_id: &Uuid,
     summary: String,
     tickers: Vec<String>,
 ) -> Result<Uuid> {
     let id = Uuid::new_v4();
     sqlx::query!(
-        "INSERT INTO conversations (id, summary, tickers, created_at, updated_at) 
-         VALUES ($1, $2, $3, NOW(), NOW())",
+        "INSERT INTO conversations (id, user_id, summary, tickers, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, NOW(), NOW())",
         id,
+        user_id,
         summary,
         &tickers
     )
@@ -67,12 +71,14 @@ pub async fn get_conversation(pool: &Pool<Postgres>, id: &Uuid) -> Result<Option
     .map_err(Into::into)
 }
 
-pub async fn list_conversations(pool: &Pool<Postgres>) -> Result<Vec<Conversation>> {
+pub async fn list_conversations(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<Vec<Conversation>> {
     sqlx::query_as!(
         Conversation,
-        "SELECT id, summary, created_at, updated_at, tickers 
+        "SELECT id, user_id, summary, created_at, updated_at, tickers 
          FROM conversations 
-         ORDER BY updated_at DESC"
+         WHERE user_id = $1
+         ORDER BY updated_at DESC",
+        user_id
     )
     .fetch_all(pool)
     .await
