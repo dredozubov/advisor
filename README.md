@@ -12,18 +12,23 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
 - LLM access (any of the following):
   - OpenAI API keys (OPENAI_API_KEY environment variable)
 
-### Quick Start with VS Code DevContainer
+### Quick Start
 
 1. **Clone and Setup**:
-
    ```bash
    git clone https://github.com/yourusername/advisor.git
    cd advisor
+   ./scripts/dev-setup.sh
    ```
 
-2. **Configure API Keys**:
-   Create a `.env` file in the project root:
+   This will:
+   - Create `.env` file from `.env.default`
+   - Start all required services
+   - Initialize the database
+   - Run migrations
 
+2. **Configure API Keys**:
+   Edit the `.env` file in the project root with your API keys:
    ```bash
    ANTHROPIC_API_KEY=your_anthropic_key_here
    OPENAI_API_KEY=your_openai_key_here
@@ -31,45 +36,34 @@ An AI-powered financial document analysis tool that helps analyze SEC filings an
    GROQ_API_KEY=your_groq_key_here
    ```
 
-3. **Open in VS Code**:
+3. **Start Development**:
+   ```bash
+   make dev
+   ```
 
+### VS Code DevContainer (Alternative)
+
+1. Open in VS Code:
    ```bash
    code .
    ```
 
-   Then press F1 and select "Remote-Containers: Reopen in Container"
-
-### Alternative: Docker Compose Setup
-
-1. **Start Services**:
-
-   ```bash
-   make up
-   # or
-   docker-compose up -d
-   ```
-
-2. **View Logs**:
-
-   ```bash
-   make logs
-   # or
-   docker-compose logs -f
-   ```
-
-3. **Access Shell**:
-
-   ```bash
-   make shell
-   # or
-   docker-compose exec app /bin/bash
-   ```
+2. Press F1 and select "Remote-Containers: Reopen in Container"
 
 ### Development Commands
 
 ```bash
-# Build all services
-make build
+# Start all services with logs
+make dev
+
+# Start services in background
+make up
+
+# View logs
+make logs
+
+# Access application shell
+make shell
 
 # Run tests
 make test
@@ -77,8 +71,24 @@ make test
 # Watch for changes and rebuild
 make watch
 
+# Reset everything (clean and setup)
+make reset
+
 # Clean up all containers and volumes
 make clean
+```
+
+### Database Management
+
+```bash
+# Initialize database and run migrations
+make init-db
+
+# Run migrations only
+make migrate
+
+# Reset database (clean and reinitialize)
+make reset
 ```
 
 ## Project Structure
