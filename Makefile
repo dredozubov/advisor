@@ -27,6 +27,7 @@ dev:
 
 # Database commands
 init-db:
+	docker-compose exec app bash -c "cargo install sqlx-cli --no-default-features --features native-tls,postgres || true"
 	docker-compose exec app cargo sqlx database create
 	docker-compose exec app cargo sqlx migrate run
 

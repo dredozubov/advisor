@@ -56,7 +56,7 @@ USER $USERNAME
 WORKDIR /workspace
 
 # Install development tools
-RUN cargo install cargo-watch cargo-edit cargo-audit cargo-deny cargo-outdated
+RUN cargo install cargo-watch cargo-edit cargo-audit cargo-deny cargo-outdated sqlx-cli
 
 # Install clippy
 RUN rustup component add clippy
