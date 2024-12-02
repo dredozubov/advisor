@@ -263,7 +263,7 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
-                    event::KeyCode::Delete => {
+                    event::KeyCode::Delete | event::KeyCode::Backspace => {
                         let selected = &conversations[selection];
                         conversation_manager.delete_conversation(&selected.id).await?;
                         
