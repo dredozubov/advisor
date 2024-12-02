@@ -29,6 +29,7 @@ static HISTORY_PATH: Lazy<String> = Lazy::new(|| {
     format!("{}/.advisor.history", home_dir)
 });
 
+#[derive(Clone)]
 pub struct ReplHelper {
     ticker_map: TickerMap,
 }
@@ -172,7 +173,7 @@ pub async fn handle_list_command(
 
         // Draw all conversations
         for (i, conv) in conversations.iter().enumerate() {
-            let helper = rl.helper().as_ref().unwrap();
+            let helper = rl.helper().as_ref().unwrap().clone();
             let ticker_map = &helper.ticker_map;
 
             // Get company names for all tickers
