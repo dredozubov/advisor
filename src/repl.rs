@@ -155,10 +155,17 @@ pub async fn handle_list_command(
     let mut selection = 0;
     let mut redraw = true;
 
+    // Enable raw mode
+    crossterm::terminal::enable_raw_mode()?;
+    
     loop {
         if redraw {
             // Clear screen and move cursor to top
-            print!("\x1B[2J\x1B[1;1H");
+            execute!(
+                stdout(),
+                crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                crossterm::cursor::MoveTo(0, 0)
+            )?;
             println!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n");
             
             for (i, conv) in conversations.iter().enumerate() {
@@ -206,6 +213,8 @@ pub async fn handle_list_command(
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
                     event::KeyCode::Esc => {
+                        // Disable raw mode before returning
+                        crossterm::terminal::disable_raw_mode()?;
                         return Ok("Cancelled selection".to_string());
                     }
                     _ => {}
@@ -214,6 +223,9 @@ pub async fn handle_list_command(
             _ => {}
         }
     }
+
+    // Make sure to disable raw mode even if we break the loop
+    crossterm::terminal::disable_raw_mode()?;
 }
 
 pub async fn handle_delete_command(
