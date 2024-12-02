@@ -1,12 +1,10 @@
 use crate::edgar::tickers::fetch_tickers;
 use crate::memory::ConversationManager;
+use anyhow::Result as AnyhowResult;
 use crossterm::{
-    event,
-    execute,
+    event, execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
 };
-use std::io::{stdout, Write};
-use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
@@ -20,6 +18,7 @@ use rustyline::{
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
+use std::io::{stdout, Write};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -98,7 +97,12 @@ impl Highlighter for ReplHelper {
         Cow::Owned(highlighted)
     }
 
-    fn highlight_char(&self, _line: &str, _pos: usize, _forced: bool) -> bool {
+    fn highlight_char(
+        &self,
+        _line: &str,
+        _pos: usize,
+        _forced: rustyline::highlight::CmdKind,
+    ) -> bool {
         true
     }
 }
@@ -157,7 +161,7 @@ pub async fn handle_list_command(
 
     // Enable raw mode
     crossterm::terminal::enable_raw_mode()?;
-    
+
     loop {
         if redraw {
             // Clear screen and move cursor to top
@@ -168,29 +172,33 @@ pub async fn handle_list_command(
             )?;
             print!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n");
             stdout().flush()?;
-            
+
             for (i, conv) in conversations.iter().enumerate() {
-                let summary = format!("{} ({})",
-                    conv.summary,
-                    conv.tickers.join(", ")
-                );
-                let date = conv.updated_at.format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]").unwrap()).unwrap();
-                
+                let summary = format!("{} ({})", conv.summary, conv.tickers.join(", "));
+                let date = conv
+                    .updated_at
+                    .format(
+                        &time::format_description::parse("[year]-[month]-[day] [hour]:[minute]")
+                            .unwrap(),
+                    )
+                    .unwrap();
+
                 // Truncate summary if too long, leaving space for date
                 let max_summary_width = 50;
                 let truncated_summary = if summary.len() > max_summary_width {
-                    format!("{}...", &summary[..max_summary_width-3])
+                    format!("{}...", &summary[..max_summary_width - 3])
                 } else {
                     summary
                 };
-                
+
                 // Format with summary left-aligned and date right-aligned
-                let line = format!("{:<width$} {: >19}", 
+                let line = format!(
+                    "{:<width$} {: >19}",
                     truncated_summary,
                     date,
                     width = max_summary_width
                 );
-                
+
                 if i == selection {
                     execute!(
                         stdout(),
@@ -201,7 +209,7 @@ pub async fn handle_list_command(
                 } else {
                     print!("  {}", line);
                 }
-                print!("\n");
+                println!();
                 stdout().flush()?;
             }
             redraw = false;
@@ -225,7 +233,9 @@ pub async fn handle_list_command(
                     }
                     event::KeyCode::Enter => {
                         let selected = &conversations[selection];
-                        conversation_manager.switch_conversation(&selected.id).await?;
+                        conversation_manager
+                            .switch_conversation(&selected.id)
+                            .await?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
                     event::KeyCode::Esc => {
@@ -239,7 +249,6 @@ pub async fn handle_list_command(
             _ => {}
         }
     }
-
 }
 
 pub async fn handle_delete_command(
