@@ -253,6 +253,21 @@ pub async fn handle_list_command(
         // Read a single keypress
         match event::read()? {
             event::Event::Key(key) => {
+                if key.modifiers.contains(event::KeyModifiers::CONTROL) && key.code == event::KeyCode::Char('n') {
+                    // Create new conversation
+                    let conv_id = conversation_manager.create_conversation("New conversation".to_string(), vec![]).await?;
+                    conversation_manager.switch_conversation(&conv_id).await?;
+                    
+                    // Disable raw mode and clear screen before returning
+                    crossterm::terminal::disable_raw_mode()?;
+                    execute!(
+                        stdout(),
+                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                        crossterm::cursor::MoveTo(0, 0)
+                    )?;
+                    return Ok("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)".to_string());
+                }
+
                 match key.code {
                     event::KeyCode::Up => {
                         if selection > 0 {

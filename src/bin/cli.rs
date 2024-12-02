@@ -136,8 +136,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap_or_default(),
         );
 
-        match rl.readline(&prompt) {
+        match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
+                // Check for Ctrl+N before trimming
+                if line.as_bytes() == &[14] { // Ctrl+N ASCII code
+                    let conv_id = conversation_manager
+                        .write()
+                        .await
+                        .create_conversation("New conversation".to_string(), vec![])
+                        .await?;
+                    conversation_manager
+                        .write()
+                        .await
+                        .switch_conversation(&conv_id)
+                        .await?;
+                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+                    continue;
+                }
+
                 let input = line.trim();
                 if input == "quit" {
                     // Ensure terminal is back to normal mode before quitting
