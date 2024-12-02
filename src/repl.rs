@@ -169,26 +169,36 @@ pub async fn handle_list_command(
             println!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n");
             
             for (i, conv) in conversations.iter().enumerate() {
-                let details = format!("{} - {} ({})",
-                    conv.id,
+                let summary = format!("{} ({})",
                     conv.summary,
                     conv.tickers.join(", ")
                 );
-                let truncated = if details.len() > 60 {
-                    format!("{}...", &details[..57])
+                let date = conv.updated_at.format("%Y-%m-%d %H:%M");
+                
+                // Truncate summary if too long, leaving space for date
+                let max_summary_width = 50;
+                let truncated_summary = if summary.len() > max_summary_width {
+                    format!("{}...", &summary[..max_summary_width-3])
                 } else {
-                    details
+                    summary
                 };
+                
+                // Format with summary left-aligned and date right-aligned
+                let line = format!("{:<width$} {: >19}", 
+                    truncated_summary,
+                    date,
+                    width = max_summary_width
+                );
                 
                 if i == selection {
                     execute!(
                         stdout(),
                         SetForegroundColor(Color::Green),
-                        Print(format!("→ {:<60}\n", truncated)),
+                        Print(format!("→ {}\n", line)),
                         ResetColor
                     )?;
                 } else {
-                    println!("  {:<60}", truncated);
+                    println!("  {}", line);
                 }
             }
             redraw = false;
