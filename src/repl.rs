@@ -180,7 +180,7 @@ pub async fn handle_list_command(
         stdout(),
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
         crossterm::cursor::MoveTo(0, 0),
-        Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc/Ctrl+] to cancel):\n\n")
+        Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc/Ctrl+L to cancel):\n\n")
     )?;
 
     loop {
@@ -304,7 +304,7 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
-                    event::KeyCode::Char(']') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                    event::KeyCode::Char('l') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                         // Disable raw mode and clear screen before returning
                         crossterm::terminal::disable_raw_mode()?;
                         execute!(
@@ -323,7 +323,7 @@ pub async fn handle_list_command(
                             stdout(),
                             crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                             crossterm::cursor::MoveTo(0, 0),
-                            Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc/Ctrl+] to cancel):\n\n")
+                            Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc/Ctrl+L to cancel):\n\n")
                         )?;
 
                         // Refresh conversations list
