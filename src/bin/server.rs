@@ -1,4 +1,8 @@
-use advisor::{core::config::AdvisorConfig, memory::ConversationManager};
+use advisor::{
+    auth::AuthUser,
+    core::config::AdvisorConfig,
+    memory::ConversationManager,
+};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -45,6 +49,7 @@ async fn health() -> &'static str {
 // Create new conversation
 async fn create_conversation(
     State(state): State<Arc<AppState>>,
+    auth_user: AuthUser,
     Json(req): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResponse>, (StatusCode, String)> {
     let conversation_id = state
@@ -63,6 +68,7 @@ async fn create_conversation(
 // List conversations
 async fn list_conversations(
     State(state): State<Arc<AppState>>,
+    auth_user: AuthUser,
 ) -> Result<Json<Vec<ConversationResponse>>, (StatusCode, String)> {
     let conversations = state
         .conversation_manager
@@ -89,6 +95,7 @@ async fn list_conversations(
 // Delete conversation
 async fn delete_conversation(
     State(state): State<Arc<AppState>>,
+    auth_user: AuthUser,
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
@@ -113,6 +120,7 @@ async fn delete_conversation(
 // Switch to conversation
 async fn switch_conversation(
     State(state): State<Arc<AppState>>,
+    auth_user: AuthUser,
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
@@ -144,8 +152,9 @@ async fn main() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await?;
 
-    // Initialize conversation manager
-    let conversation_manager = ConversationManager::new(pool, Uuid::nil()); // TODO: Replace with actual user ID
+    // Initialize conversation manager with a default user ID
+    // The actual user ID will be taken from JWT for each request
+    let conversation_manager = ConversationManager::new(pool, Uuid::nil());
     let app_state = Arc::new(AppState {
         conversation_manager: Arc::new(RwLock::new(conversation_manager)),
     });
