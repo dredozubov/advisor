@@ -424,7 +424,11 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
     // Bind Ctrl+[ and ESC to list view handler
     let list_handler = Box::new(ListViewHandler);
     rl.bind_sequence(KeyEvent::ctrl('['), EventHandler::Conditional(list_handler.clone()));
-    rl.bind_sequence(KeyEvent::from('\x1b'), EventHandler::Conditional(list_handler));
+    rl.bind_sequence(KeyEvent::from('\x1b'), EventHandler::Conditional(list_handler.clone()));
+    
+    // Bind Ctrl+T to new conversation handler
+    let new_conv_handler = Box::new(NewConversationHandler);
+    rl.bind_sequence(KeyEvent::ctrl('t'), EventHandler::Conditional(new_conv_handler));
 
     // Wrap the editor in a custom type that adds history entries
     log::debug!("Creating EditorWithHistory wrapper");
@@ -433,6 +437,20 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
 
 #[derive(Clone)]
 struct ListViewHandler;
+
+#[derive(Clone)]
+struct NewConversationHandler;
+
+impl ConditionalEventHandler for NewConversationHandler {
+    fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
+        if let Some(k) = evt.get(0) {
+            if *k == KeyEvent::ctrl('t') {
+                return Some(Cmd::AcceptLine);
+            }
+        }
+        None
+    }
+}
 
 impl ConditionalEventHandler for ListViewHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
