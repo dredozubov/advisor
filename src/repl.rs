@@ -157,30 +157,21 @@ pub async fn handle_list_command(
     }
 
     let mut selection = 0;
-    let mut redraw = true;
-
-    // Enable raw mode
+    // Enable raw mode and clear screen
     crossterm::terminal::enable_raw_mode()?;
+    execute!(
+        stdout(),
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+        crossterm::cursor::MoveTo(0, 0),
+        Print("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n")
+    )?;
 
     loop {
-        if redraw {
-            // Clear screen and print header only once at start
-            if selection == 0 {
-                execute!(
-                    stdout(),
-                    Print("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n"),
-                )?;
-            }
+        // Always start from a known position
+        execute!(stdout(), crossterm::cursor::MoveTo(0, 2))?;
 
-            // Move cursor back up to redraw the list
-            if selection > 0 {
-                execute!(
-                    stdout(),
-                    crossterm::cursor::MoveUp((conversations.len() + 2) as u16),
-                )?;
-            }
-
-            for (i, conv) in conversations.iter().enumerate() {
+        // Draw all conversations
+        for (i, conv) in conversations.iter().enumerate() {
                 let summary = format!("{} ({})", conv.summary, conv.tickers.join(", "));
                 let date = conv
                     .updated_at
@@ -206,38 +197,39 @@ pub async fn handle_list_command(
                     width = max_summary_width
                 );
 
+                execute!(
+                    stdout(),
+                    crossterm::cursor::MoveToColumn(0),
+                    crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
+                )?;
 
                 if i == selection {
                     execute!(
                         stdout(),
                         SetForegroundColor(Color::Green),
-                        Print(format!("→ {}\n", line)),
-                        ResetColor
+                        Print(format!("→ {}", line)),
+                        ResetColor,
+                        Print("\n")
                     )?;
                 } else {
-                    execute!(
-                        stdout(),
-                        Print(format!("  {}\n", line))
-                    )?;
+                    execute!(stdout(), Print(format!("  {}\n", line)))?;
                 }
             }
-            redraw = false;
-        }
 
-        // Read a single keypress
-        match event::read()? {
+            stdout().flush()?;
+
+            // Read a single keypress
+            match event::read()? {
             event::Event::Key(key) => {
                 match key.code {
                     event::KeyCode::Up => {
                         if selection > 0 {
                             selection -= 1;
-                            redraw = true;
                         }
                     }
                     event::KeyCode::Down => {
                         if selection < conversations.len() - 1 {
                             selection += 1;
-                            redraw = true;
                         }
                     }
                     event::KeyCode::Enter => {
