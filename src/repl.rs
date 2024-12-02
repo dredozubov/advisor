@@ -152,7 +152,7 @@ pub async fn handle_list_command(
     conversation_manager: &mut ConversationManager,
     rl: &mut Editor<ReplHelper, FileHistory>,
 ) -> anyhow::Result<String> {
-    let conversations = conversation_manager.list_conversations().await?;
+    let mut conversations = conversation_manager.list_conversations().await?;
     if conversations.is_empty() {
         return Ok("No conversations found.".to_string());
     }
