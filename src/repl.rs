@@ -314,8 +314,8 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
-                    event::KeyCode::Char('[')
-                        if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                    event::KeyCode::Char('[') | event::KeyCode::Esc
+                        if key.modifiers.contains(event::KeyModifiers::CONTROL) || key.code == event::KeyCode::Esc =>
                     {
                         // Disable raw mode and clear screen before returning
                         crossterm::terminal::disable_raw_mode()?;

@@ -147,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if (line.chars().count() == 1 && line.as_bytes() == &[27]) || // ESC ASCII code
+                if (line.chars().count() == 1 && (line.as_bytes() == &[27] || line.as_bytes() == &[91])) || // ESC or Ctrl+[ ASCII code
                    (line.chars().count() == 1 && line.as_bytes() == &[12]) { // Ctrl+L ASCII code
                     let mut cm = conversation_manager.write().await;
                     match repl::handle_list_command(&mut cm, &mut rl).await {
