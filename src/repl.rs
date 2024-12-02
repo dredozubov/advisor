@@ -164,7 +164,7 @@ pub async fn handle_list_command(
         stdout(),
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
         crossterm::cursor::MoveTo(0, 0),
-        Print("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n")
+        Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL to delete, Esc to cancel):\n\n")
     )?;
 
     loop {
@@ -262,6 +262,29 @@ pub async fn handle_list_command(
                             crossterm::cursor::MoveTo(0, 0)
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
+                    }
+                    event::KeyCode::Delete => {
+                        let selected = &conversations[selection];
+                        conversation_manager.delete_conversation(&selected.id).await?;
+                        
+                        // Refresh conversations list
+                        let new_conversations = conversation_manager.list_conversations().await?;
+                        if new_conversations.is_empty() {
+                            // If no conversations left, exit menu
+                            crossterm::terminal::disable_raw_mode()?;
+                            execute!(
+                                stdout(),
+                                crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                                crossterm::cursor::MoveTo(0, 0)
+                            )?;
+                            return Ok("All conversations deleted".to_string());
+                        }
+                        
+                        // Update local list and adjust selection if needed
+                        conversations = new_conversations;
+                        if selection >= conversations.len() {
+                            selection = conversations.len() - 1;
+                        }
                     }
                     event::KeyCode::Esc => {
                         // Disable raw mode before returning
