@@ -172,7 +172,8 @@ pub async fn handle_list_command(
         return Ok("No conversations found.".to_string());
     }
 
-    let mut selection = 0;
+    // Start with the last conversation selected
+    let mut selection = conversations.len() - 1;
     // Enable raw mode and clear screen
     crossterm::terminal::enable_raw_mode()?;
     execute!(
