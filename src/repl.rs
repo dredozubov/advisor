@@ -253,7 +253,7 @@ pub async fn handle_list_command(
         // Read a single keypress
         match event::read()? {
             event::Event::Key(key) => {
-                if key.modifiers.contains(event::KeyModifiers::CONTROL) && key.code == event::KeyCode::Char('n') {
+                if key.modifiers.contains(event::KeyModifiers::CONTROL) && key.code == event::KeyCode::Char('t') {
                     // Create new conversation
                     let conv_id = conversation_manager.create_conversation("New conversation".to_string(), vec![]).await?;
                     conversation_manager.switch_conversation(&conv_id).await?;
