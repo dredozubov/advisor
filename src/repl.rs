@@ -267,6 +267,14 @@ pub async fn handle_list_command(
                         let selected = &conversations[selection];
                         conversation_manager.delete_conversation(&selected.id).await?;
                         
+                        // Clear screen before refreshing list
+                        execute!(
+                            stdout(),
+                            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                            crossterm::cursor::MoveTo(0, 0),
+                            Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL to delete, Esc to cancel):\n\n")
+                        )?;
+
                         // Refresh conversations list
                         let new_conversations = conversation_manager.list_conversations().await?;
                         if new_conversations.is_empty() {
