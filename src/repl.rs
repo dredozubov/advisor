@@ -237,6 +237,13 @@ pub async fn handle_list_command(
                         conversation_manager
                             .switch_conversation(&selected.id)
                             .await?;
+                        // Disable raw mode and clear screen before returning
+                        crossterm::terminal::disable_raw_mode()?;
+                        execute!(
+                            stdout(),
+                            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                            crossterm::cursor::MoveTo(0, 0)
+                        )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
                     event::KeyCode::Esc => {
