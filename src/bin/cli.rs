@@ -138,8 +138,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                // Check for Ctrl+N before trimming
-                if line.as_bytes() == &[20] { // Ctrl+T ASCII code
+                if line.as_bytes() == &[20] {
+                    // Ctrl+T ASCII code
                     let conv_id = conversation_manager
                         .write()
                         .await
