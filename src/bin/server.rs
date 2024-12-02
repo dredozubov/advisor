@@ -1,11 +1,8 @@
-use advisor::{
-    core::config::AdvisorConfig,
-    memory::ConversationManager,
-};
+use advisor::{core::config::AdvisorConfig, memory::ConversationManager};
 use axum::{
     extract::State,
     http::StatusCode,
-    routing::{get, post, delete},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -58,7 +55,9 @@ async fn create_conversation(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Json(CreateConversationResponse { id: conversation_id }))
+    Ok(Json(CreateConversationResponse {
+        id: conversation_id,
+    }))
 }
 
 // List conversations
@@ -93,7 +92,7 @@ async fn delete_conversation(
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
-    
+
     // First verify the conversation exists and belongs to the user
     if state
         .conversation_manager
@@ -117,7 +116,7 @@ async fn switch_conversation(
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
-    
+
     state
         .conversation_manager
         .write()
@@ -162,7 +161,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run server
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    println!("Server running on http://0.0.0.0:3000");
+    println!("Server running on http://0.0.0.0:8000");
     axum::serve(listener, app).await?;
 
     Ok(())
