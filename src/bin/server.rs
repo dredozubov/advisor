@@ -38,7 +38,7 @@ struct ConversationResponse {
 
 // Shared application state
 struct AppState {
-    conversation_manager: Arc<RwLock<ConversationManager>>,
+    pool: Arc<PgPool>,
 }
 
 // Health check endpoint
@@ -48,14 +48,12 @@ async fn health() -> &'static str {
 
 // Create new conversation
 async fn create_conversation(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>, 
     auth_user: AuthUser,
     Json(req): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResponse>, (StatusCode, String)> {
-    let conversation_id = state
-        .conversation_manager
-        .write()
-        .await
+    let mut conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let conversation_id = conversation_manager
         .create_conversation(req.summary, req.tickers)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -67,13 +65,11 @@ async fn create_conversation(
 
 // List conversations
 async fn list_conversations(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>, 
     auth_user: AuthUser,
 ) -> Result<Json<Vec<ConversationResponse>>, (StatusCode, String)> {
-    let conversations = state
-        .conversation_manager
-        .read()
-        .await
+    let conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let conversations = conversation_manager
         .list_conversations()
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -101,10 +97,8 @@ async fn delete_conversation(
     let conversation_id = path.0;
 
     // First verify the conversation exists and belongs to the user
-    if state
-        .conversation_manager
-        .read()
-        .await
+    let conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    if conversation_manager
         .get_conversation(&conversation_id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -125,10 +119,8 @@ async fn switch_conversation(
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
 
-    state
-        .conversation_manager
-        .write()
-        .await
+    let mut conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    conversation_manager
         .switch_conversation(&conversation_id)
         .await
         .map_err(|e| match e.to_string().as_str() {
@@ -152,11 +144,9 @@ async fn main() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await?;
 
-    // Initialize conversation manager with a default user ID
-    // The actual user ID will be taken from JWT for each request
-    let conversation_manager = ConversationManager::new(pool, Uuid::nil());
+    // Store the database pool in the app state
     let app_state = Arc::new(AppState {
-        conversation_manager: Arc::new(RwLock::new(conversation_manager)),
+        pool: Arc::new(pool),
     });
 
     // Build router with all routes
