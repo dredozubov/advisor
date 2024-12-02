@@ -164,11 +164,21 @@ pub async fn handle_list_command(
 
     loop {
         if redraw {
-            execute!(
-                stdout(),
-                Print("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n"),
-                crossterm::terminal::Clear(crossterm::terminal::ClearType::FromCursorDown)
-            )?;
+            // Clear screen and print header only once at start
+            if selection == 0 {
+                execute!(
+                    stdout(),
+                    Print("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n"),
+                )?;
+            }
+
+            // Move cursor back up to redraw the list
+            if selection > 0 {
+                execute!(
+                    stdout(),
+                    crossterm::cursor::MoveUp((conversations.len() + 2) as u16),
+                )?;
+            }
 
             for (i, conv) in conversations.iter().enumerate() {
                 let summary = format!("{} ({})", conv.summary, conv.tickers.join(", "));
@@ -196,11 +206,6 @@ pub async fn handle_list_command(
                     width = max_summary_width
                 );
 
-                execute!(
-                    stdout(),
-                    crossterm::cursor::MoveToColumn(0),
-                    crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
-                )?;
 
                 if i == selection {
                     execute!(
