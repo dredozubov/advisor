@@ -147,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line == "\u{1b}" || line == "\u{1d}" { // ESC or Ctrl+[ ASCII codes
+                if line == "\u{1a}" { // Ctrl+Z suspension signal
                     let mut cm = conversation_manager.write().await;
                     match repl::handle_list_command(&mut cm, &mut rl).await {
                         Ok(msg) => {
