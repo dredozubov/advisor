@@ -169,23 +169,26 @@ pub async fn handle_list_command(
             println!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n");
             
             for (i, conv) in conversations.iter().enumerate() {
+                let details = format!("{} - {} ({})",
+                    conv.id,
+                    conv.summary,
+                    conv.tickers.join(", ")
+                );
+                let truncated = if details.len() > 60 {
+                    format!("{}...", &details[..57])
+                } else {
+                    details
+                };
+                
                 if i == selection {
                     execute!(
                         stdout(),
                         SetForegroundColor(Color::Green),
-                        Print(format!("→ {} - {} ({})\n", 
-                            conv.id,
-                            conv.summary,
-                            conv.tickers.join(", ")
-                        )),
+                        Print(format!("→ {:<60}\n", truncated)),
                         ResetColor
                     )?;
                 } else {
-                    println!("  {} - {} ({})", 
-                        conv.id,
-                        conv.summary,
-                        conv.tickers.join(", ")
-                    );
+                    println!("  {:<60}", truncated);
                 }
             }
             redraw = false;
