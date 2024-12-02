@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     println!("Enter 'quit' to exit");
-    let mut conversation_manager = ConversationManager::new(pg_pool.clone());
+    let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {

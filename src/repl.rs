@@ -1,4 +1,5 @@
 use crate::edgar::tickers::fetch_tickers;
+use crate::memory::ConversationManager;
 use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
@@ -14,6 +15,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use uuid::Uuid;
 
 type TickerMap = Arc<HashMap<String, (crate::edgar::tickers::Ticker, String, String)>>;
 
@@ -144,8 +146,8 @@ pub async fn handle_delete_command(
         return Ok("Usage: /delete <conversation_id>".to_string());
     }
 
-    let id = Uuid::parse_str(parts[1])
-        .map_err(|_| anyhow::anyhow!("Invalid conversation ID format"))?;
+    let id =
+        Uuid::parse_str(parts[1]).map_err(|_| anyhow::anyhow!("Invalid conversation ID format"))?;
 
     conversation_manager.delete_conversation(&id).await?;
     Ok(format!("Conversation {} deleted", id))

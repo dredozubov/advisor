@@ -2,5 +2,4 @@
 data/
 target/
 .env
-.env*
 .secrets/
