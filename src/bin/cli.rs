@@ -10,7 +10,7 @@ use colored::*;
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIConfig};
 use rustyline::error::ReadlineError;
-use std::{error::Error, io::Write, sync::atomic::{AtomicBool, Ordering}};
+use std::{error::Error, io::{Write, stdout}, sync::atomic::{AtomicBool, Ordering}};
 use crossterm::execute;
 use std::{fs, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
