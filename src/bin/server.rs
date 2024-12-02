@@ -105,7 +105,15 @@ async fn delete_conversation(
         return Err((StatusCode::NOT_FOUND, "Conversation not found".to_string()));
     }
 
-    // TODO: Implement conversation deletion in ConversationManager
+    let mut conversation_manager = ConversationManager::new(state.pool.clone(), auth_user.user_id);
+    conversation_manager
+        .delete_conversation(&conversation_id)
+        .await
+        .map_err(|e| match e.to_string().as_str() {
+            "Conversation not found" => (StatusCode::NOT_FOUND, e.to_string()),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        })?;
+
     Ok(StatusCode::NO_CONTENT)
 }
 

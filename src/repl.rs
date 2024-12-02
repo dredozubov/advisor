@@ -135,6 +135,22 @@ impl Hinter for ReplHelper {
 
 impl Helper for ReplHelper {}
 
+pub async fn handle_delete_command(
+    line: &str,
+    conversation_manager: &mut ConversationManager,
+) -> anyhow::Result<String> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() != 2 {
+        return Ok("Usage: /delete <conversation_id>".to_string());
+    }
+
+    let id = Uuid::parse_str(parts[1])
+        .map_err(|_| anyhow::anyhow!("Invalid conversation ID format"))?;
+
+    conversation_manager.delete_conversation(&id).await?;
+    Ok(format!("Conversation {} deleted", id))
+}
+
 pub async fn create_editor() -> Result<EditorWithHistory> {
     log::debug!("Creating rustyline editor configuration");
     let rustyline_config = RustylineConfig::builder()

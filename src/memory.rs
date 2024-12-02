@@ -251,6 +251,29 @@ impl ConversationManager {
         }
     }
 
+    pub async fn delete_conversation(&mut self, id: &Uuid) -> Result<()> {
+        // Verify conversation exists and belongs to user
+        if self.get_conversation(id).await?.is_none() {
+            return Err(anyhow::anyhow!("Conversation not found"));
+        }
+
+        // Delete from database
+        sqlx::query!(
+            "DELETE FROM conversations WHERE id = $1 AND user_id = $2",
+            id,
+            self.user_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Clear current conversation if it was the deleted one
+        if self.current_conversation == Some(*id) {
+            self.current_conversation = None;
+        }
+
+        Ok(())
+    }
+
     pub async fn get_current_conversation_details(&self) -> Result<Option<Conversation>> {
         if let Some(id) = &self.current_conversation {
             self.get_conversation(id).await
