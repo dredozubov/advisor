@@ -420,9 +420,29 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
     log::debug!("Setting helper for editor");
     rl.set_helper(Some(helper));
 
+    // Bind Ctrl+[ to list view handler
+    rl.bind_sequence(
+        KeyEvent::ctrl('['),
+        EventHandler::Conditional(Box::new(ListViewHandler)),
+    );
+
     // Wrap the editor in a custom type that adds history entries
     log::debug!("Creating EditorWithHistory wrapper");
     Ok(EditorWithHistory::new(rl))
+}
+
+#[derive(Clone)]
+struct ListViewHandler;
+
+impl ConditionalEventHandler for ListViewHandler {
+    fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
+        if let Some(k) = evt.get(0) {
+            if *k == KeyEvent::ctrl('[') {
+                return Some(Cmd::Suspend);
+            }
+        }
+        None
+    }
 }
 
 pub struct EditorWithHistory {
