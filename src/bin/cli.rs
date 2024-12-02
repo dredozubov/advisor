@@ -11,6 +11,7 @@ use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIConfig};
 use rustyline::error::ReadlineError;
 use std::{error::Error, io::Write, sync::atomic::{AtomicBool, Ordering}};
+use crossterm::execute;
 use std::{fs, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -140,6 +141,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Ok(line) => {
                 let input = line.trim();
                 if input == "quit" {
+                    // Ensure terminal is back to normal mode before quitting
+                    if crossterm::terminal::is_raw_mode_enabled()? {
+                        crossterm::terminal::disable_raw_mode()?;
+                    }
+                    execute!(
+                        stdout(),
+                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                        crossterm::cursor::Show,
+                        crossterm::terminal::LeaveAlternateScreen
+                    )?;
                     break;
                 }
 
