@@ -1,5 +1,6 @@
 use crate::edgar::tickers::fetch_tickers;
 use crate::memory::ConversationManager;
+use crossterm::event;
 use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
@@ -136,6 +137,74 @@ impl Hinter for ReplHelper {
 }
 
 impl Helper for ReplHelper {}
+
+pub async fn handle_list_command(
+    conversation_manager: &mut ConversationManager,
+    rl: &mut Editor<ReplHelper, FileHistory>,
+) -> anyhow::Result<String> {
+    let conversations = conversation_manager.list_conversations().await?;
+    if conversations.is_empty() {
+        return Ok("No conversations found.".to_string());
+    }
+
+    let mut selection = 0;
+    let mut redraw = true;
+
+    loop {
+        if redraw {
+            // Clear screen and move cursor to top
+            print!("\x1B[2J\x1B[1;1H");
+            println!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n");
+            
+            for (i, conv) in conversations.iter().enumerate() {
+                if i == selection {
+                    println!("→ {} - {} ({})", 
+                        conv.id,
+                        conv.summary,
+                        conv.tickers.join(", ")
+                    );
+                } else {
+                    println!("  {} - {} ({})", 
+                        conv.id,
+                        conv.summary,
+                        conv.tickers.join(", ")
+                    );
+                }
+            }
+            redraw = false;
+        }
+
+        // Read a single keypress
+        match event::read()? {
+            event::Event::Key(key) => {
+                match key.code {
+                    event::KeyCode::Up => {
+                        if selection > 0 {
+                            selection -= 1;
+                            redraw = true;
+                        }
+                    }
+                    event::KeyCode::Down => {
+                        if selection < conversations.len() - 1 {
+                            selection += 1;
+                            redraw = true;
+                        }
+                    }
+                    event::KeyCode::Enter => {
+                        let selected = &conversations[selection];
+                        conversation_manager.switch_conversation(&selected.id).await?;
+                        return Ok(format!("Switched to conversation: {}", selected.id));
+                    }
+                    event::KeyCode::Esc => {
+                        return Ok("Cancelled selection".to_string());
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+}
 
 pub async fn handle_delete_command(
     line: &str,
