@@ -149,7 +149,7 @@ impl Helper for ReplHelper {}
 
 pub async fn handle_list_command(
     conversation_manager: &mut ConversationManager,
-    _rl: &mut Editor<ReplHelper, FileHistory>,
+    rl: &mut Editor<ReplHelper, FileHistory>,
 ) -> anyhow::Result<String> {
     let conversations = conversation_manager.list_conversations().await?;
     if conversations.is_empty() {
@@ -172,66 +172,70 @@ pub async fn handle_list_command(
 
         // Draw all conversations
         for (i, conv) in conversations.iter().enumerate() {
-                let helper = self.inner.helper().as_ref().unwrap();
-                let ticker_map = &helper.ticker_map;
-                
-                // Get company names for all tickers
-                let ticker_info: Vec<String> = conv.tickers.iter().map(|ticker| {
+            let helper = rl.helper().as_ref().unwrap();
+            let ticker_map = &helper.ticker_map;
+
+            // Get company names for all tickers
+            let ticker_info: Vec<String> = conv
+                .tickers
+                .iter()
+                .map(|ticker| {
                     if let Some((_, company_name, _)) = ticker_map.get(ticker) {
                         format!("{}: {}", ticker, company_name)
                     } else {
                         ticker.clone()
                     }
-                }).collect();
+                })
+                .collect();
 
-                let summary = format!("{} ({})", conv.summary, ticker_info.join(", "));
-                let date = conv
-                    .updated_at
-                    .format(
-                        &time::format_description::parse("[year]-[month]-[day] [hour]:[minute]")
-                            .unwrap(),
-                    )
-                    .unwrap();
+            let summary = format!("{} ({})", conv.summary, ticker_info.join(", "));
+            let date = conv
+                .updated_at
+                .format(
+                    &time::format_description::parse("[year]-[month]-[day] [hour]:[minute]")
+                        .unwrap(),
+                )
+                .unwrap();
 
-                // Truncate summary if too long, leaving space for date
-                let max_summary_width = 50;
-                let truncated_summary = if summary.len() > max_summary_width {
-                    format!("{}...", &summary[..max_summary_width - 3])
-                } else {
-                    summary
-                };
+            // Truncate summary if too long, leaving space for date
+            let max_summary_width = 50;
+            let truncated_summary = if summary.len() > max_summary_width {
+                format!("{}...", &summary[..max_summary_width - 3])
+            } else {
+                summary
+            };
 
-                // Format with summary left-aligned and date right-aligned
-                let line = format!(
-                    "{:<width$} {: >19}",
-                    truncated_summary,
-                    date,
-                    width = max_summary_width
-                );
+            // Format with summary left-aligned and date right-aligned
+            let line = format!(
+                "{:<width$} {: >19}",
+                truncated_summary,
+                date,
+                width = max_summary_width
+            );
 
+            execute!(
+                stdout(),
+                crossterm::cursor::MoveToColumn(0),
+                crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
+            )?;
+
+            if i == selection {
                 execute!(
                     stdout(),
-                    crossterm::cursor::MoveToColumn(0),
-                    crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
+                    SetForegroundColor(Color::Green),
+                    Print(format!("→ {}", line)),
+                    ResetColor,
+                    Print("\n")
                 )?;
-
-                if i == selection {
-                    execute!(
-                        stdout(),
-                        SetForegroundColor(Color::Green),
-                        Print(format!("→ {}", line)),
-                        ResetColor,
-                        Print("\n")
-                    )?;
-                } else {
-                    execute!(stdout(), Print(format!("  {}\n", line)))?;
-                }
+            } else {
+                execute!(stdout(), Print(format!("  {}\n", line)))?;
             }
+        }
 
-            stdout().flush()?;
+        stdout().flush()?;
 
-            // Read a single keypress
-            match event::read()? {
+        // Read a single keypress
+        match event::read()? {
             event::Event::Key(key) => {
                 match key.code {
                     event::KeyCode::Up => {
