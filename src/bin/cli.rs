@@ -152,9 +152,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     match repl::handle_list_command(&mut cm, &mut rl).await {
                         Ok(msg) => {
                             if msg == "Toggle list view" {
+                                // Just continue the loop without printing anything
                                 continue;
                             }
-                            println!("{}", msg)
+                            if !msg.is_empty() {
+                                println!("{}", msg);
+                            }
                         },
                         Err(e) => eprintln!("Error listing conversations: {}", e),
                     }
