@@ -152,6 +152,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         .await?;
                     println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
                     continue;
+                } else if line.as_bytes() == &[12] { // Ctrl+L ASCII code
+                    let mut cm = conversation_manager.write().await;
+                    match repl::handle_list_command(&mut cm, &mut rl).await {
+                        Ok(msg) => println!("{}", msg),
+                        Err(e) => eprintln!("Error listing conversations: {}", e),
+                    }
+                    continue;
                 }
 
                 let input = line.trim();
