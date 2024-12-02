@@ -5,7 +5,7 @@ use crossterm::{
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
 };
-use std::io::stdout;
+use std::io::{stdout, Write};
 use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
@@ -166,7 +166,8 @@ pub async fn handle_list_command(
                 crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                 crossterm::cursor::MoveTo(0, 0)
             )?;
-            println!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n");
+            print!("Select a conversation (↑/↓ to navigate, Enter to select, Esc to cancel):\n\n");
+            stdout().flush()?;
             
             for (i, conv) in conversations.iter().enumerate() {
                 let summary = format!("{} ({})",
@@ -194,12 +195,14 @@ pub async fn handle_list_command(
                     execute!(
                         stdout(),
                         SetForegroundColor(Color::Green),
-                        Print(format!("→ {}\n", line)),
+                        Print(format!("→ {}", line)),
                         ResetColor
                     )?;
                 } else {
-                    println!("  {}", line);
+                    print!("  {}", line);
                 }
+                print!("\n");
+                stdout().flush()?;
             }
             redraw = false;
         }
