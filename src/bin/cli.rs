@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     
     println!(
-        "Current conversation: {}",
+        "Loaded conversation: {}",
         current_conv.summary.blue().bold()
     );
 
