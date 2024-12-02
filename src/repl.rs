@@ -269,6 +269,16 @@ pub async fn handle_list_command(
                 }
 
                 match key.code {
+                    event::KeyCode::Up | event::KeyCode::Char('p') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        if selection > 0 {
+                            selection -= 1;
+                        }
+                    }
+                    event::KeyCode::Down | event::KeyCode::Char('n') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        if selection < conversations.len() - 1 {
+                            selection += 1;
+                        }
+                    }
                     event::KeyCode::Up => {
                         if selection > 0 {
                             selection -= 1;
