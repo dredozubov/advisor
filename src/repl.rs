@@ -421,11 +421,10 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
     log::debug!("Setting helper for editor");
     rl.set_helper(Some(helper));
 
-    // Bind Ctrl+[ to list view handler
-    rl.bind_sequence(
-        KeyEvent::ctrl('['),
-        EventHandler::Conditional(Box::new(ListViewHandler)),
-    );
+    // Bind Ctrl+[ and ESC to list view handler
+    let list_handler = Box::new(ListViewHandler);
+    rl.bind_sequence(KeyEvent::ctrl('['), EventHandler::Conditional(list_handler.clone()));
+    rl.bind_sequence(KeyEvent::Esc, EventHandler::Conditional(list_handler));
 
     // Wrap the editor in a custom type that adds history entries
     log::debug!("Creating EditorWithHistory wrapper");
