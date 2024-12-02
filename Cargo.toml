@@ -64,7 +64,8 @@ dotenv = "0.15.0"
 time = { version = "0.3", features = ["serde"] }
 indicatif = "0.17.9"
 axum = { version = "0.7.9", features = ["macros"] }
-jsonwebtoken = "9.3.0"
+jsonwebtoken = { version = "9.3.0", features = ["use_pem"] }
+tower-http = { version = "0.5", features = ["auth"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
 
 [dev-dependencies]
