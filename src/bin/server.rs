@@ -12,7 +12,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPool;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 // Request/Response types
@@ -47,8 +46,9 @@ async fn health() -> &'static str {
 }
 
 // Create new conversation
+#[axum::debug_handler]
 async fn create_conversation(
-    State(state): State<Arc<AppState>>, 
+    State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
     Json(req): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResponse>, (StatusCode, String)> {
@@ -64,8 +64,9 @@ async fn create_conversation(
 }
 
 // List conversations
+#[axum::debug_handler]
 async fn list_conversations(
-    State(state): State<Arc<AppState>>, 
+    State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
 ) -> Result<Json<Vec<ConversationResponse>>, (StatusCode, String)> {
     let conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
@@ -89,6 +90,7 @@ async fn list_conversations(
 }
 
 // Delete conversation
+#[axum::debug_handler]
 async fn delete_conversation(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
@@ -112,6 +114,7 @@ async fn delete_conversation(
 }
 
 // Switch to conversation
+#[axum::debug_handler]
 async fn switch_conversation(
     State(state): State<Arc<AppState>>,
     auth_user: AuthUser,
