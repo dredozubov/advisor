@@ -39,18 +39,10 @@ async fn handle_command(
             chain_manager.get_or_create_chain(&conv_id, llm).await?;
         }
         "/list" => {
-            let conversations = conversation_manager
-                .read()
-                .await
-                .list_conversations()
-                .await?;
-            for conv in conversations {
-                println!(
-                    "{}: {} [{}]\n",
-                    conv.id,
-                    conv.summary.blue().bold(),
-                    conv.tickers.join(", ").yellow()
-                );
+            let mut cm = conversation_manager.write().await;
+            match repl::handle_list_command(&mut *cm, rl).await {
+                Ok(msg) => println!("{}", msg),
+                Err(e) => eprintln!("Error listing conversations: {}", e),
             }
         }
         "/switch" => {

@@ -1,6 +1,11 @@
 use crate::edgar::tickers::fetch_tickers;
 use crate::memory::ConversationManager;
-use crossterm::event;
+use crossterm::{
+    event,
+    execute,
+    style::{Color, Print, ResetColor, SetForegroundColor},
+};
+use std::io::stdout;
 use anyhow::Result as AnyhowResult;
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
@@ -158,11 +163,16 @@ pub async fn handle_list_command(
             
             for (i, conv) in conversations.iter().enumerate() {
                 if i == selection {
-                    println!("→ {} - {} ({})", 
-                        conv.id,
-                        conv.summary,
-                        conv.tickers.join(", ")
-                    );
+                    execute!(
+                        stdout(),
+                        SetForegroundColor(Color::Green),
+                        Print(format!("→ {} - {} ({})\n", 
+                            conv.id,
+                            conv.summary,
+                            conv.tickers.join(", ")
+                        )),
+                        ResetColor
+                    )?;
                 } else {
                     println!("  {} - {} ({})", 
                         conv.id,
