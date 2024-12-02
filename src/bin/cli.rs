@@ -147,7 +147,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line == "\u{1b}" || line == "\u{1d}" { // ESC or Ctrl+[ ASCII codes
+                if line.trim() == "\u{14}" || line.as_bytes() == &[20] { // Ctrl+T (both Unicode and ASCII)
+                    let conv_id = conversation_manager
+                        .write()
+                        .await
+                        .create_conversation("New conversation".to_string(), vec![])
+                        .await?;
+                    conversation_manager
+                        .write()
+                        .await
+                        .switch_conversation(&conv_id)
+                        .await?;
+                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+                    continue;
+                } else if line == "\u{1b}" || line == "\u{1d}" { // ESC or Ctrl+[ ASCII codes
                     let mut cm = conversation_manager.write().await;
                     match repl::handle_list_command(&mut cm, &mut rl).await {
                         Ok(msg) => {
@@ -175,19 +188,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         },
                         Err(e) => eprintln!("Error listing conversations: {}", e),
                     }
-                    continue;
-                } else if line.trim() == "\u{14}" || line.as_bytes() == &[20] { // Ctrl+T (both Unicode and ASCII)
-                    let conv_id = conversation_manager
-                        .write()
-                        .await
-                        .create_conversation("New conversation".to_string(), vec![])
-                        .await?;
-                    conversation_manager
-                        .write()
-                        .await
-                        .switch_conversation(&conv_id)
-                        .await?;
-                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
                     continue;
                 } else if line.as_bytes() == &[12] { // Ctrl+L ASCII code
                     let mut cm = conversation_manager.write().await;
