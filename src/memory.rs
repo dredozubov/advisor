@@ -152,7 +152,8 @@ impl BaseMemory for DatabaseMemory {
         tokio::task::block_in_place(|| {
             let rt = tokio::runtime::Handle::current();
             rt.block_on(async {
-                let _ = crate::db::clear_conversation_messages(&self.pool, &self.conversation_id).await;
+                let _ =
+                    crate::db::clear_conversation_messages(&self.pool, &self.conversation_id).await;
             });
         });
     }
@@ -166,24 +167,20 @@ pub struct ConversationManager {
 }
 
 impl ConversationManager {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, user_id: Uuid) -> Self {
         Self {
             pool,
             current_conversation: None,
-            user_id: Uuid::nil(), // Default to CLI user (all zeros)
+            user_id, // Default to CLI user (all zeros)
         }
     }
 
-    pub fn new_web(pool: PgPool, user_id: Uuid) -> Self {
-        Self {
-            pool,
-            current_conversation: None,
-            user_id,
-        }
+    pub fn new_cli(pool: PgPool) -> Self {
+        Self::new(pool, Uuid::nil())
     }
 
     pub async fn get_most_recent_conversation(&self) -> Result<Option<Conversation>> {
-        crate::db::get_most_recent_conversation(&self.pool).await
+        crate::db::get_most_recent_conversation(&self.pool, &self.user_id).await
     }
 
     pub async fn create_conversation(
@@ -191,7 +188,9 @@ impl ConversationManager {
         summary: String,
         tickers: Vec<String>,
     ) -> Result<Uuid> {
-        let id = crate::db::create_conversation(&self.pool, &self.user_id, summary, tickers.clone()).await?;
+        let id =
+            crate::db::create_conversation(&self.pool, &self.user_id, summary, tickers.clone())
+                .await?;
 
         // Add initial system message
         let system_prompt = format!(
@@ -239,7 +238,7 @@ impl ConversationManager {
     }
 
     pub async fn list_conversations(&self) -> Result<Vec<Conversation>> {
-        crate::db::list_conversations(&self.pool).await
+        crate::db::list_conversations(&self.pool, &self.user_id).await
     }
 
     pub async fn switch_conversation(&mut self, id: &Uuid) -> Result<()> {

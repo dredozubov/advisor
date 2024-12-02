@@ -1,8 +1,4 @@
-use advisor::{
-    auth::AuthUser,
-    core::config::AdvisorConfig,
-    memory::ConversationManager,
-};
+use advisor::{auth::AuthUser, core::config::AdvisorConfig, memory::ConversationManager};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -11,7 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPool;
-use std::sync::Arc;
 use uuid::Uuid;
 
 // Request/Response types
@@ -36,8 +31,9 @@ struct ConversationResponse {
 }
 
 // Shared application state
+#[derive(Debug, Clone)]
 struct AppState {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 // Health check endpoint
@@ -48,11 +44,11 @@ async fn health() -> &'static str {
 // Create new conversation
 #[axum::debug_handler]
 async fn create_conversation(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     auth_user: AuthUser,
     Json(req): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResponse>, (StatusCode, String)> {
-    let mut conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let mut conversation_manager = ConversationManager::new(state.pool.clone(), auth_user.user_id);
     let conversation_id = conversation_manager
         .create_conversation(req.summary, req.tickers)
         .await
@@ -66,10 +62,10 @@ async fn create_conversation(
 // List conversations
 #[axum::debug_handler]
 async fn list_conversations(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> Result<Json<Vec<ConversationResponse>>, (StatusCode, String)> {
-    let conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let conversation_manager = ConversationManager::new(state.pool.clone(), auth_user.user_id);
     let conversations = conversation_manager
         .list_conversations()
         .await
@@ -92,14 +88,14 @@ async fn list_conversations(
 // Delete conversation
 #[axum::debug_handler]
 async fn delete_conversation(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     auth_user: AuthUser,
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
 
     // First verify the conversation exists and belongs to the user
-    let conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let conversation_manager = ConversationManager::new(state.pool.clone(), auth_user.user_id);
     if conversation_manager
         .get_conversation(&conversation_id)
         .await
@@ -116,13 +112,13 @@ async fn delete_conversation(
 // Switch to conversation
 #[axum::debug_handler]
 async fn switch_conversation(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     auth_user: AuthUser,
     path: axum::extract::Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let conversation_id = path.0;
 
-    let mut conversation_manager = ConversationManager::new(state.pool.as_ref().clone(), auth_user.user_id);
+    let mut conversation_manager = ConversationManager::new(state.pool.clone(), auth_user.user_id);
     conversation_manager
         .switch_conversation(&conversation_id)
         .await
@@ -148,9 +144,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Store the database pool in the app state
-    let app_state = Arc::new(AppState {
-        pool: Arc::new(pool),
-    });
+    let app_state = AppState { pool };
 
     // Build router with all routes
     let app = Router::new()
@@ -162,8 +156,9 @@ async fn main() -> anyhow::Result<()> {
         .with_state(app_state);
 
     // Run server
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    println!("Server running on http://0.0.0.0:8000");
+    let addr = "0.0.0.0:8000";
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    println!("Server running on http://{}", addr);
     axum::serve(listener, app).await?;
 
     Ok(())
