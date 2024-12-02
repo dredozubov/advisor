@@ -173,7 +173,7 @@ pub async fn handle_list_command(
                     conv.summary,
                     conv.tickers.join(", ")
                 );
-                let date = conv.updated_at.format("%Y-%m-%d %H:%M");
+                let date = conv.updated_at.format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]").unwrap()).unwrap();
                 
                 // Truncate summary if too long, leaving space for date
                 let max_summary_width = 50;
@@ -237,8 +237,6 @@ pub async fn handle_list_command(
         }
     }
 
-    // Make sure to disable raw mode even if we break the loop
-    crossterm::terminal::disable_raw_mode()?;
 }
 
 pub async fn handle_delete_command(

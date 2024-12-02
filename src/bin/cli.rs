@@ -10,7 +10,7 @@ use colored::*;
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIConfig};
 use rustyline::error::ReadlineError;
-use std::{error::Error, io::Write};
+use std::{error::Error, io::Write, sync::atomic::{AtomicBool, Ordering}};
 use std::{fs, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -69,6 +69,14 @@ fn get_prompt(summary: &str) -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Set up signal handlers for cleanup
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    
+    ctrlc::set_handler(move || {
+        println!("\nReceived Ctrl+C!");
+        r.store(false, Ordering::SeqCst);
+    })?;
     dotenv::dotenv().ok();
     env_logger::init();
     log::debug!("Logger initialized");
@@ -115,7 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Clone it for eval
     let conversation_manager_for_eval = Arc::clone(&conversation_manager);
 
-    loop {
+    while running.load(Ordering::SeqCst) {
         let current_conv = conversation_manager
             .read()
             .await
@@ -192,7 +200,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    println!("Goodbye!");
+    // Cleanup
+    println!("\nGoodbye!");
 
     // Save history
     log::debug!("Saving REPL history");
@@ -200,7 +209,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("REPL history saved successfully");
 
     // Ensure terminal is back to normal mode
-    crossterm::terminal::disable_raw_mode()?;
+    if crossterm::terminal::is_raw_mode_enabled()? {
+        crossterm::terminal::disable_raw_mode()?;
+    }
+    
     execute!(
         stdout(),
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
