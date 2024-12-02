@@ -304,7 +304,7 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
-                    event::KeyCode::Char(';') if key.modifiers.contains(event::KeyModifiers::CONTROL) | key.modifiers.contains(event::KeyModifiers::ALT) => {
+                    event::KeyCode::Char(';') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                         // Disable raw mode and clear screen before returning
                         crossterm::terminal::disable_raw_mode()?;
                         execute!(
