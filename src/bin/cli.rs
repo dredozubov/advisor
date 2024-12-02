@@ -199,5 +199,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     repl::save_history(&mut rl)?;
     log::debug!("REPL history saved successfully");
 
+    // Ensure terminal is back to normal mode
+    crossterm::terminal::disable_raw_mode()?;
+    execute!(
+        stdout(),
+        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+        crossterm::cursor::Show,
+        crossterm::terminal::LeaveAlternateScreen
+    )?;
+
     Ok(())
 }
