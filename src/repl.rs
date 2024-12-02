@@ -304,6 +304,16 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
+                    event::KeyCode::Char(';') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Disable raw mode and clear screen before returning
+                        crossterm::terminal::disable_raw_mode()?;
+                        execute!(
+                            stdout(),
+                            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                            crossterm::cursor::MoveTo(0, 0)
+                        )?;
+                        return Ok("Toggle list view".to_string());
+                    }
                     event::KeyCode::Delete | event::KeyCode::Backspace | event::KeyCode::Char('d') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                         let selected = &conversations[selection];
                         conversation_manager.delete_conversation(&selected.id).await?;

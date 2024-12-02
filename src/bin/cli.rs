@@ -138,7 +138,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line.as_bytes() == &[20] {
+                if line.as_bytes() == &[59] && line.chars().count() == 1 { // Ctrl+; ASCII code
+                    let mut cm = conversation_manager.write().await;
+                    match repl::handle_list_command(&mut cm, &mut rl).await {
+                        Ok(msg) => {
+                            if msg == "Toggle list view" {
+                                continue;
+                            }
+                            println!("{}", msg)
+                        },
+                        Err(e) => eprintln!("Error listing conversations: {}", e),
+                    }
+                    continue;
+                } else if line.as_bytes() == &[20] {
                     // Ctrl+T ASCII code
                     let conv_id = conversation_manager
                         .write()
