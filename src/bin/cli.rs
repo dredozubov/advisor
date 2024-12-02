@@ -108,15 +108,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
-    if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
+    // Always ensure we have a current conversation
+    let current_conv = if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager
             .switch_conversation(&recent_conv.id)
             .await?;
-        println!(
-            "Loaded most recent conversation: {}",
-            recent_conv.summary.blue().bold()
-        );
-    }
+        recent_conv
+    } else {
+        // Create initial conversation if none exists
+        let conv_id = conversation_manager
+            .create_conversation("New conversation".to_string(), vec![])
+            .await?;
+        conversation_manager.get_conversation(&conv_id).await?.unwrap()
+    };
+    
+    println!(
+        "Current conversation: {}",
+        current_conv.summary.blue().bold()
+    );
 
     // Create thread-safe conversation manager
     let conversation_manager = Arc::new(RwLock::new(conversation_manager));
