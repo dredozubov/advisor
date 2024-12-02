@@ -180,7 +180,7 @@ pub async fn handle_list_command(
         stdout(),
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
         crossterm::cursor::MoveTo(0, 0),
-        Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL to delete, Esc to cancel):\n\n")
+        Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc to cancel):\n\n")
     )?;
 
     loop {
@@ -304,7 +304,7 @@ pub async fn handle_list_command(
                         )?;
                         return Ok(format!("Switched to conversation: {}", selected.id));
                     }
-                    event::KeyCode::Delete | event::KeyCode::Backspace => {
+                    event::KeyCode::Delete | event::KeyCode::Backspace | event::KeyCode::Char('d') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                         let selected = &conversations[selection];
                         conversation_manager.delete_conversation(&selected.id).await?;
                         
@@ -313,7 +313,7 @@ pub async fn handle_list_command(
                             stdout(),
                             crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                             crossterm::cursor::MoveTo(0, 0),
-                            Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL to delete, Esc to cancel):\n\n")
+                            Print("Select a conversation (↑/↓ to navigate, Enter to select, DEL/Ctrl+D to delete, Esc to cancel):\n\n")
                         )?;
 
                         // Refresh conversations list
