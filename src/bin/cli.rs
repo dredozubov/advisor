@@ -7,11 +7,15 @@ use advisor::{
     utils::dirs,
 };
 use colored::*;
+use crossterm::execute;
 use futures::StreamExt;
 use langchain_rust::llm::openai::{OpenAI, OpenAIConfig};
 use rustyline::error::ReadlineError;
-use std::{error::Error, io::{Write, stdout}, sync::atomic::{AtomicBool, Ordering}};
-use crossterm::execute;
+use std::{
+    error::Error,
+    io::{stdout, Write},
+    sync::atomic::{AtomicBool, Ordering},
+};
 use std::{fs, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -41,7 +45,7 @@ async fn handle_command(
         }
         "/list" => {
             let mut cm = conversation_manager.write().await;
-            match repl::handle_list_command(&mut *cm, rl).await {
+            match repl::handle_list_command(&mut cm, rl).await {
                 Ok(msg) => println!("{}", msg),
                 Err(e) => eprintln!("Error listing conversations: {}", e),
             }
@@ -73,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up signal handlers for cleanup
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
-    
+
     ctrlc::set_handler(move || {
         println!("\nReceived Ctrl+C!");
         r.store(false, Ordering::SeqCst);
@@ -223,7 +227,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if crossterm::terminal::is_raw_mode_enabled()? {
         crossterm::terminal::disable_raw_mode()?;
     }
-    
+
     execute!(
         stdout(),
         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
