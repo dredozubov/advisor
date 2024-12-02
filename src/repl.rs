@@ -111,7 +111,14 @@ impl Highlighter for ReplHelper {
 impl Validator for ReplHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         let input = ctx.input();
+        
+        // Skip validation for commands
+        if input.starts_with('/') {
+            return Ok(ValidationResult::Valid(None));
+        }
+
         let words: Vec<&str> = input.split_whitespace().collect();
+        let mut found_valid_ticker = false;
 
         for word in words {
             if word.starts_with('@') {
@@ -129,7 +136,15 @@ impl Validator for ReplHelper {
                         ticker
                     ))));
                 }
+                found_valid_ticker = true;
             }
+        }
+
+        // For non-command input, require at least one valid ticker
+        if !found_valid_ticker {
+            return Ok(ValidationResult::Invalid(Some(
+                "Please include at least one ticker symbol (e.g. @AAPL)".to_string()
+            )));
         }
 
         Ok(ValidationResult::Valid(None))

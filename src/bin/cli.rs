@@ -29,19 +29,14 @@ async fn handle_command(
 ) -> Result<(), Box<dyn Error>> {
     match cmd {
         "/new" => {
-            let tickers = rl.readline("Enter tickers (comma-separated): ")?;
-            let tickers: Vec<String> = tickers
-                .split(',')
-                .map(|s| s.trim().to_uppercase())
-                .collect();
-            let summary = format!("New conversation about: {}", tickers.join(", "));
             let conv_id = conversation_manager
                 .write()
                 .await
-                .create_conversation(summary, tickers)
+                .create_conversation("New conversation".to_string(), vec![])
                 .await?;
 
             chain_manager.get_or_create_chain(&conv_id, llm).await?;
+            println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
         }
         "/list" => {
             let mut cm = conversation_manager.write().await;
