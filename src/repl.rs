@@ -172,7 +172,19 @@ pub async fn handle_list_command(
 
         // Draw all conversations
         for (i, conv) in conversations.iter().enumerate() {
-                let summary = format!("{} ({})", conv.summary, conv.tickers.join(", "));
+                let helper = self.inner.helper().as_ref().unwrap();
+                let ticker_map = &helper.ticker_map;
+                
+                // Get company names for all tickers
+                let ticker_info: Vec<String> = conv.tickers.iter().map(|ticker| {
+                    if let Some((_, company_name, _)) = ticker_map.get(ticker) {
+                        format!("{}: {}", ticker, company_name)
+                    } else {
+                        ticker.clone()
+                    }
+                }).collect();
+
+                let summary = format!("{} ({})", conv.summary, ticker_info.join(", "));
                 let date = conv
                     .updated_at
                     .format(
