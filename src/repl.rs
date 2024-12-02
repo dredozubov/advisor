@@ -13,7 +13,8 @@ use rustyline::hint::Hinter;
 use rustyline::history::FileHistory;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{
-    CompletionType, Config as RustylineConfig, Context, EditMode, Editor, Helper, Result,
+    Cmd, CompletionType, ConditionalEventHandler, Config as RustylineConfig, Context, EditMode,
+    Editor, Event, EventContext, EventHandler, Helper, KeyEvent, RepeatCount, Result,
 };
 use std::borrow::Cow;
 use std::collections::HashMap;
