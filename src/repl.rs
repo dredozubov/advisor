@@ -437,11 +437,8 @@ struct ListViewHandler;
 impl ConditionalEventHandler for ListViewHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
         if let Some(k) = evt.get(0) {
-            match k {
-                k if *k == KeyEvent::ctrl('[') || *k == KeyEvent::from('\x1b') => {
-                    return Some(Cmd::Suspend);
-                }
-                _ => {}
+            if *k == KeyEvent::ctrl('[') || *k == KeyEvent::from('\x1b') {
+                return Some(Cmd::AcceptLine);
             }
         }
         None
