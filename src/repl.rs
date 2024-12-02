@@ -443,8 +443,8 @@ struct NewConversationHandler;
 
 impl ConditionalEventHandler for NewConversationHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
-        if let Some(k) = evt.get(0) {
-            if *k == KeyEvent::ctrl('t') {
+        if let Event::KeySeq(ref keys) = evt {
+            if keys.len() == 1 && keys[0] == KeyEvent::ctrl('t') {
                 return Some(Cmd::AcceptLine);
             }
         }

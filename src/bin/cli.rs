@@ -176,7 +176,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Err(e) => eprintln!("Error listing conversations: {}", e),
                     }
                     continue;
-                } else if line.trim() == "\u{14}" { // Ctrl+T
+                } else if line.trim() == "\u{14}" || line.as_bytes() == &[20] { // Ctrl+T (both Unicode and ASCII)
                     let conv_id = conversation_manager
                         .write()
                         .await
