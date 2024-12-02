@@ -1,11 +1,11 @@
 use axum::{
     async_trait,
     extract::FromRequestParts,
-    headers::{authorization::Bearer, Authorization},
     http::request::Parts,
     RequestPartsExt,
-    TypedHeader,
 };
+use axum_extra::headers::{authorization::Bearer, Authorization};
+use axum_extra::TypedHeader;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

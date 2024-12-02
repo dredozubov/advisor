@@ -63,7 +63,7 @@ itertools = "0.13.0"
 dotenv = "0.15.0"
 time = { version = "0.3", features = ["serde"] }
 indicatif = "0.17.9"
-axum = { version = "0.7.9", features = ["macros"] }
+axum = { version = "0.7.9", features = ["macros", "headers"] }
 jsonwebtoken = { version = "9.3.0", features = ["use_pem"] }
 tower-http = { version = "0.5", features = ["auth"] }
 axum-extra = { version = "0.9.6", features = ["typed-header"] }
