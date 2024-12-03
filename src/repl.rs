@@ -474,49 +474,47 @@ impl AdvisorConversationHandler {
     }
 }
 
-impl ConditionalEventHandler for AdvisorConversationHandler {                                            
-    fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {         
-        if let Event::KeySeq(ref keys) = evt {                                                           
-            if keys[0] == KeyEvent::ctrl('T') {                                                          
-                // Spawn the async operation in a new task                                               
-                let conversation_manager = self.conversation_manager.clone();                            
-                let chain_manager = self.chain_manager.clone();                                          
-                let llm = self.llm.clone();                                                              
-                                                                                                         
-                tokio::spawn(async move {                                                                
-                    if let Err(e) = async {                                                              
-                        let conv_id = conversation_manager                                               
-                            .write()                                                                     
-                            .await                                                                       
-                            .create_conversation("New conversation".to_string(), vec![])                 
-                            .await?;                                                                     
-                                                                                                         
-                        chain_manager                                                                    
-                            .get_or_create_chain(&conv_id, llm)                                          
-                            .await?;                                                                     
-                                                                                                         
-                        conversation_manager                                                             
-                            .write()                                                                     
-                            .await                                                                       
-                            .switch_conversation(&conv_id)                                               
-                            .await?;                                                                     
+impl ConditionalEventHandler for AdvisorConversationHandler {
+    fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
+        if let Event::KeySeq(ref keys) = evt {
+            if keys[0] == KeyEvent::ctrl('T') {
+                let conversation_manager = self.conversation_manager.clone();
+                let chain_manager = self.chain_manager.clone();
+                let llm = self.llm.clone();
 
-                        println!(); // Print a newline first, then the message                                                                
-                        println!("Started new conversation. Please enter your first question with at lea 
-one valid ticker symbol (e.g. @AAPL)");
-                         // Force readline to redraw the prompt                                                         
-                        Ok::<_, anyhow::Error>(())                                                       
-                    }.await {                                                                            
-                        eprintln!("Error creating new conversation: {}", e);                             
-                    }                                                                                    
-                });                                                                                      
-                                                                                                         
-                return Some(Cmd::Repaint);                                                                  
-            }                                                                                            
-        }                                                                                                
-        None                                                                                             
-    }                                                                                                    
-}                    
+                tokio::spawn(async move {
+                    if let Err(e) = async {
+                        let conv_id = conversation_manager
+                            .write()
+                            .await
+                            .create_conversation("New conversation".to_string(), vec![])
+                            .await?;
+
+                        chain_manager
+                            .get_or_create_chain(&conv_id, llm)
+                            .await?;
+
+                        conversation_manager
+                            .write()
+                            .await
+                            .switch_conversation(&conv_id)
+                            .await?;
+
+                        print!("\r\n"); // Move to new line
+                        println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+                        stdout().flush().unwrap(); // Ensure output is flushed
+                        Ok::<_, anyhow::Error>(())
+                    }.await {
+                        eprintln!("Error creating new conversation: {}", e);
+                    }
+                });
+
+                return Some(Cmd::Repaint);
+            }
+        }
+        None
+    }
+}
 
 impl ConditionalEventHandler for ListViewHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
