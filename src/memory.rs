@@ -39,7 +39,7 @@ pub struct Message {
 
 pub struct ConversationChainManager {
     pool: PgPool,
-    chains: Arc<RwLock<HashMap<String, ConversationalChain>>>,
+    chains: Arc<RwLock<HashMap<String, Arc<ConversationalChain>>>>,
 }
 
 impl ConversationChainManager {
@@ -71,7 +71,7 @@ impl ConversationChainManager {
             chains.insert(id_str.clone(), Arc::new(chain));
         }
 
-        Ok(Arc::clone(&chains[&id_str]))
+        Ok(Arc::clone(chains.get(&id_str).unwrap()))
     }
 }
 
