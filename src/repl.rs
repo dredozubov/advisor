@@ -473,22 +473,38 @@ impl AdvisorConversationHandler {
         }
     }
 
-    pub fn start_new_conversation(&self) {
+    async fn start_new_conversation(&self) -> anyhow::Result<()> {
         let conv_id = self
             .conversation_manager
             .write()
+            .await
             .create_conversation("New conversation".to_string(), vec![])
             .await?;
-        chain_manager.get_or_create_chain(&conv_id, llm).await?;
+
+        self.chain_manager
+            .get_or_create_chain(&conv_id, self.llm.clone())
+            .await?;
+
+        self.conversation_manager
+            .write()
+            .await
+            .switch_conversation(&conv_id)
+            .await?;
+
         println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+        Ok(())
     }
 }
 
 impl ConditionalEventHandler for AdvisorConversationHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
         if let Event::KeySeq(ref keys) = evt {
-            if keys[0] == KeyEvent::ctrl('T') {
-                return Some(Cmd::Insert(1, String::from("\x14")));
+            if keys[0] == KeyEvent::ctrl('t') {
+                let rt = tokio::runtime::Handle::current();
+                if let Err(e) = rt.block_on(self.start_new_conversation()) {
+                    eprintln!("Error creating new conversation: {}", e);
+                }
+                return Some(Cmd::Noop);
             }
         }
         None
