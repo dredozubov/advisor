@@ -482,14 +482,15 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                 let chain_manager = self.chain_manager.clone();
                 let llm = self.llm.clone();
 
-                // Create a oneshot channel for async communication
-                let (tx, rx) = tokio::sync::oneshot::channel();
+                // Create a channel for async communication
+                let (tx, rx) = tokio::sync::mpsc::channel(1);
                 
                 // Spawn the async work
                 tokio::spawn({
                     let conversation_manager = conversation_manager.clone();
                     let chain_manager = chain_manager.clone();
                     let llm = llm.clone();
+                    let tx = tx.clone();
                     
                     async move {
                         let result = async {
@@ -512,17 +513,20 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                             Ok::<_, anyhow::Error>(())
                         }.await;
                         
-                        let _ = tx.send(result);
+                        let _ = tx.send(result).await;
                     }
                 });
 
-                // Wait for the result without blocking the runtime
-                if let Ok(Ok(_)) = rx.blocking_recv() {
-                    print!("\r\n"); // Move to new line
-                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
-                    stdout().flush().unwrap(); // Ensure output is flushed
-                } else {
-                    eprintln!("Error creating new conversation");
+                // Use try_recv to avoid blocking
+                match rx.try_recv() {
+                    Ok(Ok(_)) => {
+                        print!("\r\n"); // Move to new line
+                        println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+                        stdout().flush().unwrap(); // Ensure output is flushed
+                    }
+                    _ => {
+                        eprintln!("Error creating new conversation");
+                    }
                 }
 
                 return Some(Cmd::ClearScreen);
