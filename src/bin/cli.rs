@@ -146,21 +146,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line.trim() == "\x14" {
-                    // Ctrl+T character
-                    let conv_id = conversation_manager
-                        .write()
-                        .await
-                        .create_conversation("New conversation".to_string(), vec![])
-                        .await?;
-                    conversation_manager
-                        .write()
-                        .await
-                        .switch_conversation(&conv_id)
-                        .await?;
-                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
-                    continue;
-                }
 
                 let input = line.trim();
                 if input == "quit" {

@@ -482,34 +482,34 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                 let chain_manager = self.chain_manager.clone();
                 let llm = self.llm.clone();
 
-                tokio::spawn(async move {
-                    if let Err(e) = async {
-                        let conv_id = conversation_manager
-                            .write()
-                            .await
-                            .create_conversation("New conversation".to_string(), vec![])
-                            .await?;
+                // Execute synchronously since we need the result immediately
+                let rt = tokio::runtime::Handle::current();
+                if let Err(e) = rt.block_on(async {
+                    let conv_id = conversation_manager
+                        .write()
+                        .await
+                        .create_conversation("New conversation".to_string(), vec![])
+                        .await?;
 
-                        chain_manager
-                            .get_or_create_chain(&conv_id, llm)
-                            .await?;
+                    chain_manager
+                        .get_or_create_chain(&conv_id, llm)
+                        .await?;
 
-                        conversation_manager
-                            .write()
-                            .await
-                            .switch_conversation(&conv_id)
-                            .await?;
+                    conversation_manager
+                        .write()
+                        .await
+                        .switch_conversation(&conv_id)
+                        .await?;
 
-                        print!("\r\n"); // Move to new line
-                        println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
-                        stdout().flush().unwrap(); // Ensure output is flushed
-                        Ok::<_, anyhow::Error>(())
-                    }.await {
-                        eprintln!("Error creating new conversation: {}", e);
-                    }
-                });
+                    print!("\r\n"); // Move to new line
+                    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+                    stdout().flush().unwrap(); // Ensure output is flushed
+                    Ok::<_, anyhow::Error>(())
+                }) {
+                    eprintln!("Error creating new conversation: {}", e);
+                }
 
-                return Some(Cmd::Repaint);
+                return Some(Cmd::ClearScreen);
             }
         }
         None
