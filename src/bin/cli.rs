@@ -138,8 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line.as_bytes() == &[20] {
-                    // Ctrl+T ASCII code
+                if line.trim() == "\x14" { // Ctrl+T character
                     let conv_id = conversation_manager
                         .write()
                         .await

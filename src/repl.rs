@@ -448,9 +448,10 @@ struct AdvisorConversationHandler;
 
 impl ConditionalEventHandler for AdvisorConversationHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
-        if let Some(k) = evt.get(0) {
-            if *k == KeyEvent::ctrl('T') {
-                return Some(Cmd::AcceptLine);
+        if let Event::KeySeq(ref keys) = evt {
+            if keys.len() == 1 && keys[0] == KeyEvent::ctrl('t') {
+                // Return a special command that we can detect in the CLI
+                return Some(Cmd::Insert(1, String::from("\x14"))); // Ctrl+T character
             }
         }
         None
