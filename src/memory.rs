@@ -36,6 +36,7 @@ pub struct Message {
     pub metadata: Value,
 }
 
+#[derive(Clone)]
 pub struct ConversationChainManager {
     pool: PgPool,
     chains: HashMap<String, ConversationalChain>,

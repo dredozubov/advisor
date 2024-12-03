@@ -1,7 +1,6 @@
 use crate::memory::ConversationManager;
 use crate::{edgar::tickers::fetch_tickers, memory::ConversationChainManager};
 use anyhow::Result as AnyhowResult;
-use async_trait::async_trait;
 use tokio::sync::RwLock;
 use crossterm::{
     event, execute,
@@ -438,7 +437,7 @@ pub async fn create_editor(
     // Bind Ctrl+T to new conversation handler
     let new_conv_handler = Box::new(AdvisorConversationHandler::new(
         Arc::new(RwLock::new(conversation_manager)),
-        chain_manager,
+        Arc::new(chain_manager),
         llm,
     ));
     rl.bind_sequence(
@@ -457,14 +456,14 @@ struct ListViewHandler;
 #[derive(Clone)]
 pub struct AdvisorConversationHandler {
     conversation_manager: Arc<RwLock<ConversationManager>>,
-    chain_manager: ConversationChainManager,
+    chain_manager: Arc<ConversationChainManager>,
     llm: OpenAI<OpenAIConfig>,
 }
 
 impl AdvisorConversationHandler {
     pub fn new(
         conversation_manager: Arc<RwLock<ConversationManager>>,
-        chain_manager: ConversationChainManager,
+        chain_manager: Arc<ConversationChainManager>,
         llm: OpenAI<OpenAIConfig>,
     ) -> Self {
         Self {
@@ -474,7 +473,7 @@ impl AdvisorConversationHandler {
         }
     }
 
-    async fn start_new_conversation(&self) -> anyhow::Result<()> {
+    async fn start_new_conversation(&mut self) -> anyhow::Result<()> {
         let conv_id = self
             .conversation_manager
             .write()
