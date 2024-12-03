@@ -108,24 +108,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
-    // Always ensure we have a current conversation
-    let current_conv = if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
+    if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager
             .switch_conversation(&recent_conv.id)
             .await?;
-        recent_conv
-    } else {
-        // Create initial conversation if none exists
-        let conv_id = conversation_manager
-            .create_conversation("New conversation".to_string(), vec![])
-            .await?;
-        conversation_manager.get_conversation(&conv_id).await?.unwrap()
-    };
-    
-    println!(
-        "Loaded conversation: {}",
-        current_conv.summary.blue().bold()
-    );
+        println!(
+            "Loaded most recent conversation: {}",
+            recent_conv.summary.blue().bold()
+        );
+    }
 
     // Create thread-safe conversation manager
     let conversation_manager = Arc::new(RwLock::new(conversation_manager));
@@ -147,7 +138,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line.trim() == "\u{14}" || line.as_bytes() == &[20] { // Ctrl+T (both Unicode and ASCII)
+                if *line.as_bytes() == [20] {
+                    // Ctrl+T ASCII code
                     let conv_id = conversation_manager
                         .write()
                         .await
@@ -159,42 +151,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         .switch_conversation(&conv_id)
                         .await?;
                     println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
-                    continue;
-                } else if line == "\u{1b}" || line == "\u{1d}" { // ESC or Ctrl+[ ASCII codes
-                    let mut cm = conversation_manager.write().await;
-                    match repl::handle_list_command(&mut cm, &mut rl).await {
-                        Ok(msg) => {
-                            if msg == "Toggle list view" {
-                                continue;
-                            }
-                            if !msg.is_empty() {
-                                println!("{}", msg);
-                            }
-                        },
-                        Err(e) => eprintln!("Error listing conversations: {}", e),
-                    }
-                    continue;
-                } else if line.chars().count() == 1 && line.as_bytes() == &[12] { // Ctrl+L ASCII code
-                    let mut cm = conversation_manager.write().await;
-                    match repl::handle_list_command(&mut cm, &mut rl).await {
-                        Ok(msg) => {
-                            if msg == "Toggle list view" {
-                                // Just continue the loop without printing anything
-                                continue;
-                            }
-                            if !msg.is_empty() {
-                                println!("{}", msg);
-                            }
-                        },
-                        Err(e) => eprintln!("Error listing conversations: {}", e),
-                    }
-                    continue;
-                } else if line.as_bytes() == &[12] { // Ctrl+L ASCII code
-                    let mut cm = conversation_manager.write().await;
-                    match repl::handle_list_command(&mut cm, &mut rl).await {
-                        Ok(msg) => println!("{}", msg),
-                        Err(e) => eprintln!("Error listing conversations: {}", e),
-                    }
                     continue;
                 }
 
