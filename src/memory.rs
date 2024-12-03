@@ -68,10 +68,10 @@ impl ConversationChainManager {
                 .memory(Arc::new(tokio::sync::Mutex::new(memory)))
                 .build()?;
 
-            chains.insert(id_str.clone(), chain);
+            chains.insert(id_str.clone(), Arc::new(chain));
         }
 
-        Ok(Arc::new(chains[&id_str].clone()))
+        Ok(Arc::clone(&chains[&id_str]))
     }
 }
 
