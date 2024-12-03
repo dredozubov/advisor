@@ -105,10 +105,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (stream_chain, query_chain) = init::initialize_chains(llm.clone()).await?;
 
     println!("Enter 'quit' to exit");
-    let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
-    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
+    let conversation_manager = ConversationManager::new_cli(pg_pool.clone());
+    let chain_manager = ConversationChainManager::new(pg_pool.clone());
 
-    let mut rl = repl::create_editor(conversation_manager, Arc::new(chain_manager), llm).await?;
+    let mut rl = repl::create_editor(conversation_manager.clone(), Arc::new(chain_manager.clone()), llm.clone()).await?;
 
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
