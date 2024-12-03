@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let chain_manager = ConversationChainManager::new(pg_pool.clone());
 
-    let mut rl = repl::create_editor(conversation_manager.clone(), Arc::new(chain_manager.clone()), llm.clone()).await?;
+    let mut rl = repl::create_editor(conversation_manager.clone(), Arc::new(chain_manager), llm.clone()).await?;
 
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
