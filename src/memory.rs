@@ -36,27 +36,28 @@ pub struct Message {
     pub metadata: Value,
 }
 
-#[derive(Clone)]
 pub struct ConversationChainManager {
     pool: PgPool,
-    chains: HashMap<String, ConversationalChain>,
+    chains: Arc<RwLock<HashMap<String, ConversationalChain>>>,
 }
 
 impl ConversationChainManager {
     pub fn new(pool: PgPool) -> Self {
         Self {
             pool,
-            chains: HashMap::new(),
+            chains: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     pub async fn get_or_create_chain(
-        &mut self,
+        &self,
         conversation_id: &Uuid,
         llm: OpenAI<OpenAIConfig>,
-    ) -> Result<&ConversationalChain> {
+    ) -> Result<Arc<ConversationalChain>> {
         let id_str = conversation_id.to_string();
-        if !self.chains.contains_key(&id_str) {
+        let mut chains = self.chains.write().await;
+        
+        if !chains.contains_key(&id_str) {
             // Create database-backed memory
             let memory = DatabaseMemory::new(self.pool.clone(), *conversation_id);
 
@@ -66,10 +67,10 @@ impl ConversationChainManager {
                 .memory(Arc::new(tokio::sync::Mutex::new(memory)))
                 .build()?;
 
-            self.chains.insert(id_str.clone(), chain);
+            chains.insert(id_str.clone(), chain);
         }
 
-        Ok(&self.chains[&id_str])
+        Ok(Arc::new(chains[&id_str].clone()))
     }
 }
 

@@ -473,7 +473,7 @@ impl AdvisorConversationHandler {
         }
     }
 
-    async fn start_new_conversation(&mut self) -> anyhow::Result<()> {
+    async fn start_new_conversation(&self) -> anyhow::Result<()> {
         let conv_id = self
             .conversation_manager
             .write()
