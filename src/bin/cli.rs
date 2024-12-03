@@ -29,14 +29,7 @@ async fn handle_command(
 ) -> Result<(), Box<dyn Error>> {
     match cmd {
         "/new" => {
-            let conv_id = conversation_manager
-                .write()
-                .await
-                .create_conversation("New conversation".to_string(), vec![])
-                .await?;
-
-            chain_manager.get_or_create_chain(&conv_id, llm).await?;
-            println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+            start_new_conversation(conversation_manager, chain_manager, llm).await?;
         }
         "/list" => {
             let mut cm = conversation_manager.write().await;
@@ -56,6 +49,21 @@ async fn handle_command(
         }
         _ => {}
     }
+    Ok(())
+}
+
+async fn start_new_conversation(
+    conversation_manager: &Arc<RwLock<ConversationManager>>,
+    chain_manager: &mut ConversationChainManager,
+    llm: OpenAI<OpenAIConfig>,
+) -> Result<(), Box<dyn Error>> {
+    let conv_id = conversation_manager
+        .write()
+        .await
+        .create_conversation("New conversation".to_string(), vec![])
+        .await?;
+    chain_manager.get_or_create_chain(&conv_id, llm).await?;
+    println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
     Ok(())
 }
 
@@ -96,17 +104,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let (stream_chain, query_chain) = init::initialize_chains(llm.clone()).await?;
 
-    let mut rl = repl::create_editor().await?;
+    println!("Enter 'quit' to exit");
+    let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
+    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
+
+    let mut rl = repl::create_editor(conversation_manager, Arc::new(chain_manager), llm).await?;
 
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()?;
-
-    println!("Enter 'quit' to exit");
-    let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
-    let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
     if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
         conversation_manager
@@ -138,7 +146,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-                if line.trim() == "\x14" { // Ctrl+T character
+                if line.trim() == "\x14" {
+                    // Ctrl+T character
                     let conv_id = conversation_manager
                         .write()
                         .await
