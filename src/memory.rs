@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use core::fmt;
+use tokio::sync::RwLock;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     llm::{OpenAI, OpenAIConfig},

@@ -437,7 +437,7 @@ pub async fn create_editor(
     // Bind Ctrl+T to new conversation handler
     let new_conv_handler = Box::new(AdvisorConversationHandler::new(
         Arc::new(RwLock::new(conversation_manager)),
-        Arc::new(chain_manager),
+        chain_manager,
         llm,
     ));
     rl.bind_sequence(
