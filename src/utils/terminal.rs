@@ -1,9 +1,9 @@
 use anyhow::Result;
 use crossterm::{
+    cursor::MoveTo,
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{Clear, ClearType},
-    cursor::MoveTo,
 };
 use std::io::{stdout, Write};
 
@@ -11,6 +11,11 @@ pub struct TerminalManager {
     pub raw_mode_enabled: bool,
 }
 
+impl Default for TerminalManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl TerminalManager {
     pub fn new() -> Self {
         Self {
@@ -35,11 +40,7 @@ impl TerminalManager {
     }
 
     pub fn clear_screen(&self) -> Result<()> {
-        execute!(
-            stdout(),
-            Clear(ClearType::All),
-            MoveTo(0, 0)
-        )?;
+        execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
         Ok(())
     }
 
@@ -53,12 +54,7 @@ impl TerminalManager {
     }
 
     pub fn print_highlighted(&self, text: &str, color: Color) -> Result<()> {
-        execute!(
-            stdout(),
-            SetForegroundColor(color),
-            Print(text),
-            ResetColor
-        )?;
+        execute!(stdout(), SetForegroundColor(color), Print(text), ResetColor)?;
         Ok(())
     }
 

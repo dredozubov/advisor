@@ -483,15 +483,15 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                 let llm = self.llm.clone();
 
                 // Create a channel for async communication
-                let (tx, rx) = tokio::sync::mpsc::channel(1);
-                
+                let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
                 // Spawn the async work
                 tokio::spawn({
                     let conversation_manager = conversation_manager.clone();
                     let chain_manager = chain_manager.clone();
                     let llm = llm.clone();
                     let tx = tx.clone();
-                    
+
                     async move {
                         let result = async {
                             let conv_id = conversation_manager
@@ -500,9 +500,7 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                                 .create_conversation("New conversation".to_string(), vec![])
                                 .await?;
 
-                            chain_manager
-                                .get_or_create_chain(&conv_id, llm)
-                                .await?;
+                            chain_manager.get_or_create_chain(&conv_id, llm).await?;
 
                             conversation_manager
                                 .write()
@@ -511,8 +509,9 @@ impl ConditionalEventHandler for AdvisorConversationHandler {
                                 .await?;
 
                             Ok::<_, anyhow::Error>(())
-                        }.await;
-                        
+                        }
+                        .await;
+
                         let _ = tx.send(result).await;
                     }
                 });
