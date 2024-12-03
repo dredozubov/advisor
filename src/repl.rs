@@ -192,7 +192,7 @@ pub async fn handle_list_command(
 
         // Draw all conversations
         for (i, conv) in conversations.iter().enumerate() {
-            let helper = rl.helper().as_ref().unwrap().clone();
+            let helper = (*rl.helper().unwrap()).clone();
             let ticker_map = &helper.ticker_map;
 
             // Get company names for all tickers
@@ -255,17 +255,56 @@ pub async fn handle_list_command(
         stdout().flush()?;
 
         // Read a single keypress
-        match event::read()? {
-            event::Event::Key(key) => {
-                if key.modifiers.contains(event::KeyModifiers::CONTROL)
-                    && key.code == event::KeyCode::Char('t')
-                {
-                    // Create new conversation
-                    let conv_id = conversation_manager
-                        .create_conversation("New conversation".to_string(), vec![])
-                        .await?;
-                    conversation_manager.switch_conversation(&conv_id).await?;
+        if let event::Event::Key(key) = event::read()? {
+            if key.modifiers.contains(event::KeyModifiers::CONTROL)
+                && key.code == event::KeyCode::Char('t')
+            {
+                // Create new conversation
+                let conv_id = conversation_manager
+                    .create_conversation("New conversation".to_string(), vec![])
+                    .await?;
+                conversation_manager.switch_conversation(&conv_id).await?;
 
+                // Disable raw mode and clear screen before returning
+                crossterm::terminal::disable_raw_mode()?;
+                execute!(
+                    stdout(),
+                    crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                    crossterm::cursor::MoveTo(0, 0)
+                )?;
+                return Ok("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)".to_string());
+            }
+
+            match key.code {
+                event::KeyCode::Up | event::KeyCode::Char('p')
+                    if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                {
+                    if selection > 0 {
+                        selection = selection.saturating_sub(1);
+                    }
+                }
+                event::KeyCode::Down | event::KeyCode::Char('n')
+                    if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                {
+                    if selection < conversations.len() - 1 {
+                        selection += 1;
+                    }
+                }
+                event::KeyCode::Up => {
+                    if selection > 0 {
+                        selection = selection.saturating_sub(1);
+                    }
+                }
+                event::KeyCode::Down => {
+                    if selection < conversations.len() - 1 {
+                        selection += 1;
+                    }
+                }
+                event::KeyCode::Enter => {
+                    let selected = &conversations[selection];
+                    conversation_manager
+                        .switch_conversation(&selected.id)
+                        .await?;
                     // Disable raw mode and clear screen before returning
                     crossterm::terminal::disable_raw_mode()?;
                     execute!(
@@ -273,106 +312,63 @@ pub async fn handle_list_command(
                         crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                         crossterm::cursor::MoveTo(0, 0)
                     )?;
-                    return Ok("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)".to_string());
+                    return Ok(format!("Switched to conversation: {}", selected.id));
                 }
+                event::KeyCode::Char('[') | event::KeyCode::Esc
+                    if key.modifiers.contains(event::KeyModifiers::CONTROL)
+                        || key.code == event::KeyCode::Esc =>
+                {
+                    // Disable raw mode and clear screen before returning
+                    crossterm::terminal::disable_raw_mode()?;
+                    execute!(
+                        stdout(),
+                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                        crossterm::cursor::MoveTo(0, 0)
+                    )?;
+                    return Ok("Toggle list view".to_string());
+                }
+                event::KeyCode::Delete | event::KeyCode::Backspace | event::KeyCode::Char('d')
+                    if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                {
+                    let selected = &conversations[selection];
+                    conversation_manager
+                        .delete_conversation(&selected.id)
+                        .await?;
 
-                match key.code {
-                    event::KeyCode::Up | event::KeyCode::Char('p')
-                        if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                    {
-                        if selection > 0 {
-                            selection -= 1;
-                        }
-                    }
-                    event::KeyCode::Down | event::KeyCode::Char('n')
-                        if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                    {
-                        if selection < conversations.len() - 1 {
-                            selection += 1;
-                        }
-                    }
-                    event::KeyCode::Up => {
-                        if selection > 0 {
-                            selection -= 1;
-                        }
-                    }
-                    event::KeyCode::Down => {
-                        if selection < conversations.len() - 1 {
-                            selection += 1;
-                        }
-                    }
-                    event::KeyCode::Enter => {
-                        let selected = &conversations[selection];
-                        conversation_manager
-                            .switch_conversation(&selected.id)
-                            .await?;
-                        // Disable raw mode and clear screen before returning
+                    // Clear screen before refreshing list
+                    execute!(
+                        stdout(),
+                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+                        crossterm::cursor::MoveTo(0, 0),
+                        Print(HELP_LABEL)
+                    )?;
+
+                    // Refresh conversations list
+                    let new_conversations = conversation_manager.list_conversations().await?;
+                    if new_conversations.is_empty() {
+                        // If no conversations left, exit menu
                         crossterm::terminal::disable_raw_mode()?;
                         execute!(
                             stdout(),
                             crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
                             crossterm::cursor::MoveTo(0, 0)
                         )?;
-                        return Ok(format!("Switched to conversation: {}", selected.id));
+                        return Ok("All conversations deleted".to_string());
                     }
-                    event::KeyCode::Char('[') | event::KeyCode::Esc
-                        if key.modifiers.contains(event::KeyModifiers::CONTROL) || key.code == event::KeyCode::Esc =>
-                    {
-                        // Disable raw mode and clear screen before returning
-                        crossterm::terminal::disable_raw_mode()?;
-                        execute!(
-                            stdout(),
-                            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-                            crossterm::cursor::MoveTo(0, 0)
-                        )?;
-                        return Ok("Toggle list view".to_string());
-                    }
-                    event::KeyCode::Delete
-                    | event::KeyCode::Backspace
-                    | event::KeyCode::Char('d')
-                        if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                    {
-                        let selected = &conversations[selection];
-                        conversation_manager
-                            .delete_conversation(&selected.id)
-                            .await?;
 
-                        // Clear screen before refreshing list
-                        execute!(
-                            stdout(),
-                            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-                            crossterm::cursor::MoveTo(0, 0),
-                            Print(HELP_LABEL)
-                        )?;
-
-                        // Refresh conversations list
-                        let new_conversations = conversation_manager.list_conversations().await?;
-                        if new_conversations.is_empty() {
-                            // If no conversations left, exit menu
-                            crossterm::terminal::disable_raw_mode()?;
-                            execute!(
-                                stdout(),
-                                crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-                                crossterm::cursor::MoveTo(0, 0)
-                            )?;
-                            return Ok("All conversations deleted".to_string());
-                        }
-
-                        // Update local list and adjust selection if needed
-                        conversations = new_conversations;
-                        if selection >= conversations.len() {
-                            selection = conversations.len() - 1;
-                        }
+                    // Update local list and adjust selection if needed
+                    conversations = new_conversations;
+                    if selection >= conversations.len() {
+                        selection = conversations.len() - 1;
                     }
-                    event::KeyCode::Esc => {
-                        // Disable raw mode before returning
-                        crossterm::terminal::disable_raw_mode()?;
-                        return Ok("Cancelled selection".to_string());
-                    }
-                    _ => {}
                 }
+                event::KeyCode::Esc => {
+                    // Disable raw mode before returning
+                    crossterm::terminal::disable_raw_mode()?;
+                    return Ok("Cancelled selection".to_string());
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 }
@@ -423,12 +419,21 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
 
     // Bind Ctrl+[ and ESC to list view handler
     let list_handler = Box::new(ListViewHandler);
-    rl.bind_sequence(KeyEvent::ctrl('['), EventHandler::Conditional(list_handler.clone()));
-    rl.bind_sequence(KeyEvent::from('\x1b'), EventHandler::Conditional(list_handler.clone()));
-    
+    rl.bind_sequence(
+        KeyEvent::ctrl('['),
+        EventHandler::Conditional(list_handler.clone()),
+    );
+    rl.bind_sequence(
+        KeyEvent::from('\x1b'),
+        EventHandler::Conditional(list_handler.clone()),
+    );
+
     // Bind Ctrl+T to new conversation handler
-    let new_conv_handler = Box::new(NewConversationHandler);
-    rl.bind_sequence(KeyEvent::ctrl('t'), EventHandler::Conditional(new_conv_handler));
+    let new_conv_handler = Box::new(AdvisorConversationHandler);
+    rl.bind_sequence(
+        KeyEvent::ctrl('t'),
+        EventHandler::Conditional(new_conv_handler),
+    );
 
     // Wrap the editor in a custom type that adds history entries
     log::debug!("Creating EditorWithHistory wrapper");
@@ -439,12 +444,12 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
 struct ListViewHandler;
 
 #[derive(Clone)]
-struct NewConversationHandler;
+struct AdvisorConversationHandler;
 
-impl ConditionalEventHandler for NewConversationHandler {
+impl ConditionalEventHandler for AdvisorConversationHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
-        if let Event::KeySeq(ref keys) = evt {
-            if keys.len() == 1 && keys[0] == KeyEvent::ctrl('t') {
+        if let Some(k) = evt.get(0) {
+            if *k == KeyEvent::ctrl('T') {
                 return Some(Cmd::AcceptLine);
             }
         }
