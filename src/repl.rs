@@ -1,10 +1,11 @@
-use crate::edgar::tickers::fetch_tickers;
 use crate::memory::ConversationManager;
+use crate::{edgar::tickers::fetch_tickers, memory::ConversationChainManager};
 use anyhow::Result as AnyhowResult;
 use crossterm::{
     event, execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
 };
+use langchain_rust::llm::{OpenAI, OpenAIConfig};
 use once_cell::sync::Lazy;
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
@@ -389,7 +390,11 @@ pub async fn handle_delete_command(
     Ok(format!("Conversation {} deleted", id))
 }
 
-pub async fn create_editor() -> Result<EditorWithHistory> {
+pub async fn create_editor(
+    conversation_manager: ConversationManager,
+    chain_manager: Arc<ConversationChainManager>,
+    llm: OpenAI<OpenAIConfig>,
+) -> Result<EditorWithHistory> {
     log::debug!("Creating rustyline editor configuration");
     let rustyline_config = RustylineConfig::builder()
         .completion_type(CompletionType::List)
@@ -429,7 +434,11 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
     );
 
     // Bind Ctrl+T to new conversation handler
-    let new_conv_handler = Box::new(AdvisorConversationHandler);
+    let new_conv_handler = Box::new(AdvisorConversationHandler::new(
+        conversation_manager,
+        chain_manager,
+        llm,
+    ));
     rl.bind_sequence(
         KeyEvent::ctrl('t'),
         EventHandler::Conditional(new_conv_handler),
@@ -443,15 +452,43 @@ pub async fn create_editor() -> Result<EditorWithHistory> {
 #[derive(Clone)]
 struct ListViewHandler;
 
+#[async_trait]
 #[derive(Clone)]
-struct AdvisorConversationHandler;
+pub struct AdvisorConversationHandler {
+    conversation_manager: ConversationManager,
+    chain_manager: Arc<ConversationChainManager>,
+    llm: OpenAI<OpenAIConfig>,
+}
+
+impl AdvisorConversationHandler {
+    pub fn new(
+        conversation_manager: ConversationManager,
+        chain_manager: Arc<ConversationChainManager>,
+        llm: OpenAI<OpenAIConfig>,
+    ) -> Self {
+        Self {
+            conversation_manager,
+            chain_manager,
+            llm,
+        }
+    }
+
+    pub fn start_new_conversation(&self) {
+        let conv_id = self
+            .conversation_manager
+            .write()
+            .create_conversation("New conversation".to_string(), vec![])
+            .await?;
+        chain_manager.get_or_create_chain(&conv_id, llm).await?;
+        println!("Started new conversation. Please enter your first question with at least one valid ticker symbol (e.g. @AAPL)");
+    }
+}
 
 impl ConditionalEventHandler for AdvisorConversationHandler {
     fn handle(&self, evt: &Event, _: RepeatCount, _: bool, _ctx: &EventContext) -> Option<Cmd> {
         if let Event::KeySeq(ref keys) = evt {
-            if keys.len() == 1 && keys[0] == KeyEvent::ctrl('t') {
-                // Return a special command that we can detect in the CLI
-                return Some(Cmd::Insert(1, String::from("\x14"))); // Ctrl+T character
+            if keys[0] == KeyEvent::ctrl('T') {
+                return Some(Cmd::Insert(1, String::from("\x14")));
             }
         }
         None
