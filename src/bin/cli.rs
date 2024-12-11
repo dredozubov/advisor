@@ -72,11 +72,12 @@ async fn handle_command(
 
                     // Display document chunks used for this message
                     if msg.role == MessageRole::Assistant {
-                        if let Some(chunks) = conversation_manager
+                        let chunks = conversation_manager
                             .read()
                             .await
                             .get_conversation_chunks(&conv.id)
-                            .await?
+                            .await?;
+                        if !chunks.is_empty()
                         {
                             if !chunks.is_empty() {
                                 let chunk_info = chunks.iter()
