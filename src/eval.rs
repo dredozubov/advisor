@@ -1,6 +1,7 @@
 use crate::edgar::report::ReportType;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
+use uuid::Uuid;
 use crate::query::Query;
 use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
