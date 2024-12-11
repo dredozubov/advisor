@@ -416,17 +416,16 @@ async fn generate_query(
         input
     );
 
-    let summary = get_conversation_summary(chain, &llm, &context).await?;
+    let summary = get_conversation_summary(&llm, &context).await?;
     log::info!("Summary done: {}", summary);
 
-    let query = extract_query_params(chain, &llm, input).await?;
+    let query = extract_query_params(&llm, input).await?;
     log::info!("Query params done: {:?}", query);
 
     Ok((query, summary))
 }
 
 async fn generate_response(
-    chain: &ConversationalChain,
     llm: &OpenAI<OpenAIConfig>,
     input: &str,
     context: &str,
@@ -679,11 +678,7 @@ async fn process_edgar_filings(
     Ok(())
 }
 
-async fn get_conversation_summary(
-    _chain: &ConversationalChain,
-    llm: &OpenAI<OpenAIConfig>,
-    input: &str,
-) -> Result<String> {
+async fn get_conversation_summary(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
     let summary_task = format!(
         "Provide a 2-3 word summary of thiass query, mentioning any ticker symbols if present. Examples:\n\
          Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
@@ -702,11 +697,7 @@ async fn get_conversation_summary(
     }
 }
 
-async fn extract_query_params(
-    _chain: &ConversationalChain,
-    llm: &OpenAI<OpenAIConfig>,
-    input: &str,
-) -> Result<Query> {
+async fn extract_query_params(llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<Query> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
