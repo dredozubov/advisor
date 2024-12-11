@@ -12,7 +12,12 @@ use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{prompt_args, chain::builder::ConversationalChainBuilder, chain::Chain};
+use langchain_rust::{
+    prompt_args, 
+    chain::builder::ConversationalChainBuilder, 
+    chain::Chain,
+    llm::{OpenAI, OpenAIConfig}
+};
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -411,10 +416,10 @@ async fn generate_query(
         input
     );
 
-    let summary = get_conversation_summary(chain, &context).await?;
+    let summary = get_conversation_summary(chain, llm.clone(), &context).await?;
     log::info!("Summary done: {}", summary);
 
-    let query = extract_query_params(chain, input).await?;
+    let query = extract_query_params(chain, llm.clone(), input).await?;
     log::info!("Query params done: {:?}", query);
 
     Ok((query, summary))
