@@ -263,10 +263,10 @@ impl ConversationManager {
         crate::db::get_conversation_messages(&self.pool, conversation_id, limit).await
     }
 
-    pub async fn get_conversation_chunks(&self, conversation_id: &Uuid) -> Result<Vec<String>> {
+    pub async fn get_message_chunks(&self, message_id: &str) -> Result<Vec<String>> {
         let chunks = sqlx::query!(
-            "SELECT chunk_id FROM conversation_chunks WHERE conversation_id = $1",
-            conversation_id
+            "SELECT chunk_id FROM message_chunks WHERE message_id = $1",
+            message_id
         )
         .fetch_all(&self.pool)
         .await?;
