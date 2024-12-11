@@ -473,7 +473,7 @@ pub async fn eval(
     input: &str,
     conversation: &Conversation,
     http_client: &reqwest::Client,
-    stream_chain: &ConversationalChain,
+    _stream_chain: &ConversationalChain,
     query_chain: &ConversationalChain,
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
