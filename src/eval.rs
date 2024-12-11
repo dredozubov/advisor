@@ -534,7 +534,7 @@ pub async fn eval(
         multi_progress.as_ref(),
     )
     .await?;
-    let context = build_context(&query, input, conversation, Arc::clone(&store), Arc::clone(&conversation_manager)).await?;
+    let context = build_document_context(query, input, Arc::clone(&store), conversation, Arc::clone(&conversation_manager)).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
     // Create a new stream for collecting the complete response
