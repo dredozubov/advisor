@@ -120,7 +120,6 @@ async fn build_context(
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
 ) -> Result<String> {
-    let _conversation_manager = conversation_manager; // Use the parameter
     log::debug!("Building context for query: {:?}", query);
 
     // Get document context
@@ -139,7 +138,13 @@ async fn build_context(
     Ok(full_context)
 }
 
-async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -> Result<String> {
+async fn build_document_context(
+    query: &Query,
+    input: &str,
+    store: Arc<Store>,
+    conversation: &Conversation,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
+) -> Result<String> {
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
 
