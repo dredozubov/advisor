@@ -449,7 +449,11 @@ async fn generate_response(
         ]
     ];
 
-    let stream = chain.stream(prompt_args).await?;
+    // Create a new chain specifically for streaming
+    let mut stream_chain = chain.clone();
+    stream_chain.set_streaming(true);
+    
+    let stream = stream_chain.stream(prompt_args).await?;
     log::info!("LLM stream started successfully");
 
     Ok(Box::pin(stream.map(|r| {
@@ -676,6 +680,10 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
         input
     );
 
+    // Create a new chain for this non-streaming operation
+    let mut chain = chain.clone();
+    chain.set_streaming(false);
+
     match chain.invoke(prompt_args! {"input" => summary_task}).await {
         Ok(result) => Ok(result.trim().to_string()),
         Err(e) => Err(anyhow!("Error getting summary: {:?}", e)),
@@ -733,6 +741,10 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     log::info!("Task: {task}");
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
+    // Create a new chain for this non-streaming operation
+    let mut chain = chain.clone();
+    chain.set_streaming(false);
+    
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
             log::debug!("Result: {:?}", result);
