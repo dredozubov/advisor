@@ -1,7 +1,6 @@
 use crate::edgar::report::ReportType;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
-use uuid::Uuid;
 use crate::query::Query;
 use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
@@ -13,16 +12,17 @@ use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
-    prompt_args, 
-    chain::builder::ConversationalChainBuilder, 
+    chain::builder::ConversationalChainBuilder,
     chain::Chain,
-    llm::{OpenAI, OpenAIConfig}
+    llm::{OpenAI, OpenAIConfig},
+    prompt_args,
 };
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 async fn process_documents(
     query: &Query,
@@ -161,14 +161,14 @@ async fn build_document_context(
             // Filter out chunks that have already been added to this conversation
             for doc in all_docs {
                 let chunk_id = format!("{:?}", doc.metadata);
-                
+
                 // Get the latest message ID for this conversation
                 let messages = conversation_manager
                     .read()
                     .await
                     .get_conversation_messages(&conversation.id, 1)
                     .await?;
-                
+
                 if let Some(last_message) = messages.first() {
                     let message_id = Uuid::parse_str(&last_message.id)?;
                     // Add chunk tracking for this message
@@ -416,10 +416,10 @@ async fn generate_query(
         input
     );
 
-    let summary = get_conversation_summary(chain, llm.clone(), &context).await?;
+    let summary = get_conversation_summary(chain, &llm, &context).await?;
     log::info!("Summary done: {}", summary);
 
-    let query = extract_query_params(chain, llm.clone(), input).await?;
+    let query = extract_query_params(chain, &llm, input).await?;
     log::info!("Query params done: {:?}", query);
 
     Ok((query, summary))
@@ -460,7 +460,7 @@ async fn generate_response(
     let stream_chain = ConversationalChainBuilder::new()
         .llm((*llm).clone())
         .build()?;
-    
+
     let stream = stream_chain.stream(prompt_args).await?;
     log::info!("LLM stream started successfully");
 
@@ -679,7 +679,11 @@ async fn process_edgar_filings(
     Ok(())
 }
 
-async fn get_conversation_summary(_chain: &ConversationalChain, llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
+async fn get_conversation_summary(
+    _chain: &ConversationalChain,
+    llm: &OpenAI<OpenAIConfig>,
+    input: &str,
+) -> Result<String> {
     let summary_task = format!(
         "Provide a 2-3 word summary of thiass query, mentioning any ticker symbols if present. Examples:\n\
          Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
@@ -690,9 +694,7 @@ async fn get_conversation_summary(_chain: &ConversationalChain, llm: &OpenAI<Ope
     );
 
     // Create a new chain for this non-streaming operation
-    let chain = ConversationalChainBuilder::new()
-        .llm(llm.clone())
-        .build()?;
+    let chain = ConversationalChainBuilder::new().llm(llm.clone()).build()?;
 
     match chain.invoke(prompt_args! {"input" => summary_task}).await {
         Ok(result) => Ok(result.to_string()),
@@ -700,7 +702,11 @@ async fn get_conversation_summary(_chain: &ConversationalChain, llm: &OpenAI<Ope
     }
 }
 
-async fn extract_query_params(_chain: &ConversationalChain, llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<Query> {
+async fn extract_query_params(
+    _chain: &ConversationalChain,
+    llm: &OpenAI<OpenAIConfig>,
+    input: &str,
+) -> Result<Query> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
@@ -752,10 +758,8 @@ async fn extract_query_params(_chain: &ConversationalChain, llm: &OpenAI<OpenAIC
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     // Create a new chain for this non-streaming operation
-    let chain = ConversationalChainBuilder::new()
-        .llm(llm.clone())
-        .build()?;
-    
+    let chain = ConversationalChainBuilder::new().llm(llm.clone()).build()?;
+
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
             let result = result.to_string();
