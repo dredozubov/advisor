@@ -72,15 +72,11 @@ async fn handle_command(
 
                     // Display document chunks used for this message
                     if msg.role == MessageRole::Assistant {
-                        let chunks = conversation_manager
-                            .read()
-                            .await
-                            .get_conversation_chunks(&conv.id)
-                            .await?;
-                        if !chunks.is_empty()
-                        {
-                            if !chunks.is_empty() {
+                        // Extract chunks from message metadata
+                        if let Some(query) = msg.metadata.get("query") {
+                            if let Some(chunks) = query.get("chunks").and_then(|c| c.as_array()) {
                                 let chunk_info = chunks.iter()
+                                    .filter_map(|c| c.as_str())
                                     .map(|chunk| {
                                         let mut parts = chunk.split(':');
                                         match (parts.next(), parts.next()) {
@@ -91,7 +87,9 @@ async fn handle_command(
                                     })
                                     .collect::<Vec<_>>()
                                     .join(", ");
-                                println!("  {}", format!("Referenced documents: {}", chunk_info).dimmed());
+                                if !chunk_info.is_empty() {
+                                    println!("  {}", format!("Referenced documents: {}", chunk_info).dimmed());
+                                }
                             }
                         }
                     }
