@@ -523,7 +523,7 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(stream_chain, &llm, input, &context).await?;
+    let stream = generate_response(&llm, input, &context).await?;
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
