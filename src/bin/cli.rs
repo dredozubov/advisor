@@ -28,6 +28,47 @@ async fn handle_command(
     llm: OpenAI<OpenAIConfig>,
 ) -> Result<(), Box<dyn Error>> {
     match cmd {
+        "/history" => {
+            if let Some(conv) = conversation_manager.read().await.get_current_conversation_details().await? {
+                let messages = conversation_manager
+                    .read()
+                    .await
+                    .get_conversation_messages(&conv.id, 100)
+                    .await?;
+                
+                println!("\nConversation history:");
+                for msg in messages.iter() {
+                    let role_color = match msg.role {
+                        MessageRole::User => "cyan",
+                        MessageRole::Assistant => "green",
+                        MessageRole::System => "yellow",
+                    };
+                    
+                    // Take first 100 words
+                    let content_preview: String = msg.content
+                        .split_whitespace()
+                        .take(100)
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    
+                    // Add ellipsis if content was truncated
+                    let display_content = if msg.content.split_whitespace().count() > 100 {
+                        format!("{}...", content_preview)
+                    } else {
+                        content_preview
+                    };
+                    
+                    println!(
+                        "\n{}: {}", 
+                        msg.role.to_string().color(role_color),
+                        display_content
+                    );
+                }
+                println!(); // Extra newline for spacing
+            } else {
+                println!("No active conversation.");
+            }
+        }
         "/new" => {
             start_new_conversation(conversation_manager, chain_manager, llm).await?;
         }
