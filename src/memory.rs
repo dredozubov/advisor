@@ -1,7 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use core::fmt;
-use tokio::sync::RwLock;
 use langchain_rust::{
     chain::{builder::ConversationalChainBuilder, ConversationalChain},
     llm::{OpenAI, OpenAIConfig},
@@ -16,6 +15,7 @@ use std::{
     sync::Arc,
 };
 use time::OffsetDateTime;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
@@ -58,7 +58,7 @@ impl ConversationChainManager {
     ) -> Result<Arc<ConversationalChain>> {
         let id_str = conversation_id.to_string();
         let mut chains = self.chains.write().await;
-        
+
         if !chains.contains_key(&id_str) {
             // Create database-backed memory
             let memory = DatabaseMemory::new(self.pool.clone(), *conversation_id);
@@ -227,8 +227,8 @@ impl ConversationManager {
         .fetch_optional(&self.pool)
         .await?
         {
-            Some(_) => Ok(true),  // Chunk was added
-            None => Ok(false)     // Chunk already existed
+            Some(_) => Ok(true), // Chunk was added
+            None => Ok(false),   // Chunk already existed
         }
     }
 
@@ -241,7 +241,7 @@ impl ConversationManager {
         )
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(result.is_some())
     }
 
@@ -265,12 +265,12 @@ impl ConversationManager {
 
     pub async fn get_message_chunks(&self, message_id: &str) -> Result<Vec<String>> {
         let chunks = sqlx::query!(
-            "SELECT chunk_id FROM message_chunks WHERE message_id = $1",
+            "SELECT chunk_id FROM conversation_chunks WHERE conversation_id = $1",
             message_id
         )
         .fetch_all(&self.pool)
         .await?;
-        
+
         Ok(chunks.into_iter().map(|row| row.chunk_id).collect())
     }
 
