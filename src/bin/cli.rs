@@ -2,7 +2,7 @@ use advisor::{
     core::{config::AdvisorConfig, init},
     edgar::filing,
     eval,
-    memory::{ConversationChainManager, ConversationManager},
+    memory::{ConversationChainManager, ConversationManager, MessageRole},
     repl::{self, EditorWithHistory},
     utils::dirs,
 };
@@ -29,13 +29,18 @@ async fn handle_command(
 ) -> Result<(), Box<dyn Error>> {
     match cmd {
         "/history" => {
-            if let Some(conv) = conversation_manager.read().await.get_current_conversation_details().await? {
+            if let Some(conv) = conversation_manager
+                .read()
+                .await
+                .get_current_conversation_details()
+                .await?
+            {
                 let messages = conversation_manager
                     .read()
                     .await
                     .get_conversation_messages(&conv.id, 100)
                     .await?;
-                
+
                 println!("\nConversation history:");
                 for msg in messages.iter() {
                     let role_color = match msg.role {
@@ -43,23 +48,24 @@ async fn handle_command(
                         MessageRole::Assistant => "green",
                         MessageRole::System => "yellow",
                     };
-                    
+
                     // Take first 100 words
-                    let content_preview: String = msg.content
+                    let content_preview: String = msg
+                        .content
                         .split_whitespace()
                         .take(100)
                         .collect::<Vec<_>>()
                         .join(" ");
-                    
+
                     // Add ellipsis if content was truncated
                     let display_content = if msg.content.split_whitespace().count() > 100 {
                         format!("{}...", content_preview)
                     } else {
                         content_preview
                     };
-                    
+
                     println!(
-                        "\n{}: {}", 
+                        "\n{}: {}",
                         msg.role.to_string().color(role_color),
                         display_content
                     );
@@ -151,7 +157,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
-    let mut rl = repl::create_editor(conversation_manager.clone(), Arc::new(chain_manager.clone()), llm.clone()).await?;
+    let mut rl = repl::create_editor(
+        conversation_manager.clone(),
+        Arc::new(chain_manager.clone()),
+        llm.clone(),
+    )
+    .await?;
 
     let http_client = reqwest::Client::builder()
         .user_agent(filing::USER_AGENT)
@@ -170,7 +181,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             );
         }
         None => {
-            println!("{}", "No previous conversations found. Starting fresh!".yellow());
+            println!(
+                "{}",
+                "No previous conversations found. Starting fresh!".yellow()
+            );
         }
     }
 
@@ -189,7 +203,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .clone()
             .map(|c| c.summary.clone())
             .unwrap_or_default();
-            
+
         // Update token count for current conversation
         if let Some(conv) = &current_conv {
             let messages = conversation_manager
@@ -214,7 +228,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if !input.is_empty() {
                     rl.add_history_entry(&input)?;
                 }
-                
+
                 if input == "quit" {
                     // Ensure terminal is back to normal mode before quitting
                     if crossterm::terminal::is_raw_mode_enabled()? {
