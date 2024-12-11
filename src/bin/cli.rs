@@ -118,14 +118,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()?;
 
-    if let Some(recent_conv) = conversation_manager.get_most_recent_conversation().await? {
-        conversation_manager
-            .switch_conversation(&recent_conv.id)
-            .await?;
-        println!(
-            "Loaded most recent conversation: {}",
-            recent_conv.summary.blue().bold()
-        );
+    let recent_conv = conversation_manager.get_most_recent_conversation().await?;
+    match recent_conv {
+        Some(conv) => {
+            conversation_manager.switch_conversation(&conv.id).await?;
+            println!(
+                "{} {}",
+                "Loaded most recent conversation:".green(),
+                conv.summary.blue().bold()
+            );
+            
+            // Show the last few messages from this conversation
+            let messages = conversation_manager
+                .get_conversation_messages(&conv.id, 3)
+                .await?;
+            if !messages.is_empty() {
+                println!("\nRecent messages:");
+                for msg in messages.iter().rev() {
+                    let role_color = match msg.role {
+                        MessageRole::User => "cyan",
+                        MessageRole::Assistant => "green",
+                        MessageRole::System => "yellow",
+                    };
+                    println!(
+                        "{}: {}",
+                        msg.role.to_string().color(role_color),
+                        msg.content.trim()
+                    );
+                }
+                println!(); // Extra newline for spacing
+            }
+        }
+        None => {
+            println!("{}", "No previous conversations found. Starting fresh!".yellow());
+        }
     }
 
     // Create thread-safe conversation manager
