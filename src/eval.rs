@@ -120,6 +120,7 @@ async fn build_context(
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
 ) -> Result<String> {
+    let _conversation_manager = conversation_manager; // Use the parameter
     log::debug!("Building context for query: {:?}", query);
 
     // Get document context
@@ -183,11 +184,8 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             // Filter out chunks that have already been added to this conversation
             for doc in all_docs {
                 let chunk_id = format!("{:?}", doc.metadata);
-                let is_new = !conversation_manager
-                    .read()
-                    .await
-                    .has_chunk(&conversation.id, &chunk_id)
-                    .await?;
+                let conv_manager = conversation_manager.read().await;
+                let is_new = !conv_manager.has_chunk(&conversation.id, &chunk_id).await?;
                 
                 if !is_new {
                     log::info!("Skipping already added chunk: {}", chunk_id);
@@ -195,6 +193,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                 }
                 
                 // Add chunk tracking
+                drop(conv_manager); // Release read lock before acquiring write lock
                 conversation_manager
                     .write()
                     .await
