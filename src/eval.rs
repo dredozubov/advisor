@@ -450,8 +450,10 @@ async fn generate_response(
     ];
 
     // Create a new chain specifically for streaming
-    let mut stream_chain = chain.clone();
-    stream_chain.set_streaming(true);
+    let stream_chain = ConversationalChainBuilder::new()
+        .llm(chain.llm().clone())
+        .memory(chain.memory().clone())
+        .build()?;
     
     let stream = stream_chain.stream(prompt_args).await?;
     log::info!("LLM stream started successfully");
@@ -681,8 +683,10 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
     );
 
     // Create a new chain for this non-streaming operation
-    let mut chain = chain.clone();
-    chain.set_streaming(false);
+    let chain = ConversationalChainBuilder::new()
+        .llm(chain.llm().clone())
+        .memory(chain.memory().clone())
+        .build()?;
 
     match chain.invoke(prompt_args! {"input" => summary_task}).await {
         Ok(result) => Ok(result.trim().to_string()),
@@ -742,8 +746,10 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
 
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     // Create a new chain for this non-streaming operation
-    let mut chain = chain.clone();
-    chain.set_streaming(false);
+    let chain = ConversationalChainBuilder::new()
+        .llm(chain.llm().clone())
+        .memory(chain.memory().clone())
+        .build()?;
     
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
