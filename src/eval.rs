@@ -118,6 +118,7 @@ async fn build_context(
     input: &str,
     conversation: &Conversation,
     store: Arc<Store>,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
 ) -> Result<String> {
     log::debug!("Building context for query: {:?}", query);
 
@@ -167,7 +168,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             );
             // filter.insert("filing_date".to_string(), start_date.to_string());
             log::info!("Using filter for similarity search: {:?}", filter);
-            let docs = store
+            let all_docs = store
                 .similarity_search(
                     input,
                     50,
@@ -178,7 +179,30 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                 )
                 .await
                 .map_err(|e| anyhow!("Failed to retrieve documents from vector store: {}", e))?;
-            required_docs.extend(docs);
+
+            // Filter out chunks that have already been added to this conversation
+            for doc in all_docs {
+                let chunk_id = format!("{:?}", doc.metadata);
+                let is_new = conversation_manager
+                    .read()
+                    .await
+                    .has_chunk(&conversation.id, &chunk_id)
+                    .await?;
+                
+                if !is_new {
+                    log::info!("Skipping already added chunk: {}", chunk_id);
+                    continue;
+                }
+                
+                // Add chunk tracking
+                conversation_manager
+                    .read()
+                    .await
+                    .add_chunk(&conversation.id, &chunk_id)
+                    .await?;
+                
+                required_docs.push(doc);
+            }
         }
     }
 
@@ -506,7 +530,7 @@ pub async fn eval(
         multi_progress.as_ref(),
     )
     .await?;
-    let context = build_context(&query, input, conversation, Arc::clone(&store)).await?;
+    let context = build_context(&query, input, conversation, Arc::clone(&store), Arc::clone(&conversation_manager)).await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
     // Create a new stream for collecting the complete response

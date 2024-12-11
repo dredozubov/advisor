@@ -215,6 +215,36 @@ impl ConversationManager {
         Ok(id)
     }
 
+    pub async fn add_chunk(&self, conversation_id: &Uuid, chunk_id: &str) -> Result<bool> {
+        match sqlx::query!(
+            "INSERT INTO conversation_chunks (conversation_id, chunk_id) 
+             VALUES ($1, $2) 
+             ON CONFLICT DO NOTHING
+             RETURNING chunk_id",
+            conversation_id,
+            chunk_id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        {
+            Some(_) => Ok(true),  // Chunk was added
+            None => Ok(false)     // Chunk already existed
+        }
+    }
+
+    pub async fn has_chunk(&self, conversation_id: &Uuid, chunk_id: &str) -> Result<bool> {
+        let result = sqlx::query!(
+            "SELECT 1 FROM conversation_chunks 
+             WHERE conversation_id = $1 AND chunk_id = $2",
+            conversation_id,
+            chunk_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        
+        Ok(result.is_some())
+    }
+
     pub async fn add_message(
         &self,
         conversation_id: &Uuid,
