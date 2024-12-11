@@ -4,21 +4,18 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tokenizers::Tokenizer;
 
 static TOKENIZER: Lazy<Tokenizer> = Lazy::new(|| {
-    Tokenizer::from_pretrained("bert-base-uncased", None)
-        .expect("Failed to load tokenizer")
+    Tokenizer::from_pretrained("bert-base-uncased", None).expect("Failed to load tokenizer")
 });
 
 #[derive(Debug)]
 pub struct TokenUsage {
-    max_tokens: usize,
     max_input_tokens: usize,
     current_tokens: AtomicUsize,
 }
 
 impl TokenUsage {
-    pub fn new(max_tokens: usize, max_input_tokens: usize) -> Self {
+    pub fn new(max_input_tokens: usize) -> Self {
         Self {
-            max_tokens,
             max_input_tokens,
             current_tokens: AtomicUsize::new(0),
         }
@@ -58,7 +55,7 @@ impl TokenUsage {
         let max = self.max_input_tokens;
         let current_str = Self::format_token_count(current);
         let max_str = Self::format_token_count(max);
-        
+
         let count_display = if current > max {
             format!("[{}/{}]", current_str, max_str).red().to_string()
         } else {
@@ -71,6 +68,6 @@ impl TokenUsage {
 
 impl Default for TokenUsage {
     fn default() -> Self {
-        Self::new(16000, 12000) // Default values for GPT-3.5-turbo
+        Self::new(150000) // Default values for GPT-4o
     }
 }
