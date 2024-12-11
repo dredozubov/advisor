@@ -404,7 +404,7 @@ fn build_metadata_summary(
 }
 
 async fn generate_query(
-    chain: &ConversationalChain,
+    _chain: &ConversationalChain,
     llm: &OpenAI<OpenAIConfig>,
     input: &str,
     conversation: &Conversation,
