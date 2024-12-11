@@ -2,7 +2,10 @@ use super::types::{AdvisorBackend, ConversationInfo};
 use crate::{eval, memory::ConversationManager};
 use anyhow::Result;
 use futures::stream::BoxStream;
-use langchain_rust::{chain::ConversationalChain, vectorstore::pgvector::Store};
+use langchain_rust::{
+    llm::{OpenAI, OpenAIConfig},
+    vectorstore::pgvector::Store,
+};
 use reqwest::Client;
 use std::{error::Error, sync::Arc};
 use tokio::sync::RwLock;

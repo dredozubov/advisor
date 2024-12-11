@@ -82,7 +82,7 @@ async fn handle_command(
                         // Count chunks by type
                         let mut filing_chunks = 0;
                         let mut earnings_chunks = 0;
-                        
+
                         for chunk in &chunks {
                             if chunk.starts_with("filing:") {
                                 filing_chunks += 1;
@@ -99,7 +99,10 @@ async fn handle_command(
                             chunk_info.push(format!("{} earnings chunks", earnings_chunks));
                         }
 
-                        println!("  {}", format!("Referenced documents: {}", chunk_info.join(", ")).dimmed());
+                        println!(
+                            "  {}",
+                            format!("Referenced documents: {}", chunk_info.join(", ")).dimmed()
+                        );
                     }
                 }
                 println!(); // Extra newline for spacing
@@ -292,8 +295,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &input,
                         &conv,
                         &http_client,
-                        &stream_chain,
-                        &query_chain,
                         Arc::clone(&store),
                         conversation_manager_for_eval.clone(),
                         llm.clone(),
