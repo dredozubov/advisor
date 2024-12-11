@@ -209,7 +209,7 @@ async fn build_document_context(
     }
 
     // 2. Calculate total tokens
-    const MAX_TOKENS: usize = 12000; // Adjust based on your model
+    const MAX_TOKENS: usize = 130000; // FIXME Adjust based on your model
     let total_tokens: usize = required_docs
         .iter()
         .map(|doc| doc.page_content.to_string().split_whitespace().count() * 4) // Estimate 4 tokens per word
