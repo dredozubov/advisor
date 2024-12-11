@@ -563,9 +563,7 @@ impl EditorWithHistory {
     }
 
     pub fn readline(&mut self, prompt: &str) -> Result<String> {
-        let line = self.inner.readline(prompt)?;
-        let _ = self.inner.add_history_entry(line.as_str());
-        Ok(line)
+        self.inner.readline(prompt)
     }
 }
 

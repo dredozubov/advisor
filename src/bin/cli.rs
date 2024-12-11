@@ -168,10 +168,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
-
+                // Add to history before any processing
                 let input = line.trim().to_string();
-                // Add to history before processing
-                rl.add_history_entry(&input)?;
+                if !input.is_empty() {
+                    rl.add_history_entry(&input)?;
+                }
                 
                 if input == "quit" {
                     // Ensure terminal is back to normal mode before quitting
