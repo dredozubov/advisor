@@ -117,6 +117,13 @@ impl Validator for ReplHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         let input = ctx.input();
 
+        // Check for empty input
+        if input.trim().is_empty() {
+            return Ok(ValidationResult::Invalid(Some(
+                "Input cannot be empty".to_string(),
+            )));
+        }
+
         // Skip validation for commands
         if input.starts_with('/') {
             return Ok(ValidationResult::Valid(None));
