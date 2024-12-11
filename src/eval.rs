@@ -478,6 +478,7 @@ pub async fn eval(
     query_chain: &ConversationalChain,
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
+    llm: OpenAI<OpenAIConfig>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -497,7 +498,7 @@ pub async fn eval(
         .await?;
 
     // Generate response
-    let (query, summary) = generate_query(query_chain, llm.clone(), input, conversation).await?;
+    let (query, summary) = generate_query(query_chain, &llm, input, conversation).await?;
 
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
@@ -523,7 +524,7 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(stream_chain, llm.clone(), input, &context).await?;
+    let stream = generate_response(stream_chain, &llm, input, &context).await?;
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
@@ -678,7 +679,7 @@ async fn process_edgar_filings(
     Ok(())
 }
 
-async fn get_conversation_summary(chain: &ConversationalChain, llm: OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
+async fn get_conversation_summary(_chain: &ConversationalChain, llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
     let summary_task = format!(
         "Provide a 2-3 word summary of thiass query, mentioning any ticker symbols if present. Examples:\n\
          Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
@@ -699,7 +700,7 @@ async fn get_conversation_summary(chain: &ConversationalChain, llm: OpenAI<OpenA
     }
 }
 
-async fn extract_query_params(chain: &ConversationalChain, llm: OpenAI<OpenAIConfig>, input: &str) -> Result<Query> {
+async fn extract_query_params(_chain: &ConversationalChain, llm: &OpenAI<OpenAIConfig>, input: &str) -> Result<Query> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");

@@ -296,6 +296,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &query_chain,
                         Arc::clone(&store),
                         conversation_manager_for_eval.clone(),
+                        llm.clone(),
                     )
                     .await
                     {
