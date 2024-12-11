@@ -67,11 +67,12 @@ async fn start_new_conversation(
     Ok(())
 }
 
-fn get_prompt(summary: &str) -> String {
+fn get_prompt(summary: &str, token_usage: &advisor::TokenUsage) -> String {
     if summary.is_empty() {
         format!("{}", "> ".green().bold())
     } else {
-        format!("{} {}", summary.blue().bold(), " > ".green().bold())
+        let formatted = token_usage.format_prompt(summary);
+        format!("{} {}", formatted.blue().bold(), " > ".green().bold())
     }
 }
 
@@ -105,6 +106,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (stream_chain, query_chain) = init::initialize_chains(llm.clone()).await?;
 
     println!("Enter 'quit' to exit");
+    let token_usage = Arc::new(advisor::TokenUsage::default());
     let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
     let mut chain_manager = ConversationChainManager::new(pg_pool.clone());
 
@@ -137,12 +139,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await
             .get_current_conversation_details()
             .await?;
-        let prompt = get_prompt(
-            &current_conv
-                .clone()
-                .map(|c| c.summary.clone())
-                .unwrap_or_default(),
-        );
+        let summary = current_conv
+            .clone()
+            .map(|c| c.summary.clone())
+            .unwrap_or_default();
+            
+        // Update token count for current conversation
+        if let Some(conv) = &current_conv {
+            let messages = conversation_manager
+                .read()
+                .await
+                .get_conversation_messages(&conv.id, 100)
+                .await?;
+            let full_text = messages
+                .iter()
+                .map(|m| m.content.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            token_usage.update_current_tokens(&full_text);
+        }
+
+        let prompt = get_prompt(&summary, &token_usage);
 
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {

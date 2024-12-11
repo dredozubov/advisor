@@ -10,7 +10,9 @@ pub mod query;
 pub mod repl;
 pub mod utils;
 pub mod vectorstore;
+pub mod tokens;
 
 // Re-exports
 pub use core::init;
 pub use utils::progress::ProgressTracker;
+pub use tokens::TokenUsage;
