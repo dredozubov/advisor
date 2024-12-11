@@ -12,7 +12,7 @@ use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{prompt_args, chain::builder::ConversationalChainBuilder};
+use langchain_rust::{prompt_args, chain::builder::ConversationalChainBuilder, chain::Chain};
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -400,6 +400,7 @@ fn build_metadata_summary(
 
 async fn generate_query(
     chain: &ConversationalChain,
+    llm: OpenAI<OpenAIConfig>,
     input: &str,
     conversation: &Conversation,
 ) -> Result<(Query, String)> {
@@ -421,6 +422,7 @@ async fn generate_query(
 
 async fn generate_response(
     chain: &ConversationalChain,
+    llm: OpenAI<OpenAIConfig>,
     input: &str,
     context: &str,
 ) -> Result<
@@ -490,7 +492,7 @@ pub async fn eval(
         .await?;
 
     // Generate response
-    let (query, summary) = generate_query(query_chain, input, conversation).await?;
+    let (query, summary) = generate_query(query_chain, llm.clone(), input, conversation).await?;
 
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
@@ -516,7 +518,7 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(stream_chain, input, &context).await?;
+    let stream = generate_response(stream_chain, llm.clone(), input, &context).await?;
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
@@ -671,7 +673,7 @@ async fn process_edgar_filings(
     Ok(())
 }
 
-async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> Result<String> {
+async fn get_conversation_summary(chain: &ConversationalChain, llm: OpenAI<OpenAIConfig>, input: &str) -> Result<String> {
     let summary_task = format!(
         "Provide a 2-3 word summary of thiass query, mentioning any ticker symbols if present. Examples:\n\
          Input: Show me Apple's revenue breakdown for Q1 2024 -> AAPL Revenue\n\
@@ -692,7 +694,7 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
     }
 }
 
-async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Result<Query> {
+async fn extract_query_params(chain: &ConversationalChain, llm: OpenAI<OpenAIConfig>, input: &str) -> Result<Query> {
     log::debug!("Starting extract_query_params with input: {}", input);
     let now = chrono::Local::now();
     let _today_year = now.format("%Y");
