@@ -1,3 +1,4 @@
+use colored::Colorize;
 use once_cell::sync::Lazy;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokenizers::Tokenizer;
@@ -44,13 +45,27 @@ impl TokenUsage {
         self.max_input_tokens
     }
 
+    fn format_token_count(count: usize) -> String {
+        if count >= 1000 {
+            format!("{:.1}K", count as f64 / 1000.0)
+        } else {
+            count.to_string()
+        }
+    }
+
     pub fn format_prompt(&self, summary: &str) -> String {
-        format!(
-            "{} [{}/{}]> ",
-            summary,
-            self.get_current_tokens(),
-            self.max_input_tokens
-        )
+        let current = self.get_current_tokens();
+        let max = self.max_input_tokens;
+        let current_str = Self::format_token_count(current);
+        let max_str = Self::format_token_count(max);
+        
+        let count_display = if current > max {
+            format!("[{}/{}]", current_str, max_str).red().to_string()
+        } else {
+            format!("[{}/{}]", current_str, max_str)
+        };
+
+        format!("{} {}> ", summary, count_display)
     }
 }
 
