@@ -12,7 +12,7 @@ use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
-use langchain_rust::{chain::Chain, prompt_args};
+use langchain_rust::{prompt_args, chain::builder::ConversationalChainBuilder};
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -451,8 +451,7 @@ async fn generate_response(
 
     // Create a new chain specifically for streaming
     let stream_chain = ConversationalChainBuilder::new()
-        .llm(chain.llm().clone())
-        .memory(chain.memory().clone())
+        .llm(llm.clone())
         .build()?;
     
     let stream = stream_chain.stream(prompt_args).await?;
@@ -684,12 +683,11 @@ async fn get_conversation_summary(chain: &ConversationalChain, input: &str) -> R
 
     // Create a new chain for this non-streaming operation
     let chain = ConversationalChainBuilder::new()
-        .llm(chain.llm().clone())
-        .memory(chain.memory().clone())
+        .llm(llm.clone())
         .build()?;
 
     match chain.invoke(prompt_args! {"input" => summary_task}).await {
-        Ok(result) => Ok(result.trim().to_string()),
+        Ok(result) => Ok(result.to_string()),
         Err(e) => Err(anyhow!("Error getting summary: {:?}", e)),
     }
 }
@@ -747,12 +745,12 @@ async fn extract_query_params(chain: &ConversationalChain, input: &str) -> Resul
     // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
     // Create a new chain for this non-streaming operation
     let chain = ConversationalChainBuilder::new()
-        .llm(chain.llm().clone())
-        .memory(chain.memory().clone())
+        .llm(llm.clone())
         .build()?;
     
     match chain.invoke(prompt_args! {"input" => task.clone()}).await {
         Ok(result) => {
+            let result = result.to_string();
             log::debug!("Result: {:?}", result);
             let query: Query = match serde_json::from_str(&result) {
                 Ok(query) => query,
