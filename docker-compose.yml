@@ -30,6 +30,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-advisor}
+    command: postgres -c maintenance_work_mem=128MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

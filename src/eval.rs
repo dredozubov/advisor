@@ -3,10 +3,9 @@ use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, MessageRole};
 use crate::query::Query;
 use crate::{earnings, ProgressTracker};
-use tokio::sync::RwLock;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use futures::{StreamExt, FutureExt};
+use futures::{FutureExt, StreamExt};
 use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::chain::ConversationalChain;
@@ -17,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 async fn process_documents(
     query: &Query,
@@ -32,7 +32,7 @@ async fn process_documents(
 
     // Create futures for both processing tasks
     let mut futures = Vec::new();
-    
+
     // Process EDGAR filings if requested
     if query.parameters.get("filings").is_some() {
         log::debug!("Filings data is requested");
@@ -51,16 +51,15 @@ async fn process_documents(
                             edgar_query.start_date,
                             edgar_query.end_date
                         );
-                        let filings = filing::fetch_matching_filings(
-                            http_client, 
-                            &edgar_query,
-                            Some(&multi)
-                        ).await?;
+                        let filings =
+                            filing::fetch_matching_filings(http_client, &edgar_query, Some(&multi))
+                                .await?;
                         process_edgar_filings(
                             filings,
                             Arc::clone(&store),
                             Some(Arc::clone(&progress_tracker)),
-                        ).await?;
+                        )
+                        .await?;
                     }
                     Ok::<_, anyhow::Error>(())
                 }
@@ -84,19 +83,11 @@ async fn process_documents(
         let end_date = earnings_query.end_date;
         let store = Arc::clone(&store);
         let progress_tracker = progress_tracker.clone();
-        
+
         let earnings_future = async move {
-            let transcripts = earnings::fetch_transcripts(
-                http_client,
-                &ticker,
-                start_date,
-                end_date,
-            ).await?;
-            process_earnings_transcripts(
-                transcripts,
-                store,
-                Some(progress_tracker)
-            ).await?;
+            let transcripts =
+                earnings::fetch_transcripts(http_client, &ticker, start_date, end_date).await?;
+            process_earnings_transcripts(transcripts, store, Some(progress_tracker)).await?;
             Ok::<_, anyhow::Error>(())
         };
         futures.push(earnings_future.boxed());
@@ -111,31 +102,6 @@ async fn process_documents(
             .map_err(|e| anyhow!("Failed to clear progress bars: {}", e))?;
     }
     Ok(())
-}
-
-async fn build_context(
-    query: &Query,
-    input: &str,
-    conversation: &Conversation,
-    store: Arc<Store>,
-    conversation_manager: Arc<RwLock<ConversationManager>>,
-) -> Result<String> {
-    log::debug!("Building context for query: {:?}", query);
-
-    // Get document context
-    let doc_context = build_document_context(query, input, Arc::clone(&store)).await?;
-
-    // Combine with conversation context
-    let full_context = format!(
-        "Conversation Summary: {}\n\
-         Focus Companies: {}\n\n\
-         Document Context:\n{}",
-        conversation.summary,
-        conversation.tickers.join(", "),
-        doc_context
-    );
-
-    Ok(full_context)
 }
 
 async fn build_document_context(
@@ -191,12 +157,12 @@ async fn build_document_context(
                 let chunk_id = format!("{:?}", doc.metadata);
                 let conv_manager = conversation_manager.read().await;
                 let is_new = !conv_manager.has_chunk(&conversation.id, &chunk_id).await?;
-                
+
                 if !is_new {
                     log::info!("Skipping already added chunk: {}", chunk_id);
                     continue;
                 }
-                
+
                 // Add chunk tracking
                 drop(conv_manager); // Release read lock before acquiring write lock
                 conversation_manager
@@ -204,7 +170,7 @@ async fn build_document_context(
                     .await
                     .add_chunk(&conversation.id, &chunk_id)
                     .await?;
-                
+
                 required_docs.push(doc);
             }
         }
@@ -534,7 +500,14 @@ pub async fn eval(
         multi_progress.as_ref(),
     )
     .await?;
-    let context = build_document_context(query, input, Arc::clone(&store), conversation, Arc::clone(&conversation_manager)).await?;
+    let context = build_document_context(
+        &query,
+        input,
+        Arc::clone(&store),
+        conversation,
+        Arc::clone(&conversation_manager),
+    )
+    .await?;
     let stream = generate_response(stream_chain, input, &context).await?;
 
     // Create a new stream for collecting the complete response
