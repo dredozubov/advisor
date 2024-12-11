@@ -234,8 +234,8 @@ impl ConversationManager {
 
     pub async fn has_chunk(&self, conversation_id: &Uuid, chunk_id: &str) -> Result<bool> {
         let result = sqlx::query!(
-            "SELECT 1 FROM conversation_chunks 
-             WHERE conversation_id = $1 AND chunk_id = $2",
+            "SELECT exists(SELECT 1 FROM conversation_chunks 
+             WHERE conversation_id = $1 AND chunk_id = $2) as exists",
             conversation_id,
             chunk_id
         )

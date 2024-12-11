@@ -183,7 +183,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
             // Filter out chunks that have already been added to this conversation
             for doc in all_docs {
                 let chunk_id = format!("{:?}", doc.metadata);
-                let is_new = conversation_manager
+                let is_new = !conversation_manager
                     .read()
                     .await
                     .has_chunk(&conversation.id, &chunk_id)
@@ -196,7 +196,7 @@ async fn build_document_context(query: &Query, input: &str, store: Arc<Store>) -
                 
                 // Add chunk tracking
                 conversation_manager
-                    .read()
+                    .write()
                     .await
                     .add_chunk(&conversation.id, &chunk_id)
                     .await?;
