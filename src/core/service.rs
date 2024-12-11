@@ -57,6 +57,7 @@ impl AdvisorBackend for AdvisorService {
             &self.query_chain,
             Arc::clone(&self.store),
             self.conversation_manager.clone(),
+            self.stream_chain.llm().clone(),
         )
         .await?;
 
