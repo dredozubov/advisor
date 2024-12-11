@@ -169,7 +169,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         match rl.readline_with_initial(&prompt, ("", "")) {
             Ok(line) => {
 
-                let input = line.trim();
+                let input = line.trim().to_string();
+                // Add to history before processing
+                rl.add_history_entry(&input)?;
+                
                 if input == "quit" {
                     // Ensure terminal is back to normal mode before quitting
                     if crossterm::terminal::is_raw_mode_enabled()? {
