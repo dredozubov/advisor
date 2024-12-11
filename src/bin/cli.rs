@@ -70,37 +70,35 @@ async fn handle_command(
                         display_content
                     );
 
-                    // Display document chunks used for this message
-                    if msg.role == MessageRole::Assistant {
-                        // Extract chunks from message metadata
-                        log::info!("{:?}", msg.metadata);
-                        if let Some(query) = msg.metadata.get("query") {
-                            if let Some(chunks) = query.get("chunks").and_then(|c| c.as_array()) {
-                                let chunk_info = chunks
-                                    .iter()
-                                    .filter_map(|c| c.as_str())
-                                    .map(|chunk| {
-                                        let mut parts = chunk.split(':');
-                                        match (parts.next(), parts.next()) {
-                                            (Some("filing"), Some(rest)) => {
-                                                format!("Filing {}", rest)
-                                            }
-                                            (Some("earnings"), Some(rest)) => {
-                                                format!("Earnings {}", rest)
-                                            }
-                                            _ => chunk.to_string(),
-                                        }
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join(", ");
-                                if !chunk_info.is_empty() {
-                                    println!(
-                                        "  {}",
-                                        format!("Referenced documents: {}", chunk_info).dimmed()
-                                    );
-                                }
+                    // Display chunks used for this message
+                    let chunks = conversation_manager
+                        .read()
+                        .await
+                        .get_message_chunks(&msg.id)
+                        .await?;
+
+                    if !chunks.is_empty() {
+                        // Count chunks by type
+                        let mut filing_chunks = 0;
+                        let mut earnings_chunks = 0;
+                        
+                        for chunk in &chunks {
+                            if chunk.starts_with("filing:") {
+                                filing_chunks += 1;
+                            } else if chunk.starts_with("earnings:") {
+                                earnings_chunks += 1;
                             }
                         }
+
+                        let mut chunk_info = Vec::new();
+                        if filing_chunks > 0 {
+                            chunk_info.push(format!("{} filing chunks", filing_chunks));
+                        }
+                        if earnings_chunks > 0 {
+                            chunk_info.push(format!("{} earnings chunks", earnings_chunks));
+                        }
+
+                        println!("  {}", format!("Referenced documents: {}", chunk_info.join(", ")).dimmed());
                     }
                 }
                 println!(); // Extra newline for spacing
