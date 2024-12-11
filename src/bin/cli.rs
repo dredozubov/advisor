@@ -190,7 +190,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 if input.starts_with('/') {
                     handle_command(
-                        input,
+                        &input,
                         &mut rl,
                         &conversation_manager,
                         &mut chain_manager,
@@ -202,7 +202,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 if let Some(conv) = current_conv {
                     match eval::eval(
-                        input,
+                        &input,
                         &conv,
                         &http_client,
                         &stream_chain,
