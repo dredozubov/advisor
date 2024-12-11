@@ -1,5 +1,6 @@
 use super::types::{AdvisorBackend, ConversationInfo};
 use crate::{eval, memory::ConversationManager};
+use langchain_rust::llm::{OpenAI, OpenAIConfig};
 use anyhow::Result;
 use futures::stream::BoxStream;
 use langchain_rust::{

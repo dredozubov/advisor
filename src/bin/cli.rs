@@ -295,7 +295,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &input,
                         &conv,
                         &http_client,
-                        Arc::clone(&store),
+                        llm.clone(),
                         conversation_manager_for_eval.clone(),
                         llm.clone(),
                     )
