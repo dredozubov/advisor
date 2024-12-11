@@ -498,7 +498,7 @@ pub async fn eval(
         .await?;
 
     // Generate response
-    let (query, summary) = generate_query(query_chain, llm, input, conversation).await?;
+    let (query, summary) = generate_query(query_chain, &llm, input, conversation).await?;
 
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
@@ -524,7 +524,7 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(stream_chain, llm, input, &context).await?;
+    let stream = generate_response(stream_chain, &llm, input, &context).await?;
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
