@@ -156,14 +156,23 @@ async fn build_document_context(
             // Filter out chunks that have already been added to this conversation
             for doc in all_docs {
                 let chunk_id = format!("{:?}", doc.metadata);
-                let message_id = Uuid::parse_str(&conversation.id.to_string())?;
                 
-                // Add chunk tracking for this message
-                conversation_manager
-                    .write()
+                // Get the latest message ID for this conversation
+                let messages = conversation_manager
+                    .read()
                     .await
-                    .add_message_chunk(&message_id, &chunk_id)
+                    .get_conversation_messages(&conversation.id, 1)
                     .await?;
+                
+                if let Some(last_message) = messages.first() {
+                    let message_id = Uuid::parse_str(&last_message.id)?;
+                    // Add chunk tracking for this message
+                    conversation_manager
+                        .write()
+                        .await
+                        .add_message_chunk(&message_id, &chunk_id)
+                        .await?;
+                }
 
                 required_docs.push(doc);
             }
