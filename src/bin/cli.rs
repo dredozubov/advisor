@@ -69,6 +69,31 @@ async fn handle_command(
                         msg.role.to_string().color(role_color),
                         display_content
                     );
+
+                    // Display document chunks used for this message
+                    if msg.role == MessageRole::Assistant {
+                        if let Some(chunks) = conversation_manager
+                            .read()
+                            .await
+                            .get_conversation_chunks(&conv.id)
+                            .await?
+                        {
+                            if !chunks.is_empty() {
+                                let chunk_info = chunks.iter()
+                                    .map(|chunk| {
+                                        let mut parts = chunk.split(':');
+                                        match (parts.next(), parts.next()) {
+                                            (Some("filing"), Some(rest)) => format!("Filing {}", rest),
+                                            (Some("earnings"), Some(rest)) => format!("Earnings {}", rest),
+                                            _ => chunk.to_string()
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                println!("  {}", format!("Referenced documents: {}", chunk_info).dimmed());
+                            }
+                        }
+                    }
                 }
                 println!(); // Extra newline for spacing
             } else {
