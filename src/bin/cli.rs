@@ -42,7 +42,7 @@ async fn handle_command(
                     .await?;
 
                 println!("\nConversation history:");
-                for msg in messages.iter() {
+                for msg in messages.iter().rev() {
                     let role_color = match msg.role {
                         MessageRole::User => "cyan",
                         MessageRole::Assistant => "green",
