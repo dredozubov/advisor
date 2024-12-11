@@ -215,13 +215,13 @@ impl ConversationManager {
         Ok(id)
     }
 
-    pub async fn add_chunk(&self, conversation_id: &Uuid, chunk_id: &str) -> Result<bool> {
+    pub async fn add_message_chunk(&self, message_id: &Uuid, chunk_id: &str) -> Result<bool> {
         match sqlx::query!(
-            "INSERT INTO conversation_chunks (conversation_id, chunk_id) 
+            "INSERT INTO message_chunks (message_id, chunk_id) 
              VALUES ($1, $2) 
              ON CONFLICT DO NOTHING
              RETURNING chunk_id",
-            conversation_id,
+            message_id,
             chunk_id
         )
         .fetch_optional(&self.pool)
@@ -263,9 +263,9 @@ impl ConversationManager {
         crate::db::get_conversation_messages(&self.pool, conversation_id, limit).await
     }
 
-    pub async fn get_message_chunks(&self, message_id: &str) -> Result<Vec<String>> {
+    pub async fn get_message_chunks(&self, message_id: &Uuid) -> Result<Vec<String>> {
         let chunks = sqlx::query!(
-            "SELECT chunk_id FROM conversation_chunks WHERE conversation_id = $1",
+            "SELECT chunk_id FROM message_chunks WHERE message_id = $1",
             message_id
         )
         .fetch_all(&self.pool)

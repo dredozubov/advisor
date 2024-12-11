@@ -71,10 +71,11 @@ async fn handle_command(
                     );
 
                     // Display chunks used for this message
+                    let message_id = Uuid::parse_str(&msg.id)?;
                     let chunks = conversation_manager
                         .read()
                         .await
-                        .get_message_chunks(&msg.id)
+                        .get_message_chunks(&message_id)
                         .await?;
 
                     if !chunks.is_empty() {
