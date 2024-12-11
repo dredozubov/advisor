@@ -127,27 +127,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "Loaded most recent conversation:".green(),
                 conv.summary.blue().bold()
             );
-            
-            // Show the last few messages from this conversation
-            let messages = conversation_manager
-                .get_conversation_messages(&conv.id, 3)
-                .await?;
-            if !messages.is_empty() {
-                println!("\nRecent messages:");
-                for msg in messages.iter().rev() {
-                    let role_color = match msg.role {
-                        MessageRole::User => "cyan",
-                        MessageRole::Assistant => "green",
-                        MessageRole::System => "yellow",
-                    };
-                    println!(
-                        "{}: {}",
-                        msg.role.to_string().color(role_color),
-                        msg.content.trim()
-                    );
-                }
-                println!(); // Extra newline for spacing
-            }
         }
         None => {
             println!("{}", "No previous conversations found. Starting fresh!".yellow());
