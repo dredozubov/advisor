@@ -12,8 +12,7 @@ pub struct AdvisorService {
     conversation_manager: Arc<RwLock<ConversationManager>>,
     store: Arc<Store>,
     http_client: Client,
-    stream_chain: ConversationalChain,
-    query_chain: ConversationalChain,
+    llm: OpenAI<OpenAIConfig>,
 }
 
 impl AdvisorService {
@@ -21,15 +20,13 @@ impl AdvisorService {
         conversation_manager: ConversationManager,
         store: Arc<Store>,
         http_client: Client,
-        stream_chain: ConversationalChain,
-        query_chain: ConversationalChain,
+        llm: OpenAI<OpenAIConfig>,
     ) -> Self {
         Self {
             conversation_manager: Arc::new(RwLock::new(conversation_manager)),
             store,
             http_client,
-            stream_chain,
-            query_chain,
+            llm,
         }
     }
 }
@@ -53,11 +50,9 @@ impl AdvisorBackend for AdvisorService {
             input,
             &conversation,
             &self.http_client,
-            &self.stream_chain,
-            &self.query_chain,
+            &self.llm,
             Arc::clone(&self.store),
             self.conversation_manager.clone(),
-            self.stream_chain.llm,
         )
         .await?;
 

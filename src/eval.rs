@@ -473,11 +473,9 @@ pub async fn eval(
     input: &str,
     conversation: &Conversation,
     http_client: &reqwest::Client,
-    _stream_chain: &ConversationalChain,
-    query_chain: &ConversationalChain,
+    llm: &OpenAI<OpenAIConfig>,
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
-    llm: OpenAI<OpenAIConfig>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
