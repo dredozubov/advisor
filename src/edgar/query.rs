@@ -207,7 +207,8 @@ mod tests {
             "tickers": ["AAPL", "GOOGL"],
             "start_date": "2024-01-01",
             "end_date": "2024-12-31",
-            "report_types": ["10-K", "10-Q"]
+            "report_types": ["10-K", "10-Q"],
+            "is_adr": false
         }
         "#;
 
