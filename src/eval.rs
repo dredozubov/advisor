@@ -2,7 +2,7 @@ use crate::edgar::report::ReportType;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, DatabaseMemory, MessageRole};
 use crate::query::Query;
-use crate::{earnings, ProgressTracker};
+use crate::{earnings, ProgressTracker, TokenUsage};
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use futures::{FutureExt, StreamExt};
@@ -451,17 +451,16 @@ async fn generate_response(
         input, context
     );
 
-    // Log prompt size and estimate tokens
-    log::info!("Generated prompt length: {}", prompt.len());
-    let estimated_tokens = prompt.len() / 4;
-    log::info!("Estimated token count: {}", estimated_tokens);
+    // Use tokenizer to get accurate token count
+    let token_count = TokenUsage::count_tokens(&prompt);
+    log::info!("Generated prompt length: {} chars, {} tokens", prompt.len(), token_count);
 
     // Check if we're likely to exceed OpenAI limits
-    if estimated_tokens > 16000 {
+    if token_count > 16000 {
         // Conservative limit for GPT-4
         log::warn!(
-            "Estimated tokens ({}) may exceed model limits",
-            estimated_tokens
+            "Token count ({}) may exceed model limits",
+            token_count
         );
     }
 
