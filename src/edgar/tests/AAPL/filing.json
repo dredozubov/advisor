@@ -1,0 +1,28 @@
+{
+    "cik": "0000320193",
+    "entityType": "operating",
+    "sic": "3571",
+    "sicDescription": "Electronic Computers",
+    "name": "Apple Inc",
+    "tickers": ["AAPL"],
+    "exchanges": ["Nasdaq"],
+    "filings": {
+        "recent": {
+            "accessionNumber": ["0000320193-23-000077"],
+            "filingDate": ["2023-10-27"],
+            "reportDate": [null],
+            "acceptanceDateTime": ["20231027162211"],
+            "act": ["34"],
+            "form": ["10-K"],
+            "fileNumber": ["001-36743"],
+            "filmNumber": ["231257936"],
+            "items": [""],
+            "size": [12345678],
+            "isXBRL": [1],
+            "isInlineXBRL": [1],
+            "primaryDocument": ["test.htm"],
+            "primaryDocDescription": ["Annual Report"]
+        },
+        "files": []
+    }
+}
