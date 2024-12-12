@@ -60,56 +60,84 @@ impl Completer for ReplHelper {
     type Candidate = Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
-        if let Some(at_pos) = line[..pos].rfind('@') {
-            let prefix = &line[at_pos + 1..pos].to_lowercase();
-
-            let ticker_map = &self.ticker_map;
-            let candidates: Vec<Pair> = ticker_map
+        // Find the word being completed
+        let (word_start, word) = find_word_at_pos(line, pos);
+        
+        // Check if we're completing a ticker (starts with @)
+        if let Some(ticker_part) = word.strip_prefix('@') {
+            let prefix = ticker_part.to_uppercase();
+            
+            // Generate completion candidates
+            let candidates: Vec<Pair> = self.ticker_map
                 .iter()
-                .filter(|(key, _)| key.to_lowercase().starts_with(prefix))
-                .map(|(_, (ticker, company, _))| Pair {
-                    display: format!("{} ({})", ticker.as_str(), company),
-                    replacement: ticker.as_str().to_string(),
+                .filter(|(key, _)| key.starts_with(&prefix))
+                .map(|(_, (ticker, company, _))| {
+                    let display = format!("{} ({})", ticker.as_str(), company);
+                    let replacement = format!("@{}", ticker.as_str());
+                    Pair { display, replacement }
                 })
                 .collect();
 
-            Ok((at_pos + 1, candidates))
-        } else {
-            Ok((pos, vec![]))
+            return Ok((word_start, candidates));
         }
+
+        Ok((pos, vec![]))
     }
 }
 
 impl Highlighter for ReplHelper {
-    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         let mut highlighted = String::new();
-        let mut in_ticker = false;
-        for (_i, c) in line.char_indices() {
-            if c == '@' {
-                in_ticker = true;
-                highlighted.push_str("\x1b[32m"); // Green color for tickers
-                highlighted.push(c);
-            } else if in_ticker && !c.is_alphanumeric() {
-                in_ticker = false;
-                highlighted.push_str("\x1b[0m"); // Reset color
-                highlighted.push(c);
-            } else {
-                highlighted.push(c);
+        let mut last_pos = 0;
+        
+        // Find all ticker symbols and highlight them
+        for (start, part) in line.match_indices('@') {
+            // Add unhighlighted text before the ticker
+            highlighted.push_str(&line[last_pos..start]);
+            
+            // Find the end of the ticker symbol
+            let end = start + part.len() + line[start + part.len()..].find(|c: char| {
+                !c.is_alphanumeric() && c != '-'
+            }).unwrap_or(line[start + part.len()..].len());
+            
+            let ticker = &line[start..end];
+            
+            // Check if it's a valid ticker
+            if let Some(ticker_str) = ticker.strip_prefix('@') {
+                let is_valid = self.ticker_map.values()
+                    .any(|(t, _, _)| t.as_str() == ticker_str.to_uppercase());
+                
+                // Use different colors for valid/invalid tickers
+                if is_valid {
+                    highlighted.push_str("\x1b[32m"); // Green for valid
+                } else {
+                    highlighted.push_str("\x1b[31m"); // Red for invalid
+                }
             }
+            
+            highlighted.push_str(ticker);
+            highlighted.push_str("\x1b[0m"); // Reset color
+            
+            last_pos = end;
         }
-        if in_ticker {
-            highlighted.push_str("\x1b[0m"); // Reset color at the end if needed
+        
+        // Add remaining text
+        highlighted.push_str(&line[last_pos..]);
+        
+        // Highlight current word at cursor if it's a command
+        if pos < line.len() && line.starts_with('/') {
+            let word_end = line[pos..].find(' ').map_or(line.len(), |i| i + pos);
+            highlighted.insert_str(pos, "\x1b[36m"); // Cyan for commands
+            highlighted.insert_str(word_end, "\x1b[0m");
         }
+        
         Cow::Owned(highlighted)
     }
 
-    fn highlight_char(
-        &self,
-        _line: &str,
-        _pos: usize,
-        _forced: rustyline::highlight::CmdKind,
-    ) -> bool {
-        true
+    fn highlight_char(&self, line: &str, pos: usize) -> bool {
+        // Highlight characters in tickers and commands
+        let word = find_word_at_pos(line, pos).1;
+        word.starts_with('@') || word.starts_with('/')
     }
 }
 
@@ -166,11 +194,52 @@ impl Validator for ReplHelper {
 impl Hinter for ReplHelper {
     type Hint = String;
 
-    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
-        // For now, we'll return None (no hints)
-        // You can implement more sophisticated hinting logic here in the future
+    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+        // Don't show hints for empty lines
+        if line.trim().is_empty() {
+            return Some(" Type @<ticker> to reference a company...".into());
+        }
+
+        // Find current word
+        let word = find_word_at_pos(line, pos).1;
+        
+        // Show hint for partial ticker
+        if let Some(partial) = word.strip_prefix('@') {
+            if !partial.is_empty() {
+                // Find first matching ticker
+                if let Some((_, (ticker, company, _))) = self.ticker_map
+                    .iter()
+                    .find(|(key, _)| key.starts_with(&partial.to_uppercase()))
+                {
+                    return Some(format!(" → {} ({})", ticker.as_str(), company));
+                }
+            }
+        }
+
+        // Show command hints
+        if line.starts_with('/') {
+            return Some(match line {
+                "/d" => " → /delete <conversation_id>".into(),
+                "/l" => " → /list".into(),
+                "/h" => " → /help".into(),
+                "/q" => " → /quit".into(),
+                _ => "".into(),
+            });
+        }
+
         None
     }
+}
+
+// Helper function to find word boundaries
+fn find_word_at_pos(line: &str, pos: usize) -> (usize, &str) {
+    let start = line[..pos]
+        .rfind(|c: char| c.is_whitespace())
+        .map_or(0, |i| i + 1);
+    let end = line[pos..]
+        .find(|c: char| c.is_whitespace())
+        .map_or(line.len(), |i| i + pos);
+    (start, &line[start..end])
 }
 
 impl Helper for ReplHelper {}
@@ -407,6 +476,11 @@ pub async fn create_editor(
     let rustyline_config = RustylineConfig::builder()
         .completion_type(CompletionType::List)
         .edit_mode(EditMode::Emacs)
+        .auto_add_history(true)
+        .completion_prompt_limit(100)
+        .max_history_size(1000)
+        .history_ignore_space(true)
+        .history_ignore_dups(true)
         .build();
 
     log::debug!("Creating editor with config");
