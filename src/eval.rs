@@ -433,20 +433,15 @@ async fn generate_response(
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
-    log::info!("generate_response::input: {}", input);
-    // Create prompt with context
     let prompt = format!(
         "Based on the conversation context and available documents, answer this question: {}\n\n\
          Context:\n{}\n\n\
          If you don't know the answer, just say that you don't know, don't try to make up an answer. \
          Use the conversation history to provide more relevant and contextual answers. \
          Helpful answer:\n",
-        input,
-        context
+        input, context
     );
-    log::trace!("Prompt: {}", prompt);
 
-    // Return streaming response
     let prompt_args = prompt_args![
         "input" => [
             "You are a helpful financial analyst assistant. Provide clear, quantitative, \
@@ -458,14 +453,12 @@ async fn generate_response(
 
     let conversation_id = conversation_id.unwrap_or_else(Uuid::nil);
     let memory = DatabaseMemory::new(pg_pool.clone(), conversation_id);
-    // Create a new chain specifically for streaming
     let stream_chain = ConversationalChainBuilder::new()
         .llm((*llm).clone())
         .memory(Arc::new(tokio::sync::Mutex::new(memory)))
         .build()?;
 
     let stream = stream_chain.stream(prompt_args).await?;
-    log::info!("LLM stream started successfully");
 
     Ok(Box::pin(stream.map(|r| {
         r.map(|s| s.content)
@@ -542,55 +535,49 @@ pub async fn eval(
     .await?;
     let stream = generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await?;
 
-    // Create a new stream for collecting the complete response
-    let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+    // Create a new channel for collecting the complete response
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
+    
+    // Clone necessary values for the spawned task
+    let conversation_id = conversation.id;
+    let query_clone = query.clone();
+    let summary_clone = summary.clone();
+    let conversation_manager_clone = Arc::clone(&conversation_manager);
 
-    // Create a new stream that forwards chunks and collects them
-    let stream = Box::pin(futures::stream::unfold(
-        (stream, tx.clone()),
-        |(mut stream, tx)| async move {
-            if let Some(result) = stream.next().await {
-                match result {
-                    Ok(chunk) => {
-                        let _ = tx.send(chunk.clone()).await;
-                        Some((Ok(chunk), (stream, tx)))
-                    }
-                    Err(e) => Some((Err(e), (stream, tx))),
-                }
-            } else {
-                None
-            }
-        },
-    ));
+    // Create a new stream that both forwards chunks and collects them
+    let collected_stream = Box::pin(stream.inspect(move |result| {
+        if let Ok(chunk) = result {
+            let _ = tx.try_send(chunk.clone());
+        }
+    }));
 
     // Spawn task to collect and store complete response
-    let conversation_id = conversation.id;
-    let query = query.clone();
-    let summary = summary.clone();
-    let conversation_manager: Arc<RwLock<ConversationManager>> = Arc::clone(&conversation_manager);
-
-    let summary_clone = summary.clone();
-
     tokio::spawn(async move {
-        let mut response_content = String::new();
+        let mut complete_response = String::new();
         while let Some(chunk) = rx.recv().await {
-            response_content.push_str(&chunk);
+            complete_response.push_str(&chunk);
         }
-        let _ = conversation_manager
+
+        if let Err(e) = conversation_manager_clone
             .write()
             .await
             .add_message(
                 &conversation_id,
                 MessageRole::Assistant,
-                response_content,
+                complete_response,
                 serde_json::json!({
                     "type": "answer",
-                    "query": query,
+                    "query": query_clone,
                     "summary": summary_clone
                 }),
             )
-            .await;
+            .await
+        {
+            log::error!("Failed to store assistant response: {}", e);
+        }
     });
+
+    Ok((collected_stream, summary))
 
     Ok((stream, summary))
 }
