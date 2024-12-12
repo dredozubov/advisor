@@ -139,11 +139,11 @@ async fn build_document_context(
             let cik_tickers: Vec<String> = conversation
                 .tickers
                 .iter()
-                .map(|t| get_cik_for_ticker(t).await?)
+                .map(|t| async move { get_cik_for_ticker(t).await? })
                 .collect();
 
             let chunks = cik_tickers
-                .flat_map(|cik| {
+                .flat_map(async move |cik| {
                     let mut filter = serde_json::Map::new();
                     filter.insert(
                         "doc_type".to_string(),
