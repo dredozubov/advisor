@@ -413,29 +413,18 @@ fn build_metadata_summary(
             doc.metadata.get("quarter").and_then(|v| v.as_u64()),
             doc.metadata.get("year").and_then(|v| v.as_u64()),
             doc.metadata.get("total_chunks").and_then(|v| v.as_u64()),
+            doc.metadata.get("symbol").and_then(|v| v.as_str()),
+            doc.metadata.get("filing_date").and_then(|v| v.as_str()),
         ) {
-            (Some("filing"), Some(filing_type), _, _, Some(total)) => {
-                format!("SEC {} Filing ({} chunks)", filing_type, total)
+            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), Some(date)) => {
+                format!("{} {} Filing {} ({} chunks)", symbol, filing_type, date, total)
             }
-            (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total)) => {
-                format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
-            }
-            (Some("doc_type"), Some("earnings_transcript"), _, _, Some(total)) => {
-                let quarter = doc
-                    .metadata
-                    .get("quarter")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let year = doc
-                    .metadata
-                    .get("year")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                format!("Q{} {} Earnings Call ({} chunks)", quarter, year, total)
+            (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total), Some(symbol), _) => {
+                format!("{} Q{} {} Earnings Call ({} chunks)", symbol, quarter, year, total)
             }
             _ => {
                 log::debug!("Unknown document type in metadata: {:?}", doc.metadata);
-                "Unknown Document Type".to_string()
+                format!("Unknown Document Type: {:?}", doc.metadata)
             }
         };
 
