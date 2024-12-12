@@ -419,27 +419,38 @@ fn build_metadata_summary(
     // Group documents by source and count chunks
     let mut doc_summaries = std::collections::HashMap::new();
     for doc in similar_docs {
+        // Log full metadata for debugging
+        log::debug!("Processing document with metadata: {:?}", doc.metadata);
+        
         let key = match (
             doc.metadata.get("doc_type").and_then(|v| v.as_str()),
-            doc.metadata.get("filing_type").and_then(|v| v.as_str()),
+            doc.metadata.get("report_type").and_then(|v| v.as_str()),  // Changed from filing_type
             doc.metadata.get("quarter").and_then(|v| v.as_u64()),
             doc.metadata.get("year").and_then(|v| v.as_u64()),
             doc.metadata.get("total_chunks").and_then(|v| v.as_u64()),
             doc.metadata.get("symbol").and_then(|v| v.as_str()),
             doc.metadata.get("filing_date").and_then(|v| v.as_str()),
         ) {
-            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), Some(date)) => {
-                format!("{} {} Filing {} ({} chunks)", symbol, filing_type, date, total)
+            (Some("edgar_filing"), Some(filing_type), _, _, total, Some(symbol), Some(date)) => {
+                format!("{} {} Filing {} ({} chunks)", 
+                    symbol, 
+                    filing_type, 
+                    date, 
+                    total.unwrap_or(1))
             }
-            (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total), Some(symbol), _) => {
-                format!("{} Q{} {} Earnings Call ({} chunks)", symbol, quarter, year, total)
-            }
-            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), None) => {
-                format!("{} {} Filing ({} chunks)", symbol, filing_type, total)
+            (Some("earnings_transcript"), _, Some(quarter), Some(year), total, Some(symbol), _) => {
+                format!("{} Q{} {} Earnings Call ({} chunks)", 
+                    symbol, 
+                    quarter, 
+                    year, 
+                    total.unwrap_or(1))
             }
             _ => {
-                log::debug!("Unknown document type in metadata: {:?}", doc.metadata);
-                format!("Unknown Document Type: {:?}", doc.metadata)
+                // More detailed logging for unknown document types
+                log::warn!("Unhandled document type. Metadata: {:?}", doc.metadata);
+                let doc_type = doc.metadata.get("doc_type").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let symbol = doc.metadata.get("symbol").and_then(|v| v.as_str()).unwrap_or("unknown");
+                format!("{} Document for {} (metadata: {:?})", doc_type, symbol, doc.metadata)
             }
         };
 
