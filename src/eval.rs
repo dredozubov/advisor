@@ -19,6 +19,7 @@ use langchain_rust::{
 use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
 use std::error::Error as _;
+use std::fs;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -150,7 +151,7 @@ async fn build_document_context(
             let all_docs = store
                 .similarity_search(
                     input,
-                    50,
+                    10,
                     &langchain_rust::vectorstore::VecStoreOptions {
                         filters: Some(serde_json::Value::Object(filter)),
                         ..Default::default()
@@ -241,7 +242,7 @@ async fn build_document_context(
         store
             .similarity_search(
                 input,
-                MAX_TOKENS / 500, // Rough estimate of docs that will fit. TODO: fix me
+                20,
                 &langchain_rust::vectorstore::VecStoreOptions::default(),
             )
             .await
@@ -308,7 +309,7 @@ async fn build_document_context(
         .iter()
         .map(|doc| {
             log::debug!(
-                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {}",
+                "Document (score: {:.3}):\nMetadata: {:?}\nContent: {:.100}",
                 doc.score,
                 doc.metadata,
                 doc.page_content
@@ -425,6 +426,30 @@ async fn generate_query(
     Ok((query, summary))
 }
 
+async fn log_request(prompt: &str) -> Result<()> {
+    let debug_content = serde_json::json!({
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful financial analyst assistant..."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "stream": true
+    });
+
+    fs::write(
+        "debug_last_request.json",
+        serde_json::to_string_pretty(&debug_content)?,
+    )?;
+
+    Ok(())
+}
+
 async fn generate_response(
     conversation_id: Option<Uuid>,
     llm: &OpenAI<OpenAIConfig>,
@@ -453,15 +478,16 @@ async fn generate_response(
 
     // Use tokenizer to get accurate token count
     let token_count = TokenUsage::count_tokens(&prompt);
-    log::info!("Generated prompt length: {} chars, {} tokens", prompt.len(), token_count);
+    log::info!(
+        "Generated prompt length: {} chars, {} tokens",
+        prompt.len(),
+        token_count
+    );
 
     // Check if we're likely to exceed OpenAI limits
     if token_count > 16000 {
         // Conservative limit for GPT-4
-        log::warn!(
-            "Token count ({}) may exceed model limits",
-            token_count
-        );
+        log::warn!("Token count ({}) may exceed model limits", token_count);
     }
 
     let prompt_args = prompt_args![
@@ -481,26 +507,27 @@ async fn generate_response(
         .build()?;
 
     // Attempt to make the streaming request
+    // Log the full request to file before making the API call
+    if let Err(e) = log_request(&prompt).await {
+        log::warn!("Failed to log request debug info: {}", e);
+    }
+
     match stream_chain.stream(prompt_args.clone()).await {
         Ok(stream) => {
             log::info!("Successfully initiated OpenAI stream");
-            // Now log the request details after successful stream creation
-            log::debug!(
-                "Request details (truncated to 1000 chars):\nPrompt args: {}",
-                format!("{:#?}", prompt_args).chars().take(1000).collect::<String>()
-            );
-            
+            log::debug!("Full request details saved to debug_last_request.json");
+
             Ok(Box::pin(stream.map(|r| match r {
                 Ok(s) => {
                     log::debug!(
-                        "Received chunk (truncated): {}", 
+                        "Received chunk (truncated): {}",
                         s.content.chars().take(1000).collect::<String>()
                     );
                     Ok(s.content)
                 }
                 Err(e) => {
                     log::error!(
-                        "Error in stream (truncated): {}", 
+                        "Error in stream (truncated): {}",
                         e.to_string().chars().take(1000).collect::<String>()
                     );
                     Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
