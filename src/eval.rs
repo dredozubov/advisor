@@ -481,21 +481,29 @@ async fn generate_response(
         .memory(Arc::new(tokio::sync::Mutex::new(memory)))
         .build()?;
 
-    // Log the actual API request details
-    log::info!("Preparing to make OpenAI API streaming request");
-    log::debug!("Complete prompt args: {:#?}", prompt_args);
-
     // Attempt to make the streaming request
     match stream_chain.stream(prompt_args.clone()).await {
         Ok(stream) => {
             log::info!("Successfully initiated OpenAI stream");
+            // Now log the request details after successful stream creation
+            log::debug!(
+                "Request details (truncated to 1000 chars):\nPrompt args: {}",
+                format!("{:#?}", prompt_args).chars().take(1000).collect::<String>()
+            );
+            
             Ok(Box::pin(stream.map(|r| match r {
                 Ok(s) => {
-                    log::debug!("Received chunk: {}", s.content);
+                    log::debug!(
+                        "Received chunk (truncated): {}", 
+                        s.content.chars().take(1000).collect::<String>()
+                    );
                     Ok(s.content)
                 }
                 Err(e) => {
-                    log::error!("Error in stream: {}", e);
+                    log::error!(
+                        "Error in stream (truncated): {}", 
+                        e.to_string().chars().take(1000).collect::<String>()
+                    );
                     Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
                 }
             })))
