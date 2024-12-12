@@ -433,6 +433,14 @@ async fn generate_response(
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
+    // Log input sizes
+    log::info!(
+        "Generating response for conversation {}: input length={}, context length={}",
+        conversation_id.unwrap_or_else(Uuid::nil),
+        input.len(),
+        context.len()
+    );
+
     let prompt = format!(
         "Based on the conversation context and available documents, answer this question: {}\n\n\
          Context:\n{}\n\n\
@@ -441,6 +449,19 @@ async fn generate_response(
          Helpful answer:\n",
         input, context
     );
+
+    // Log prompt size and estimate tokens
+    log::info!("Generated prompt length: {}", prompt.len());
+    let estimated_tokens = prompt.len() / 4;
+    log::info!("Estimated token count: {}", estimated_tokens);
+
+    // Check if we're likely to exceed OpenAI limits
+    if estimated_tokens > 16000 {  // Conservative limit for GPT-4
+        log::warn!(
+            "Estimated tokens ({}) may exceed model limits",
+            estimated_tokens
+        );
+    }
 
     let prompt_args = prompt_args![
         "input" => [
@@ -458,12 +479,36 @@ async fn generate_response(
         .memory(Arc::new(tokio::sync::Mutex::new(memory)))
         .build()?;
 
-    let stream = stream_chain.stream(prompt_args).await?;
-
-    Ok(Box::pin(stream.map(|r| {
-        r.map(|s| s.content)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    })))
+    // Log the actual API request details
+    log::info!("Preparing to make OpenAI API streaming request");
+    log::debug!("Complete prompt args: {:#?}", prompt_args);
+    
+    // Attempt to make the streaming request
+    match stream_chain.stream(prompt_args.clone()).await {
+        Ok(stream) => {
+            log::info!("Successfully initiated OpenAI stream");
+            Ok(Box::pin(stream.map(|r| {
+                match r {
+                    Ok(s) => {
+                        log::debug!("Received chunk: {}", s.content);
+                        Ok(s.content)
+                    }
+                    Err(e) => {
+                        log::error!("Error in stream: {}", e);
+                        Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+                    }
+                }
+            })))
+        }
+        Err(e) => {
+            log::error!("Failed to create stream: {}", e);
+            // Log additional error details if available
+            if let Some(source) = e.source() {
+                log::error!("Error source: {}", source);
+            }
+            Err(anyhow::anyhow!("Failed to create stream: {}", e))
+        }
+    }
 }
 
 pub async fn eval(
@@ -525,6 +570,11 @@ pub async fn eval(
         multi_progress.as_ref(),
     )
     .await?;
+    log::info!(
+        "Starting response generation for conversation {}",
+        conversation.id
+    );
+
     let context = build_document_context(
         &query,
         input,
@@ -533,7 +583,20 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await?;
+
+    log::debug!(
+        "Context preparation complete. Context size: {} bytes",
+        context.len()
+    );
+
+    log::info!("Initiating response stream");
+    let stream = match generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!("Failed to generate response: {}", e);
+            return Err(anyhow::anyhow!("Failed to generate response: {}", e));
+        }
+    };
 
     // Create a new channel for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
