@@ -136,14 +136,11 @@ async fn build_document_context(
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
-            let cik_tickers: Vec<String> = conversation
-                .tickers
-                .iter()
-                .map(|t| async move { get_cik_for_ticker(t).await? })
-                .collect();
-
-            let chunks = cik_tickers
-                .flat_map(async move |cik| {
+            let mut all_docs = Vec::new();
+            
+            // Process each ticker sequentially
+            for ticker in &conversation.tickers {
+                let cik = get_cik_for_ticker(ticker).await?;
                     let mut filter = serde_json::Map::new();
                     filter.insert(
                         "doc_type".to_string(),
@@ -158,7 +155,7 @@ async fn build_document_context(
                     filter.insert("cik".to_string(), serde_json::Value::String(cik));
 
                     log::info!("Using filter for similarity search: {:?}", filter);
-                    let all_docs = store
+                    let docs = store
                         .similarity_search(
                             input,
                             10,
@@ -171,9 +168,9 @@ async fn build_document_context(
                         .map_err(|e| {
                             anyhow!("Failed to retrieve documents from vector store: {}", e)
                         })?;
-                    all_docs
-                })
-                .collect();
+                    
+                    all_docs.extend(docs);
+                }
         }
     }
 
@@ -202,7 +199,7 @@ async fn build_document_context(
     }
 
     // mutate and filter required_docs based on chunks tracked in the database
-    filter_chunks(docs, conversation_manager, conversation, &mut required_docs).await?;
+    filter_chunks(&all_docs, conversation_manager, conversation, &mut required_docs).await?;
 
     log::debug!(
         "Query-based search returned {} documents",
@@ -322,12 +319,12 @@ async fn build_document_context(
 }
 
 async fn filter_chunks(
-    all_docs: Vec<langchain_rust::schemas::Document>,
+    all_docs: &[langchain_rust::schemas::Document],
     conversation_manager: Arc<RwLock<ConversationManager>>,
     conversation: &Conversation,
     required_docs: &mut Vec<langchain_rust::schemas::Document>,
-) -> Result<(), anyhow::Error> {
-    for doc in all_docs {
+) -> Result<()> {
+    for doc in all_docs.iter().cloned() {
         let chunk_id = format!("{:?}", doc.metadata);
 
         // Get the latest message ID for this conversation
