@@ -18,6 +18,7 @@ use langchain_rust::{
 };
 use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
+use std::error::Error as _;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -456,7 +457,8 @@ async fn generate_response(
     log::info!("Estimated token count: {}", estimated_tokens);
 
     // Check if we're likely to exceed OpenAI limits
-    if estimated_tokens > 16000 {  // Conservative limit for GPT-4
+    if estimated_tokens > 16000 {
+        // Conservative limit for GPT-4
         log::warn!(
             "Estimated tokens ({}) may exceed model limits",
             estimated_tokens
@@ -482,21 +484,19 @@ async fn generate_response(
     // Log the actual API request details
     log::info!("Preparing to make OpenAI API streaming request");
     log::debug!("Complete prompt args: {:#?}", prompt_args);
-    
+
     // Attempt to make the streaming request
     match stream_chain.stream(prompt_args.clone()).await {
         Ok(stream) => {
             log::info!("Successfully initiated OpenAI stream");
-            Ok(Box::pin(stream.map(|r| {
-                match r {
-                    Ok(s) => {
-                        log::debug!("Received chunk: {}", s.content);
-                        Ok(s.content)
-                    }
-                    Err(e) => {
-                        log::error!("Error in stream: {}", e);
-                        Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-                    }
+            Ok(Box::pin(stream.map(|r| match r {
+                Ok(s) => {
+                    log::debug!("Received chunk: {}", s.content);
+                    Ok(s.content)
+                }
+                Err(e) => {
+                    log::error!("Error in stream: {}", e);
+                    Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
                 }
             })))
         }
@@ -590,13 +590,14 @@ pub async fn eval(
     );
 
     log::info!("Initiating response stream");
-    let stream = match generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await {
-        Ok(s) => s,
-        Err(e) => {
-            log::error!("Failed to generate response: {}", e);
-            return Err(anyhow::anyhow!("Failed to generate response: {}", e));
-        }
-    };
+    let stream =
+        match generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Failed to generate response: {}", e);
+                return Err(anyhow::anyhow!("Failed to generate response: {}", e));
+            }
+        };
 
     // Create a new channel for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
