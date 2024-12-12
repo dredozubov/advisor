@@ -310,7 +310,32 @@ async fn build_document_context(
                 doc.metadata,
                 doc.page_content
             );
-            format!("Document (score: {:.3}): {}", doc.score, doc.page_content)
+            
+            // Format document header based on type
+            let doc_header = match (
+                doc.metadata.get("doc_type").and_then(|v| v.as_str()),
+                doc.metadata.get("filing_type").and_then(|v| v.as_str()),
+                doc.metadata.get("filing_date").and_then(|v| v.as_str()),
+                doc.metadata.get("symbol").and_then(|v| v.as_str()),
+                doc.metadata.get("quarter").and_then(|v| v.as_u64()),
+                doc.metadata.get("year").and_then(|v| v.as_u64()),
+            ) {
+                // Edgar filing
+                (Some("edgar_filing"), Some(filing_type), Some(date), _, _, _) => {
+                    let ticker = doc.metadata.get("symbol")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown");
+                    format!("[{} {} Filing - {} - Score: {:.3}]", ticker, filing_type, date, doc.score)
+                },
+                // Earnings transcript
+                (Some("earnings_transcript"), _, _, Some(symbol), Some(quarter), Some(year)) => {
+                    format!("[{} Q{} {} Earnings Call - Score: {:.3}]", symbol, quarter, year, doc.score)
+                },
+                // Default case
+                _ => format!("[Document - Score: {:.3}]", doc.score)
+            };
+            
+            format!("{}\n{}", doc_header, doc.page_content)
         })
         .collect::<Vec<_>>()
         .join("\n\n");
