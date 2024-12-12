@@ -200,7 +200,7 @@ async fn build_document_context(
     // Filter docs to only include those matching conversation tickers
     let filtered_docs: Vec<_> = all_docs
         .into_iter()
-        .filter(|doc| {
+        .filter(|doc: &langchain_rust::schemas::Document| {
             if let Some(symbol) = doc.metadata.get("symbol").and_then(|v| v.as_str()) {
                 conversation.tickers.contains(&symbol.to_string())
             } else {
@@ -433,9 +433,6 @@ fn build_metadata_summary(
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total), Some(symbol), _) => {
                 format!("{} Q{} {} Earnings Call ({} chunks)", symbol, quarter, year, total)
-            }
-            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), Some(date)) => {
-                format!("{} {} Filing {} ({} chunks)", symbol, filing_type, date, total)
             }
             (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), None) => {
                 format!("{} {} Filing ({} chunks)", symbol, filing_type, total)
