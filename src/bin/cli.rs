@@ -160,14 +160,6 @@ fn get_prompt(summary: &str, token_usage: &advisor::TokenUsage) -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // Set up signal handlers for cleanup
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-
-    ctrlc::set_handler(move || {
-        println!("\nReceived Ctrl+C!");
-        r.store(false, Ordering::SeqCst);
-    })?;
     dotenv::dotenv().ok();
     env_logger::init();
     log::debug!("Logger initialized");

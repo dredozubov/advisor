@@ -1,4 +1,3 @@
-use crate::edgar::report::ReportType;
 use crate::edgar::tickers::get_cik_for_ticker;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, DatabaseMemory, MessageRole};
@@ -122,6 +121,7 @@ async fn build_document_context(
 ) -> Result<String> {
     // 1. Get all documents specified by the query
     let mut required_docs = Vec::new();
+    let all_docs = Vec::new();
 
     if let Some(filings) = query.parameters.get("filings") {
         // can't use dates, because filtering works only on equality for vectorstore::pgvector
@@ -134,43 +134,42 @@ async fn build_document_context(
         //     .and_then(|d| d.as_str())
         //     .ok_or_else(|| anyhow!("Missing end_date"))?;
 
-        if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
-            let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
+        if let Some(_types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let mut all_docs = Vec::new();
-            
+
             // Process each ticker sequentially
             for ticker in &conversation.tickers {
                 let cik = get_cik_for_ticker(ticker).await?;
-                    let mut filter = serde_json::Map::new();
-                    filter.insert(
-                        "doc_type".to_string(),
-                        serde_json::Value::String("edgar_filing".to_string()),
-                    );
-                    // filter.insert(
-                    //     "report_type".to_string(),
-                    //     serde_json::Value::String(
-                    //         ReportType::Other(filing_types[0].to_string()).to_string(),
-                    //     ),
-                    // );
-                    filter.insert("cik".to_string(), serde_json::Value::String(cik));
+                let mut filter = serde_json::Map::new();
+                filter.insert(
+                    "doc_type".to_string(),
+                    serde_json::Value::String("edgar_filing".to_string()),
+                );
+                // filter.insert(
+                //     "report_type".to_string(),
+                //     serde_json::Value::String(
+                //         ReportType::Other(filing_types[0].to_string()).to_string(),
+                //     ),
+                // );
+                filter.insert("cik".to_string(), serde_json::Value::String(cik));
 
-                    log::info!("Using filter for similarity search: {:?}", filter);
-                    let docs = store
-                        .similarity_search(
-                            input,
-                            10,
-                            &langchain_rust::vectorstore::VecStoreOptions {
-                                filters: Some(serde_json::Value::Object(filter)),
-                                ..Default::default()
-                            },
-                        )
-                        .await
-                        .map_err(|e| {
-                            anyhow!("Failed to retrieve documents from vector store: {}", e)
-                        })?;
-                    
-                    all_docs.extend(docs);
-                }
+                log::info!("Using filter for similarity search: {:?}", filter);
+                let docs = store
+                    .similarity_search(
+                        input,
+                        10,
+                        &langchain_rust::vectorstore::VecStoreOptions {
+                            filters: Some(serde_json::Value::Object(filter)),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                    .map_err(|e| {
+                        anyhow!("Failed to retrieve documents from vector store: {}", e)
+                    })?;
+
+                all_docs.extend(docs);
+            }
         }
     }
 
@@ -199,7 +198,13 @@ async fn build_document_context(
     }
 
     // mutate and filter required_docs based on chunks tracked in the database
-    filter_chunks(&all_docs, conversation_manager, conversation, &mut required_docs).await?;
+    filter_chunks(
+        &all_docs,
+        conversation_manager,
+        conversation,
+        &mut required_docs,
+    )
+    .await?;
 
     log::debug!(
         "Query-based search returned {} documents",
@@ -346,7 +351,7 @@ async fn filter_chunks(
 
         required_docs.push(doc);
     }
-    Ok(required_docs)
+    Ok(())
 }
 
 fn build_metadata_summary(
