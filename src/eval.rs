@@ -537,7 +537,7 @@ pub async fn eval(
 
     // Create a new channel for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
-    
+
     // Clone necessary values for the spawned task
     let conversation_id = conversation.id;
     let query_clone = query.clone();
@@ -578,8 +578,6 @@ pub async fn eval(
     });
 
     Ok((collected_stream, summary))
-
-    Ok((stream, summary))
 }
 
 async fn process_edgar_filings(
