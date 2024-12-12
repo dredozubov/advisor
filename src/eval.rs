@@ -1,4 +1,5 @@
 use crate::edgar::report::ReportType;
+use crate::edgar::tickers::get_cik_for_ticker;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, DatabaseMemory, MessageRole};
 use crate::query::Query;
@@ -135,54 +136,44 @@ async fn build_document_context(
 
         if let Some(types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let filing_types: Vec<&str> = types.iter().filter_map(|t| t.as_str()).collect();
-            let mut filter = serde_json::Map::new();
-            filter.insert(
-                "doc_type".to_string(),
-                serde_json::Value::String("edgar_filing".to_string()),
-            );
-            filter.insert(
-                "report_type".to_string(),
-                serde_json::Value::String(
-                    ReportType::Other(filing_types[0].to_string()).to_string(),
-                ),
-            );
-            // filter.insert("filing_date".to_string(), start_date.to_string());
-            log::info!("Using filter for similarity search: {:?}", filter);
-            let all_docs = store
-                .similarity_search(
-                    input,
-                    10,
-                    &langchain_rust::vectorstore::VecStoreOptions {
-                        filters: Some(serde_json::Value::Object(filter)),
-                        ..Default::default()
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("Failed to retrieve documents from vector store: {}", e))?;
+            let cik_tickers: Vec<String> = conversation
+                .tickers
+                .iter()
+                .map(|t| get_cik_for_ticker(t).await?)
+                .collect();
 
-            // Filter out chunks that have already been added to this conversation
-            for doc in all_docs {
-                let chunk_id = format!("{:?}", doc.metadata);
+            let chunks = cik_tickers
+                .flat_map(|cik| {
+                    let mut filter = serde_json::Map::new();
+                    filter.insert(
+                        "doc_type".to_string(),
+                        serde_json::Value::String("edgar_filing".to_string()),
+                    );
+                    // filter.insert(
+                    //     "report_type".to_string(),
+                    //     serde_json::Value::String(
+                    //         ReportType::Other(filing_types[0].to_string()).to_string(),
+                    //     ),
+                    // );
+                    filter.insert("cik".to_string(), serde_json::Value::String(cik));
 
-                // Get the latest message ID for this conversation
-                let messages = conversation_manager
-                    .read()
-                    .await
-                    .get_conversation_messages(&conversation.id, 1)
-                    .await?;
-
-                if let Some(last_message) = messages.first() {
-                    let message_id = Uuid::parse_str(&last_message.id)?;
-                    // Add chunk tracking for this message
-                    conversation_manager
-                        .write()
+                    log::info!("Using filter for similarity search: {:?}", filter);
+                    let all_docs = store
+                        .similarity_search(
+                            input,
+                            10,
+                            &langchain_rust::vectorstore::VecStoreOptions {
+                                filters: Some(serde_json::Value::Object(filter)),
+                                ..Default::default()
+                            },
+                        )
                         .await
-                        .add_message_chunk(&message_id, &chunk_id)
-                        .await?;
-                }
-
-                required_docs.push(doc);
-            }
+                        .map_err(|e| {
+                            anyhow!("Failed to retrieve documents from vector store: {}", e)
+                        })?;
+                    all_docs
+                })
+                .collect();
         }
     }
 
@@ -209,6 +200,9 @@ async fn build_document_context(
             .map_err(|e| anyhow!("Failed to search documents: {}", e))?;
         required_docs.extend(docs);
     }
+
+    // mutate and filter required_docs based on chunks tracked in the database
+    filter_chunks(docs, conversation_manager, conversation, &mut required_docs).await?;
 
     log::debug!(
         "Query-based search returned {} documents",
@@ -325,6 +319,37 @@ async fn build_document_context(
     );
 
     Ok(context)
+}
+
+async fn filter_chunks(
+    all_docs: Vec<langchain_rust::schemas::Document>,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
+    conversation: &Conversation,
+    required_docs: &mut Vec<langchain_rust::schemas::Document>,
+) -> Result<(), anyhow::Error> {
+    for doc in all_docs {
+        let chunk_id = format!("{:?}", doc.metadata);
+
+        // Get the latest message ID for this conversation
+        let messages = conversation_manager
+            .read()
+            .await
+            .get_conversation_messages(&conversation.id, 1)
+            .await?;
+
+        if let Some(last_message) = messages.first() {
+            let message_id = Uuid::parse_str(&last_message.id)?;
+            // Add chunk tracking for this message
+            conversation_manager
+                .write()
+                .await
+                .add_message_chunk(&message_id, &chunk_id)
+                .await?;
+        }
+
+        required_docs.push(doc);
+    }
+    Ok(required_docs)
 }
 
 fn build_metadata_summary(
