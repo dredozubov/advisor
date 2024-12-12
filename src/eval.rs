@@ -1,6 +1,6 @@
 use crate::edgar::report::ReportType;
 use crate::edgar::{self, filing};
-use crate::memory::{Conversation, ConversationManager, MessageRole};
+use crate::memory::{Conversation, ConversationManager, DatabaseMemory, MessageRole};
 use crate::query::Query;
 use crate::{earnings, ProgressTracker};
 use anyhow::{anyhow, Result};
@@ -8,7 +8,6 @@ use chrono::NaiveDate;
 use futures::{FutureExt, StreamExt};
 use indicatif::MultiProgress;
 use itertools::Itertools;
-use langchain_rust::chain::ConversationalChain;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
@@ -17,6 +16,7 @@ use langchain_rust::{
     llm::{OpenAI, OpenAIConfig},
     prompt_args,
 };
+use sqlx::{Pool, Postgres};
 use std::collections::{HashMap, HashSet};
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -404,7 +404,6 @@ fn build_metadata_summary(
 }
 
 async fn generate_query(
-    _chain: &ConversationalChain,
     llm: &OpenAI<OpenAIConfig>,
     input: &str,
     conversation: &Conversation,
@@ -416,19 +415,21 @@ async fn generate_query(
         input
     );
 
-    let summary = get_conversation_summary(&llm, &context).await?;
+    let summary = get_conversation_summary(llm, &context).await?;
     log::info!("Summary done: {}", summary);
 
-    let query = extract_query_params(&llm, input).await?;
+    let query = extract_query_params(llm, input).await?;
     log::info!("Query params done: {:?}", query);
 
     Ok((query, summary))
 }
 
 async fn generate_response(
+    conversation_id: Option<Uuid>,
     llm: &OpenAI<OpenAIConfig>,
     input: &str,
     context: &str,
+    pg_pool: &Pool<Postgres>,
 ) -> Result<
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
 > {
@@ -455,9 +456,12 @@ async fn generate_response(
         ]
     ];
 
+    let conversation_id = conversation_id.unwrap_or_else(Uuid::nil);
+    let memory = DatabaseMemory::new(pg_pool.clone(), conversation_id);
     // Create a new chain specifically for streaming
     let stream_chain = ConversationalChainBuilder::new()
         .llm((*llm).clone())
+        .memory(Arc::new(tokio::sync::Mutex::new(memory)))
         .build()?;
 
     let stream = stream_chain.stream(prompt_args).await?;
@@ -476,6 +480,7 @@ pub async fn eval(
     llm: &OpenAI<OpenAIConfig>,
     store: Arc<Store>,
     conversation_manager: Arc<RwLock<ConversationManager>>,
+    pg_pool: Pool<Postgres>,
 ) -> Result<(
     futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
     String,
@@ -495,7 +500,21 @@ pub async fn eval(
         .await?;
 
     // Generate response
-    let (query, summary) = generate_query(query_chain, &llm, input, conversation).await?;
+    let (query, summary) = generate_query(llm, input, conversation).await?;
+
+    // Update conversation tickers if new ones are found
+    let existing_tickers: HashSet<_> = conversation.tickers.iter().cloned().collect();
+    let new_tickers: HashSet<_> = query.tickers.iter().cloned().collect();
+
+    if !new_tickers.is_subset(&existing_tickers) {
+        let updated_tickers: Vec<_> = existing_tickers.union(&new_tickers).cloned().collect();
+        conversation_manager
+            .write()
+            .await
+            .update_tickers(&conversation.id, updated_tickers.clone())
+            .await?;
+        log::info!("Updated conversation tickers: {:?}", updated_tickers);
+    }
 
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
@@ -521,7 +540,7 @@ pub async fn eval(
         Arc::clone(&conversation_manager),
     )
     .await?;
-    let stream = generate_response(&llm, input, &context).await?;
+    let stream = generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await?;
 
     // Create a new stream for collecting the complete response
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);

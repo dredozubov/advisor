@@ -1,6 +1,5 @@
 use super::types::{AdvisorBackend, ConversationInfo};
 use crate::{eval, memory::ConversationManager};
-use langchain_rust::llm::{OpenAI, OpenAIConfig};
 use anyhow::Result;
 use futures::stream::BoxStream;
 use langchain_rust::{
@@ -8,6 +7,7 @@ use langchain_rust::{
     vectorstore::pgvector::Store,
 };
 use reqwest::Client;
+use sqlx::{Pool, Postgres};
 use std::{error::Error, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -17,6 +17,7 @@ pub struct AdvisorService {
     store: Arc<Store>,
     http_client: Client,
     llm: OpenAI<OpenAIConfig>,
+    pg_pool: Pool<Postgres>,
 }
 
 impl AdvisorService {
@@ -25,12 +26,14 @@ impl AdvisorService {
         store: Arc<Store>,
         http_client: Client,
         llm: OpenAI<OpenAIConfig>,
+        pg_pool: Pool<Postgres>,
     ) -> Self {
         Self {
             conversation_manager: Arc::new(RwLock::new(conversation_manager)),
             store,
             http_client,
             llm,
+            pg_pool,
         }
     }
 }
@@ -57,6 +60,7 @@ impl AdvisorBackend for AdvisorService {
             &self.llm,
             Arc::clone(&self.store),
             self.conversation_manager.clone(),
+            self.pg_pool.clone(),
         )
         .await?;
 

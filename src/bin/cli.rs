@@ -185,8 +185,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::debug!("Creating data directory at {}", dirs::EDGAR_FILINGS_DIR);
     fs::create_dir_all(dirs::EDGAR_FILINGS_DIR)?;
 
-    let (stream_chain, query_chain) = init::initialize_chains(llm.clone()).await?;
-
     println!("Enter 'quit' to exit");
     let token_usage = Arc::new(advisor::TokenUsage::default());
     let mut conversation_manager = ConversationManager::new_cli(pg_pool.clone());
@@ -295,9 +293,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &input,
                         &conv,
                         &http_client,
-                        llm.clone(),
+                        &llm.clone(),
+                        store.clone(),
                         conversation_manager_for_eval.clone(),
-                        llm.clone(),
+                        pg_pool.clone(),
                     )
                     .await
                     {

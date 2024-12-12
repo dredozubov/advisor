@@ -8,6 +8,7 @@ use indicatif::MultiProgress;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use langchain_rust::vectorstore::pgvector::Store;
+use langchain_rust::vectorstore::VectorStore as _;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
 use reqwest::Client;
@@ -631,11 +632,59 @@ pub async fn extract_complete_submission_filing(
     store: Arc<Store>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
+    // Extract CIK and accession number from filepath
+    let path = Path::new(filepath);
+    let parts: Vec<&str> = path
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split('/')
+        .collect();
+    let cik = parts[parts.len() - 2];
+    let accession_number = parts[parts.len() - 1];
+
+    // Check if already processed and stored
+    let markdown_dir = format!("data/edgar/parsed/{}/{}", cik, accession_number);
+    let markdown_path = format!("{}/filing.md", markdown_dir);
+
+    // First check vector store
+    let existing_docs = match store
+        .similarity_search(
+            "",
+            1,
+            &langchain_rust::vectorstore::VecStoreOptions {
+                filters: Some(serde_json::json!({
+                    "doc_type": "edgar_filing",
+                    "accession_number": accession_number,
+                    "cik": cik
+                })),
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(docs) => docs,
+        Err(e) => {
+            log::warn!("Failed to check vector store, will reprocess: {}", e);
+            Vec::new()
+        }
+    };
+
+    if !existing_docs.is_empty() && Path::new(&markdown_path).exists() {
+        log::info!(
+            "Filing already processed and stored: {}/{}",
+            cik,
+            accession_number
+        );
+        return Ok(());
+    }
+
     if let Some(ref tracker) = progress_tracker {
-        tracker.update_message("Parsing filing...");
+        tracker.update_message("Parsing new filing...");
         tracker.update_progress(33);
     }
-    log::info!("Parsing XBRL file");
+    log::info!("Parsing new XBRL file: {}/{}", cik, accession_number);
 
     // Read and decode the file content
     log::debug!("Reading file: {}", filepath);
@@ -684,7 +733,42 @@ pub async fn extract_complete_submission_filing(
     // Save markdown file
     let markdown_path = format!("{}/filing.md", markdown_dir);
     fs::write(&markdown_path, &markdown_content)?;
-    log::info!("Saved markdown version to: {}", markdown_path);
+    log::info!("Saved parsed filing to: {}", markdown_path);
+
+    // Check if document already exists in vector store
+    let existing_docs = match store
+        .similarity_search(
+            "",
+            1,
+            &langchain_rust::vectorstore::VecStoreOptions {
+                filters: Some(serde_json::json!({
+                    "doc_type": "edgar_filing",
+                    "accession_number": accession_number,
+                    "cik": cik
+                })),
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(docs) => docs,
+        Err(e) => return Err(anyhow::anyhow!("Failed to search vector store: {}", e)),
+    };
+
+    if !existing_docs.is_empty() {
+        log::info!(
+            "Filing already exists in vector store: {}/{}",
+            cik,
+            accession_number
+        );
+        return Ok(());
+    }
+
+    log::info!(
+        "Adding new filing to vector store: {}/{}",
+        cik,
+        accession_number
+    );
 
     let symbol = crate::edgar::tickers::get_ticker_for_cik(cik).await?;
 

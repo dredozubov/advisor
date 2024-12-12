@@ -278,6 +278,17 @@ impl ConversationManager {
         crate::db::update_conversation_summary(&self.pool, id, summary).await
     }
 
+    pub async fn update_tickers(&mut self, id: &Uuid, tickers: Vec<String>) -> Result<()> {
+        sqlx::query!(
+            "UPDATE conversations SET tickers = $1, updated_at = NOW() WHERE id = $2",
+            &tickers,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn get_conversation(&self, id: &Uuid) -> Result<Option<Conversation>> {
         crate::db::get_conversation(&self.pool, id, &self.user_id).await
     }
