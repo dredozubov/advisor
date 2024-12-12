@@ -197,9 +197,21 @@ async fn build_document_context(
         required_docs.extend(docs);
     }
 
+    // Filter docs to only include those matching conversation tickers
+    let filtered_docs: Vec<_> = all_docs
+        .into_iter()
+        .filter(|doc| {
+            if let Some(symbol) = doc.metadata.get("symbol").and_then(|v| v.as_str()) {
+                conversation.tickers.contains(&symbol.to_string())
+            } else {
+                false
+            }
+        })
+        .collect();
+
     // mutate and filter required_docs based on chunks tracked in the database
     filter_chunks(
-        &all_docs,
+        &filtered_docs,
         conversation_manager,
         conversation,
         &mut required_docs,
@@ -421,6 +433,12 @@ fn build_metadata_summary(
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), Some(total), Some(symbol), _) => {
                 format!("{} Q{} {} Earnings Call ({} chunks)", symbol, quarter, year, total)
+            }
+            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), Some(date)) => {
+                format!("{} {} Filing {} ({} chunks)", symbol, filing_type, date, total)
+            }
+            (Some("edgar_filing"), Some(filing_type), _, _, Some(total), Some(symbol), None) => {
+                format!("{} {} Filing ({} chunks)", symbol, filing_type, total)
             }
             _ => {
                 log::debug!("Unknown document type in metadata: {:?}", doc.metadata);
