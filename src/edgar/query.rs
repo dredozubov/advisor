@@ -6,24 +6,24 @@ use serde::{Deserialize, Serialize};
 use super::report;
 
 /// Query parameters for fetching SEC EDGAR filings
-/// 
+///
 /// # JSON Format
 /// The deserializer accepts JSON in this format:
 /// ```json
 /// {
 ///   "tickers": ["AAPL", "GOOGL"],
-///   "start_date": "2024-01-01", 
+///   "start_date": "2024-01-01",
 ///   "end_date": "2024-12-31",
 ///   "report_types": ["10-K", "10-Q", "8-K"]
 /// }
 /// ```
-/// 
+///
 /// Example with all supported report types:
 /// ```json
 /// {
 ///   "tickers": ["TSLA"],
 ///   "start_date": "2023-01-01",
-///   "end_date": "2023-12-31", 
+///   "end_date": "2023-12-31",
 ///   "report_types": [
 ///     "10-K",    // Annual report
 ///     "10-Q",    // Quarterly report  
@@ -45,11 +45,12 @@ use super::report;
 ///   "tickers": ["AAPL"],
 ///   "start_date": "2024-01-01",
 ///   "end_date": "2024-12-31",
-///   "report_types": ["10-K", "10-Q"]
+///   "report_types": ["10-K", "10-Q"],
+///   "is_adr": false
 /// }"#;
 /// let query = Query::from_json(json_str).unwrap();
 /// ```
-/// 
+///
 /// Fields:
 /// - `tickers`: Array of company stock ticker symbols (strings)
 /// - `start_date`: Start date in YYYY-MM-DD format
@@ -186,10 +187,18 @@ impl QueryBuilder {
     }
 
     pub fn build(self) -> Result<Query> {
-        let tickers = self.tickers.ok_or_else(|| anyhow!("Tickers must be specified"))?;
-        let start_date = self.start_date.ok_or_else(|| anyhow!("Start date must be specified"))?;
-        let end_date = self.end_date.ok_or_else(|| anyhow!("End date must be specified"))?;
-        let report_types = self.report_types.ok_or_else(|| anyhow!("Report types must be specified"))?;
+        let tickers = self
+            .tickers
+            .ok_or_else(|| anyhow!("Tickers must be specified"))?;
+        let start_date = self
+            .start_date
+            .ok_or_else(|| anyhow!("Start date must be specified"))?;
+        let end_date = self
+            .end_date
+            .ok_or_else(|| anyhow!("End date must be specified"))?;
+        let report_types = self
+            .report_types
+            .ok_or_else(|| anyhow!("Report types must be specified"))?;
         let is_adr = self.is_adr.unwrap_or(false);
 
         Query::new(tickers, start_date, end_date, report_types, is_adr)

@@ -62,19 +62,23 @@ impl Completer for ReplHelper {
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         // Find the word being completed
         let (word_start, word) = find_word_at_pos(line, pos);
-        
+
         // Check if we're completing a ticker (starts with @)
         if let Some(ticker_part) = word.strip_prefix('@') {
             let prefix = ticker_part.to_uppercase();
-            
+
             // Generate completion candidates
-            let candidates: Vec<Pair> = self.ticker_map
+            let candidates: Vec<Pair> = self
+                .ticker_map
                 .iter()
                 .filter(|(key, _)| key.starts_with(&prefix))
                 .map(|(_, (ticker, company, _))| {
                     let display = format!("{} ({})", ticker.as_str(), company);
                     let replacement = format!("@{}", ticker.as_str());
-                    Pair { display, replacement }
+                    Pair {
+                        display,
+                        replacement,
+                    }
                 })
                 .collect();
 
@@ -89,24 +93,28 @@ impl Highlighter for ReplHelper {
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         let mut highlighted = String::new();
         let mut last_pos = 0;
-        
+
         // Find all ticker symbols and highlight them
         for (start, part) in line.match_indices('@') {
             // Add unhighlighted text before the ticker
             highlighted.push_str(&line[last_pos..start]);
-            
+
             // Find the end of the ticker symbol
-            let end = start + part.len() + line[start + part.len()..].find(|c: char| {
-                !c.is_alphanumeric() && c != '-'
-            }).unwrap_or(line[start + part.len()..].len());
-            
+            let end = start
+                + part.len()
+                + line[start + part.len()..]
+                    .find(|c: char| !c.is_alphanumeric() && c != '-')
+                    .unwrap_or(line[start + part.len()..].len());
+
             let ticker = &line[start..end];
-            
+
             // Check if it's a valid ticker
             if let Some(ticker_str) = ticker.strip_prefix('@') {
-                let is_valid = self.ticker_map.values()
+                let is_valid = self
+                    .ticker_map
+                    .values()
                     .any(|(t, _, _)| t.as_str() == ticker_str.to_uppercase());
-                
+
                 // Use different colors for valid/invalid tickers
                 if is_valid {
                     highlighted.push_str("\x1b[32m"); // Green for valid
@@ -114,27 +122,32 @@ impl Highlighter for ReplHelper {
                     highlighted.push_str("\x1b[31m"); // Red for invalid
                 }
             }
-            
+
             highlighted.push_str(ticker);
             highlighted.push_str("\x1b[0m"); // Reset color
-            
+
             last_pos = end;
         }
-        
+
         // Add remaining text
         highlighted.push_str(&line[last_pos..]);
-        
+
         // Highlight current word at cursor if it's a command
         if pos < line.len() && line.starts_with('/') {
             let word_end = line[pos..].find(' ').map_or(line.len(), |i| i + pos);
             highlighted.insert_str(pos, "\x1b[36m"); // Cyan for commands
             highlighted.insert_str(word_end, "\x1b[0m");
         }
-        
+
         Cow::Owned(highlighted)
     }
 
-    fn highlight_char(&self, line: &str, pos: usize, forced: rustyline::highlight::CmdKind) -> bool {
+    fn highlight_char(
+        &self,
+        line: &str,
+        pos: usize,
+        _forced: rustyline::highlight::CmdKind,
+    ) -> bool {
         // Highlight characters in tickers and commands
         let word = find_word_at_pos(line, pos).1;
         word.starts_with('@') || word.starts_with('/')
@@ -202,12 +215,13 @@ impl Hinter for ReplHelper {
 
         // Find current word
         let word = find_word_at_pos(line, pos).1;
-        
+
         // Show hint for partial ticker
         if let Some(partial) = word.strip_prefix('@') {
             if !partial.is_empty() {
                 // Find first matching ticker
-                if let Some((_, (ticker, company, _))) = self.ticker_map
+                if let Some((_, (ticker, company, _))) = self
+                    .ticker_map
                     .iter()
                     .find(|(key, _)| key.starts_with(&partial.to_uppercase()))
                 {
@@ -479,7 +493,7 @@ pub async fn create_editor(
         .auto_add_history(true)
         .completion_prompt_limit(100)
         .max_history_size(1000)?
-        .history_ignore_space(true)?
+        .history_ignore_space(true)
         .history_ignore_dups(true)?
         .build();
 
