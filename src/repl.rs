@@ -134,7 +134,7 @@ impl Highlighter for ReplHelper {
         Cow::Owned(highlighted)
     }
 
-    fn highlight_char(&self, line: &str, pos: usize) -> bool {
+    fn highlight_char(&self, line: &str, pos: usize, forced: rustyline::highlight::CmdKind) -> bool {
         // Highlight characters in tickers and commands
         let word = find_word_at_pos(line, pos).1;
         word.starts_with('@') || word.starts_with('/')
@@ -478,9 +478,9 @@ pub async fn create_editor(
         .edit_mode(EditMode::Emacs)
         .auto_add_history(true)
         .completion_prompt_limit(100)
-        .max_history_size(1000)
-        .history_ignore_space(true)
-        .history_ignore_dups(true)
+        .max_history_size(1000)?
+        .history_ignore_space(true)?
+        .history_ignore_dups(true)?
         .build();
 
     log::debug!("Creating editor with config");
