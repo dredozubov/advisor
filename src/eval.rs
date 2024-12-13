@@ -27,6 +27,22 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+/// Process documents based on the query parameters
+/// 
+/// Logical steps:
+/// 1. Create a new MultiProgress tracker for overall progress
+/// 2. Initialize a vector to store processing futures
+/// 3. If filings are requested in query parameters:
+///    - Convert query to EDGAR format
+///    - For each ticker:
+///      - Fetch matching filings
+///      - Process EDGAR filings with progress tracking
+/// 4. If earnings data is requested:
+///    - Convert query to earnings format
+///    - Fetch transcripts for date range
+///    - Process earnings transcripts
+/// 5. Wait for all futures to complete
+/// 6. Clear progress bars if present
 async fn process_documents(
     query: &Query,
     http_client: &reqwest::Client,
@@ -113,6 +129,26 @@ async fn process_documents(
     Ok(())
 }
 
+/// Build context for LLM from relevant documents
+///
+/// Logical steps:
+/// 1. Initialize empty vectors for required and all documents
+/// 2. If filings requested:
+///    - Create filter for doc_type and symbol
+///    - Perform similarity search for each ticker
+///    - Add matching docs to collection
+/// 3. If earnings requested:
+///    - Extract year from start date
+///    - Perform similarity search with earnings filters
+///    - Add matching docs to required docs
+/// 4. Filter docs to match conversation tickers
+/// 5. Filter chunks based on conversation tracking
+/// 6. Calculate total tokens from documents
+/// 7. If over token limit:
+///    - Perform new similarity search with reduced scope
+/// 8. Build metadata summary of final document set
+/// 9. Format documents for LLM context
+/// 10. Return formatted context string
 async fn build_document_context(
     query: &Query,
     input: &str,
@@ -367,6 +403,15 @@ async fn build_document_context(
     Ok(context)
 }
 
+/// Filter document chunks and track them in conversation
+///
+/// Logical steps:
+/// 1. For each document:
+///    - Generate chunk ID from metadata
+///    - Get latest message ID for conversation
+///    - Add chunk tracking for the message
+///    - Add document to required docs collection
+/// 2. Return success or error result
 async fn filter_chunks(
     all_docs: &[langchain_rust::schemas::Document],
     conversation_manager: Arc<RwLock<ConversationManager>>,
@@ -398,6 +443,19 @@ async fn filter_chunks(
     Ok(())
 }
 
+/// Build a summary of document metadata
+///
+/// Logical steps:
+/// 1. Initialize summary string with header
+/// 2. Add filing types if present
+/// 3. Add company list if present
+/// 4. Add date range if present
+/// 5. Group documents by source
+/// 6. For each document:
+///    - Extract metadata
+///    - Add to appropriate summary group
+/// 7. Format final summary with document counts
+/// 8. Return formatted summary string
 fn build_metadata_summary(
     filing_types: HashSet<String>,
     companies: HashSet<String>,
