@@ -1,14 +1,17 @@
+use crate::memory::{Conversation, Message, MessageRole};
 use anyhow::Result;
 use serde_json::Value;
 use sqlx::{query, query_as, Pool, Postgres};
 use uuid::Uuid;
-use crate::memory::{Conversation, Message, MessageRole};
 
 pub const COLLECTIONS_TABLE: &str = "vs_collections";
 pub const EMBEDDER_TABLE: &str = "vs_embeddings";
 
 // Conversation Database Operations
-pub async fn get_most_recent_conversation(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<Option<Conversation>> {
+pub async fn get_most_recent_conversation(
+    pool: &Pool<Postgres>,
+    user_id: &Uuid,
+) -> Result<Option<Conversation>> {
     sqlx::query_as!(
         Conversation,
         "SELECT id, user_id, summary, created_at, updated_at, tickers 
@@ -59,7 +62,11 @@ pub async fn update_conversation_summary(
     Ok(())
 }
 
-pub async fn get_conversation(pool: &Pool<Postgres>, id: &Uuid, user_id: &Uuid) -> Result<Option<Conversation>> {
+pub async fn get_conversation(
+    pool: &Pool<Postgres>,
+    id: &Uuid,
+    user_id: &Uuid,
+) -> Result<Option<Conversation>> {
     sqlx::query_as!(
         Conversation,
         "SELECT id, user_id, summary, created_at, updated_at, tickers 
@@ -72,7 +79,10 @@ pub async fn get_conversation(pool: &Pool<Postgres>, id: &Uuid, user_id: &Uuid) 
     .map_err(Into::into)
 }
 
-pub async fn list_conversations(pool: &Pool<Postgres>, user_id: &Uuid) -> Result<Vec<Conversation>> {
+pub async fn list_conversations(
+    pool: &Pool<Postgres>,
+    user_id: &Uuid,
+) -> Result<Vec<Conversation>> {
     sqlx::query_as!(
         Conversation,
         "SELECT id, user_id, summary, created_at, updated_at, tickers 
@@ -148,7 +158,10 @@ pub async fn get_conversation_messages(
     .map_err(Into::into)
 }
 
-pub async fn clear_conversation_messages(pool: &Pool<Postgres>, conversation_id: &Uuid) -> Result<()> {
+pub async fn clear_conversation_messages(
+    pool: &Pool<Postgres>,
+    conversation_id: &Uuid,
+) -> Result<()> {
     sqlx::query!(
         "DELETE FROM conversation_messages WHERE conversation_id = $1",
         conversation_id

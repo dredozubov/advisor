@@ -8,6 +8,7 @@ use chrono::NaiveDate;
 use futures::{FutureExt, StreamExt};
 use indicatif::MultiProgress;
 use itertools::Itertools;
+use langchain_rust::schemas::Document;
 use langchain_rust::vectorstore::pgvector::Store;
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
@@ -28,7 +29,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Process documents based on the query parameters
-/// 
+///
 /// Logical steps:
 /// 1. Create a new MultiProgress tracker for overall progress
 /// 2. Initialize a vector to store processing futures
@@ -49,9 +50,8 @@ async fn process_documents(
     store: Arc<Store>,
     progress: Option<&Arc<MultiProgress>>,
 ) -> Result<()> {
-    let multi = Arc::new(MultiProgress::new());
     let progress_tracker = Arc::new(ProgressTracker::new(
-        Some(&multi),
+        progress,
         &format!("Processing documents for {}", query.tickers.join(", ")),
     ));
 
@@ -77,7 +77,7 @@ async fn process_documents(
                             edgar_query.end_date
                         );
                         let filings =
-                            filing::fetch_matching_filings(http_client, &edgar_query, Some(&multi))
+                            filing::fetch_matching_filings(http_client, &edgar_query, progress)
                                 .await?;
                         process_edgar_filings(
                             filings,
@@ -127,6 +127,10 @@ async fn process_documents(
             .map_err(|e| anyhow!("Failed to clear progress bars: {}", e))?;
     }
     Ok(())
+}
+
+fn count_tokens(doc: &Document) -> usize {
+    doc.page_content.to_string().split_whitespace().count() * 4
 }
 
 /// Build context for LLM from relevant documents
@@ -253,7 +257,7 @@ async fn build_document_context(
     const MAX_TOKENS: usize = 130000; // FIXME Adjust based on your model
     let total_tokens: usize = required_docs
         .iter()
-        .map(|doc| doc.page_content.to_string().split_whitespace().count() * 4) // Estimate 4 tokens per word
+        .map(count_tokens) // Estimate 4 tokens per word
         .sum();
 
     log::info!(
@@ -265,19 +269,23 @@ async fn build_document_context(
     // 3. If we're over the token limit, use similarity search to reduce content
     let final_docs = if total_tokens > MAX_TOKENS {
         log::info!(
-            "Token count ({}) exceeds limit ({}), using similarity search to reduce content",
+            "Token count ({}) exceeds limit ({}), dropping documents with lesser scores",
             total_tokens,
             MAX_TOKENS
         );
-
-        store
-            .similarity_search(
-                input,
-                20,
-                &langchain_rust::vectorstore::VecStoreOptions::default(),
-            )
-            .await
-            .map_err(|e| anyhow!("Failed to search documents: {}", e))?
+        required_docs
+            .iter()
+            .sorted_by(|a, b| a.score.total_cmp(&b.score))
+            .scan(0, |total_tokens, doc| {
+                let doc_tokens = count_tokens(doc);
+                if *total_tokens + doc_tokens <= MAX_TOKENS {
+                    *total_tokens += doc_tokens;
+                    Some(doc.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     } else {
         required_docs
     };
@@ -407,7 +415,7 @@ async fn build_document_context(
 ///
 /// Logical steps:
 /// 1. For each document:
-///    - Generate chunk ID from metadata
+///    - Extract chunk ID from metadata
 ///    - Get latest message ID for conversation
 ///    - Add chunk tracking for the message
 ///    - Add document to required docs collection
@@ -689,140 +697,6 @@ async fn generate_response(
             Err(anyhow::anyhow!("Failed to create stream: {}", e))
         }
     }
-}
-
-pub async fn eval(
-    input: &str,
-    conversation: &Conversation,
-    http_client: &reqwest::Client,
-    llm: &OpenAI<OpenAIConfig>,
-    store: Arc<Store>,
-    conversation_manager: Arc<RwLock<ConversationManager>>,
-    pg_pool: Pool<Postgres>,
-) -> Result<(
-    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
-    String,
-)> {
-    // Store user message
-    conversation_manager
-        .write()
-        .await
-        .add_message(
-            &conversation.id,
-            MessageRole::User,
-            input.to_string(),
-            serde_json::json!({
-                "type": "question"
-            }),
-        )
-        .await?;
-
-    // Generate response
-    let (query, summary) = generate_query(llm, input, conversation).await?;
-
-    // Update conversation tickers if new ones are found
-    let existing_tickers: HashSet<_> = conversation.tickers.iter().cloned().collect();
-    let new_tickers: HashSet<_> = query.tickers.iter().cloned().collect();
-
-    if !new_tickers.is_subset(&existing_tickers) {
-        let updated_tickers: Vec<_> = existing_tickers.union(&new_tickers).cloned().collect();
-        conversation_manager
-            .write()
-            .await
-            .update_tickers(&conversation.id, updated_tickers.clone())
-            .await?;
-        log::info!("Updated conversation tickers: {:?}", updated_tickers);
-    }
-
-    // Initiate multi progress bars for the CLI app
-    let multi_progress = if std::io::stdout().is_terminal() {
-        let mp = MultiProgress::new();
-        mp.set_move_cursor(true);
-        Some(Arc::new(mp))
-    } else {
-        None
-    };
-
-    let store = Arc::new(store);
-    process_documents(
-        &query,
-        http_client,
-        Arc::clone(&store),
-        multi_progress.as_ref(),
-    )
-    .await?;
-    log::info!(
-        "Starting response generation for conversation {}",
-        conversation.id
-    );
-
-    let context = build_document_context(
-        &query,
-        input,
-        Arc::clone(&store),
-        conversation,
-        Arc::clone(&conversation_manager),
-    )
-    .await?;
-
-    log::debug!(
-        "Context preparation complete. Context size: {} bytes",
-        context.len()
-    );
-
-    log::info!("Initiating response stream");
-    let stream =
-        match generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await {
-            Ok(s) => s,
-            Err(e) => {
-                log::error!("Failed to generate response: {}", e);
-                return Err(anyhow::anyhow!("Failed to generate response: {}", e));
-            }
-        };
-
-    // Create a new channel for collecting the complete response
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
-
-    // Clone necessary values for the spawned task
-    let conversation_id = conversation.id;
-    let query_clone = query.clone();
-    let summary_clone = summary.clone();
-    let conversation_manager_clone = Arc::clone(&conversation_manager);
-
-    // Create a new stream that both forwards chunks and collects them
-    let collected_stream = Box::pin(stream.inspect(move |result| {
-        if let Ok(chunk) = result {
-            let _ = tx.try_send(chunk.clone());
-        }
-    }));
-
-    // Spawn task to collect and store complete response
-    tokio::spawn(async move {
-        let mut complete_response = String::new();
-        while let Some(chunk) = rx.recv().await {
-            complete_response.push_str(&chunk);
-        }
-
-        if let Err(e) = conversation_manager_clone
-            .write()
-            .await
-            .add_message(
-                &conversation_id,
-                MessageRole::Assistant,
-                complete_response,
-                serde_json::json!({
-                    "type": "answer",
-                    "query": query_clone,
-                    "summary": summary_clone
-                }),
-            )
-            .await
-        {
-            log::error!("Failed to store assistant response: {}", e);
-        }
-    });
-
-    Ok((collected_stream, summary))
 }
 
 async fn process_edgar_filings(
@@ -1112,4 +986,138 @@ async fn process_earnings_transcripts(
     );
 
     Ok(())
+}
+
+pub async fn eval(
+    input: &str,
+    conversation: &Conversation,
+    http_client: &reqwest::Client,
+    llm: &OpenAI<OpenAIConfig>,
+    store: Arc<Store>,
+    conversation_manager: Arc<RwLock<ConversationManager>>,
+    pg_pool: Pool<Postgres>,
+) -> Result<(
+    futures::stream::BoxStream<'static, Result<String, Box<dyn std::error::Error + Send + Sync>>>,
+    String,
+)> {
+    // Store user message
+    conversation_manager
+        .write()
+        .await
+        .add_message(
+            &conversation.id,
+            MessageRole::User,
+            input.to_string(),
+            serde_json::json!({
+                "type": "question"
+            }),
+        )
+        .await?;
+
+    // Generate response
+    let (query, summary) = generate_query(llm, input, conversation).await?;
+
+    // Update conversation tickers if new ones are found
+    let existing_tickers: HashSet<_> = conversation.tickers.iter().cloned().collect();
+    let new_tickers: HashSet<_> = query.tickers.iter().cloned().collect();
+
+    if !new_tickers.is_subset(&existing_tickers) {
+        let updated_tickers: Vec<_> = existing_tickers.union(&new_tickers).cloned().collect();
+        conversation_manager
+            .write()
+            .await
+            .update_tickers(&conversation.id, updated_tickers.clone())
+            .await?;
+        log::info!("Updated conversation tickers: {:?}", updated_tickers);
+    }
+
+    // Initiate multi progress bars for the CLI app
+    let multi_progress = if std::io::stdout().is_terminal() {
+        let mp = MultiProgress::new();
+        mp.set_move_cursor(true);
+        Some(Arc::new(mp))
+    } else {
+        None
+    };
+
+    let store = Arc::new(store);
+    process_documents(
+        &query,
+        http_client,
+        Arc::clone(&store),
+        multi_progress.as_ref(),
+    )
+    .await?;
+    log::info!(
+        "Starting response generation for conversation {}",
+        conversation.id
+    );
+
+    let context = build_document_context(
+        &query,
+        input,
+        Arc::clone(&store),
+        conversation,
+        Arc::clone(&conversation_manager),
+    )
+    .await?;
+
+    log::debug!(
+        "Context preparation complete. Context size: {} bytes",
+        context.len()
+    );
+
+    log::info!("Initiating response stream");
+    let stream =
+        match generate_response(Some(conversation.id), llm, input, &context, &pg_pool).await {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Failed to generate response: {}", e);
+                return Err(anyhow::anyhow!("Failed to generate response: {}", e));
+            }
+        };
+
+    // Create a new channel for collecting the complete response
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(32);
+
+    // Clone necessary values for the spawned task
+    let conversation_id = conversation.id;
+    let query_clone = query.clone();
+    let summary_clone = summary.clone();
+    let conversation_manager_clone = Arc::clone(&conversation_manager);
+
+    // Create a new stream that both forwards chunks and collects them
+    let collected_stream = Box::pin(stream.inspect(move |result| {
+        if let Ok(chunk) = result {
+            let _ = tx.try_send(chunk.clone());
+        }
+    }));
+
+    // Spawn task to collect and store complete response
+    tokio::spawn(async move {
+        let mut complete_response = String::new();
+        while let Some(chunk) = rx.recv().await {
+            complete_response.push_str(&chunk);
+        }
+
+        if let Err(e) = conversation_manager_clone
+            .write()
+            .await
+            .add_message(
+                &conversation_id,
+                MessageRole::Assistant,
+                complete_response,
+                serde_json::json!({
+                    "type": "answer",
+                    "query": query_clone,
+                    "summary": summary_clone
+                }),
+            )
+            .await
+        {
+            log::error!("Failed to store assistant response: {}", e);
+        }
+    });
+
+    Ok((collected_stream, summary))
 }

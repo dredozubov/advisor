@@ -703,26 +703,6 @@ pub async fn extract_complete_submission_filing(
     fs::write(&markdown_path, &markdown_content)?;
     log::info!("Saved parsed filing to: {}", markdown_path);
 
-    // Check if document already exists in vector store
-    let existing_docs = match store
-        .similarity_search(
-            "",
-            1,
-            &langchain_rust::vectorstore::VecStoreOptions {
-                filters: Some(serde_json::json!({
-                    "doc_type": "edgar_filing",
-                    "accession_number": accession_number,
-                    "cik": cik
-                })),
-                ..Default::default()
-            },
-        )
-        .await
-    {
-        Ok(docs) => docs,
-        Err(e) => return Err(anyhow::anyhow!("Failed to search vector store: {}", e)),
-    };
-
     if !existing_docs.is_empty() {
         log::info!(
             "Filing already exists in vector store: {}/{}",

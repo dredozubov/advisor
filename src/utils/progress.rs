@@ -3,7 +3,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Clone)] 
+#[derive(Clone)]
 pub struct ProgressTracker {
     pub(crate) multi_progress: Option<Arc<MultiProgress>>,
     progress_bar: Option<ProgressBar>,
@@ -32,7 +32,10 @@ impl ProgressTracker {
 
     pub fn update_message(&self, message: &str) {
         if let Some(pb) = &self.progress_bar {
-            pb.set_message(format!("Downloading file [{}] - {}", self.doc_name, message));
+            pb.set_message(format!(
+                "Downloading file [{}] - {}",
+                self.doc_name, message
+            ));
         }
     }
 
@@ -55,7 +58,9 @@ impl ProgressTracker {
         if let Some(pb) = &self.progress_bar {
             pb.set_style(
                 ProgressStyle::default_bar()
-                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] {msg:>50}")
+                    .template(
+                        "{spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] {msg:>50}",
+                    )
                     .unwrap()
                     .progress_chars("#>-"),
             );

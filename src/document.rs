@@ -15,6 +15,7 @@ pub const COLLECTION_NAME: &str = "advisor";
 
 use crate::edgar::report::ReportType;
 use crate::ProgressTracker;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DocType {
@@ -27,6 +28,19 @@ impl fmt::Display for DocType {
         match self {
             DocType::EdgarFiling => write!(f, "EdgarFiling"),
             DocType::EarningTranscript => write!(f, "EarningTranscript"),
+        }
+    }
+}
+
+impl FromStr for DocType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        log::info!("!: {}", s);
+        match s {
+            "edgar_filing" => Ok(DocType::EdgarFiling),
+            "earnings_transcript" => Ok(DocType::EarningTranscript),
+            _ => Err(anyhow!("Unknown document type: {}", s)),
         }
     }
 }
