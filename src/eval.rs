@@ -1,4 +1,4 @@
-use crate::edgar::tickers::get_cik_for_ticker;
+use crate::document::DocType;
 use crate::edgar::{self, filing};
 use crate::memory::{Conversation, ConversationManager, DatabaseMemory, MessageRole};
 use crate::query::Query;
@@ -22,6 +22,7 @@ use std::error::Error as _;
 use std::fs;
 use std::io::IsTerminal;
 use std::path::PathBuf;
+use std::str::FromStr as _;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -124,40 +125,26 @@ async fn build_document_context(
     let all_docs = Vec::new();
 
     if let Some(filings) = query.parameters.get("filings") {
-        // can't use dates, because filtering works only on equality for vectorstore::pgvector
-        // let start_date = filings
-        //     .get("start_date")
-        //     .and_then(|d| d.as_str())
-        //     .ok_or_else(|| anyhow!("Missing start_date"))?;
-        // let end_date = filings
-        //     .get("end_date")
-        //     .and_then(|d| d.as_str())
-        //     .ok_or_else(|| anyhow!("Missing end_date"))?;
-
         if let Some(_types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let mut all_docs = Vec::new();
 
             // Process each ticker sequentially
             for ticker in &conversation.tickers {
-                let cik = get_cik_for_ticker(ticker).await?;
                 let mut filter = serde_json::Map::new();
                 filter.insert(
                     "doc_type".to_string(),
                     serde_json::Value::String("edgar_filing".to_string()),
                 );
-                // filter.insert(
-                //     "report_type".to_string(),
-                //     serde_json::Value::String(
-                //         ReportType::Other(filing_types[0].to_string()).to_string(),
-                //     ),
-                // );
-                filter.insert("cik".to_string(), serde_json::Value::String(cik));
+                filter.insert(
+                    "symbol".to_string(),
+                    serde_json::Value::String(ticker.clone()),
+                );
 
                 log::info!("Using filter for similarity search: {:?}", filter);
                 let docs = store
                     .similarity_search(
                         input,
-                        10,
+                        20,
                         &langchain_rust::vectorstore::VecStoreOptions {
                             filters: Some(serde_json::Value::Object(filter)),
                             ..Default::default()
@@ -182,7 +169,7 @@ async fn build_document_context(
         let docs = store
             .similarity_search(
                 input,
-                50,
+                20,
                 &langchain_rust::vectorstore::VecStoreOptions {
                     filters: Some(serde_json::json!(
                     {
@@ -322,31 +309,51 @@ async fn build_document_context(
                 doc.metadata,
                 doc.page_content
             );
-            
+
+            let doc_type = doc
+                .metadata
+                .get("doc_type")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("incorrect doc_type in metadata"));
+            let symbol = doc.metadata.get("symbol").and_then(|v| v.as_str());
+
             // Format document header based on type
-            let doc_header = match (
-                doc.metadata.get("doc_type").and_then(|v| v.as_str()),
-                doc.metadata.get("filing_type").and_then(|v| v.as_str()),
-                doc.metadata.get("filing_date").and_then(|v| v.as_str()),
-                doc.metadata.get("symbol").and_then(|v| v.as_str()),
-                doc.metadata.get("quarter").and_then(|v| v.as_u64()),
-                doc.metadata.get("year").and_then(|v| v.as_u64()),
-            ) {
-                // Edgar filing
-                (Some("edgar_filing"), Some(filing_type), Some(date), _, _, _) => {
-                    let ticker = doc.metadata.get("symbol")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("Unknown");
-                    format!("[{} {} Filing - {} - Score: {:.3}]", ticker, filing_type, date, doc.score)
-                },
+            let doc_header = match doc_type.and_then(DocType::from_str) {
+                Ok(DocType::EdgarFiling) => {
+                    format!(
+                        "[{} {} Filing - {} - Score: {:.3}]",
+                        symbol.unwrap(),
+                        doc.metadata
+                            .get("filing_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Unknown"),
+                        doc.metadata
+                            .get("filing_date")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Unknown"),
+                        doc.score
+                    )
+                }
                 // Earnings transcript
-                (Some("earnings_transcript"), _, _, Some(symbol), Some(quarter), Some(year)) => {
-                    format!("[{} Q{} {} Earnings Call - Score: {:.3}]", symbol, quarter, year, doc.score)
-                },
+                Ok(DocType::EarningTranscript) => {
+                    format!(
+                        "[{} Q{} {} Earnings Call - Score: {:.3}]",
+                        symbol.unwrap(),
+                        doc.metadata
+                            .get("quarter")
+                            .and_then(|v| v.as_u64())
+                            .unwrap(),
+                        doc.metadata.get("year").and_then(|v| v.as_u64()).unwrap(),
+                        doc.score
+                    )
+                }
                 // Default case
-                _ => format!("[Document - Score: {:.3}]", doc.score)
+                Err(e) => {
+                    log::info!("Metadata loading warning: {:?}", e);
+                    format!("[Document - Score: {:.3}]", doc.score)
+                }
             };
-            
+
             format!("{}\n{}", doc_header, doc.page_content)
         })
         .collect::<Vec<_>>()
@@ -421,10 +428,9 @@ fn build_metadata_summary(
     for doc in similar_docs {
         // Log full metadata for debugging
         log::debug!("Processing document with metadata: {:?}", doc.metadata);
-        
         let key = match (
             doc.metadata.get("doc_type").and_then(|v| v.as_str()),
-            doc.metadata.get("report_type").and_then(|v| v.as_str()),  // Changed from filing_type
+            doc.metadata.get("report_type").and_then(|v| v.as_str()), // Changed from filing_type
             doc.metadata.get("quarter").and_then(|v| v.as_u64()),
             doc.metadata.get("year").and_then(|v| v.as_u64()),
             doc.metadata.get("total_chunks").and_then(|v| v.as_u64()),
@@ -432,25 +438,40 @@ fn build_metadata_summary(
             doc.metadata.get("filing_date").and_then(|v| v.as_str()),
         ) {
             (Some("edgar_filing"), Some(filing_type), _, _, total, Some(symbol), Some(date)) => {
-                format!("{} {} Filing {} ({} chunks)", 
-                    symbol, 
-                    filing_type, 
-                    date, 
-                    total.unwrap_or(1))
+                format!(
+                    "{} {} Filing {} ({} chunks)",
+                    symbol,
+                    filing_type,
+                    date,
+                    total.unwrap_or(1)
+                )
             }
             (Some("earnings_transcript"), _, Some(quarter), Some(year), total, Some(symbol), _) => {
-                format!("{} Q{} {} Earnings Call ({} chunks)", 
-                    symbol, 
-                    quarter, 
-                    year, 
-                    total.unwrap_or(1))
+                format!(
+                    "{} Q{} {} Earnings Call ({} chunks)",
+                    symbol,
+                    quarter,
+                    year,
+                    total.unwrap_or(1)
+                )
             }
-            _ => {
+            _un => {
                 // More detailed logging for unknown document types
                 log::warn!("Unhandled document type. Metadata: {:?}", doc.metadata);
-                let doc_type = doc.metadata.get("doc_type").and_then(|v| v.as_str()).unwrap_or("unknown");
-                let symbol = doc.metadata.get("symbol").and_then(|v| v.as_str()).unwrap_or("unknown");
-                format!("{} Document for {} (metadata: {:?})", doc_type, symbol, doc.metadata)
+                let doc_type = doc
+                    .metadata
+                    .get("doc_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let symbol = doc
+                    .metadata
+                    .get("symbol")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                format!(
+                    "{} Document for {} (metadata: {:?})",
+                    doc_type, symbol, doc.metadata
+                )
             }
         };
 
@@ -655,6 +676,7 @@ pub async fn eval(
         log::info!("Updated conversation tickers: {:?}", updated_tickers);
     }
 
+    // Initiate multi progress bars for the CLI app
     let multi_progress = if std::io::stdout().is_terminal() {
         let mp = MultiProgress::new();
         mp.set_move_cursor(true);
