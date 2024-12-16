@@ -7,7 +7,7 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use indicatif::MultiProgress;
 use indicatif::ProgressBar;
 use itertools::Itertools;
-use langchain_rust::vectorstore::pgvector::Store;
+use langchain_rust::vectorstore::pgvector::{PgFilter::*, PgLit::*, Store};
 use langchain_rust::vectorstore::VectorStore as _;
 use log::{error, info};
 use mime::{APPLICATION_JSON, TEXT_XML};
@@ -622,11 +622,17 @@ pub async fn extract_complete_submission_filing(
             "",
             1,
             &langchain_rust::vectorstore::VecStoreOptions {
-                filters: Some(serde_json::json!({
-                    "doc_type": "edgar_filing",
-                    "accession_number": accession_number,
-                    "cik": cik
-                })),
+                filters: Some(And(vec![
+                    Eq(
+                        JsonField(vec!["doc_type".to_string()]),
+                        RawJson(Value::String("edgar_filing".to_string())),
+                    ),
+                    Eq(
+                        JsonField(vec!["accession_number".to_string()]),
+                        LitStr(accession_number.to_string()),
+                    ),
+                    Eq(JsonField(vec!["cik".to_string()]), LitStr(cik.to_string())),
+                ])),
                 ..Default::default()
             },
         )

@@ -9,7 +9,7 @@ use futures::{FutureExt, StreamExt};
 use indicatif::MultiProgress;
 use itertools::Itertools;
 use langchain_rust::schemas::Document;
-use langchain_rust::vectorstore::pgvector::Store;
+use langchain_rust::vectorstore::pgvector::{PgFilter::*, PgLit::*, Store};
 use langchain_rust::vectorstore::VectorStore;
 use langchain_rust::{
     chain::builder::ConversationalChainBuilder,
@@ -167,36 +167,31 @@ async fn build_document_context(
     if let Some(filings) = query.parameters.get("filings") {
         if let Some(_types) = filings.get("report_types").and_then(|t| t.as_array()) {
             let mut all_docs = Vec::new();
+            let filter = And(vec![
+                Eq(
+                    JsonField(vec!["doc_type".to_string()]),
+                    LitStr("edgar_filing".to_string()),
+                ),
+                In(
+                    JsonField(vec!["symbol".to_string()]),
+                    conversation.tickers.clone(),
+                ),
+            ]);
 
-            // Process each ticker sequentially
-            for ticker in &conversation.tickers {
-                let mut filter = serde_json::Map::new();
-                filter.insert(
-                    "doc_type".to_string(),
-                    serde_json::Value::String("edgar_filing".to_string()),
-                );
-                filter.insert(
-                    "symbol".to_string(),
-                    serde_json::Value::String(ticker.clone()),
-                );
+            log::info!("Using filter for similarity search: {:?}", filter);
+            let docs = store
+                .similarity_search(
+                    input,
+                    20,
+                    &langchain_rust::vectorstore::VecStoreOptions {
+                        filters: Some(filter),
+                        ..Default::default()
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("Failed to retrieve documents from vector store: {}", e))?;
 
-                log::info!("Using filter for similarity search: {:?}", filter);
-                let docs = store
-                    .similarity_search(
-                        input,
-                        20,
-                        &langchain_rust::vectorstore::VecStoreOptions {
-                            filters: Some(serde_json::Value::Object(filter)),
-                            ..Default::default()
-                        },
-                    )
-                    .await
-                    .map_err(|e| {
-                        anyhow!("Failed to retrieve documents from vector store: {}", e)
-                    })?;
-
-                all_docs.extend(docs);
-            }
+            all_docs.extend(docs);
         }
     }
 
@@ -206,16 +201,26 @@ async fn build_document_context(
             .and_then(|d| d.as_str())
             .ok_or_else(|| anyhow!("Missing earnings start_date"))?;
         let start_year = start_date.split("-").next().unwrap();
+        let filter = And(vec![
+            Eq(
+                JsonField(["doc_type".to_string()].to_vec()),
+                LitStr("earnings_transcript".to_string()),
+            ),
+            Eq(
+                JsonField(vec!["year".to_string()]),
+                LitStr(start_year.to_string()),
+            ),
+            In(
+                JsonField(vec!["symbol".to_string()]),
+                conversation.tickers.clone(),
+            ),
+        ]);
         let docs = store
             .similarity_search(
                 input,
                 20,
                 &langchain_rust::vectorstore::VecStoreOptions {
-                    filters: Some(serde_json::json!(
-                    {
-                        "doc_type": serde_json::Value::from("earnings_transcript"),
-                        "year": start_year.parse::<usize>().unwrap()
-                    })),
+                    filters: Some(filter),
                     ..Default::default()
                 },
             )
@@ -894,6 +899,7 @@ async fn process_earnings_transcripts(
     store: Arc<Store>,
     progress_tracker: Option<Arc<ProgressTracker>>,
 ) -> Result<()> {
+    log::info!("Processing earnings transcripts..");
     // Create tasks with progress bars
     let mut success_count = 0;
     let mut error_count = 0;

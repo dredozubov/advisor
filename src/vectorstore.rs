@@ -9,10 +9,10 @@ const CHUNK_SIZE: usize = 4000; // Characters per chunk
 
 use langchain_rust::embedding::openai::OpenAiEmbedder;
 use langchain_rust::llm::OpenAIConfig;
-use langchain_rust::vectorstore::pgvector::StoreBuilder;
+use langchain_rust::vectorstore::pgvector::{PgOptions, StoreBuilder};
 use std::env;
 
-pub async fn get_store() -> Result<Arc<dyn VectorStore>> {
+pub async fn get_store() -> Result<Arc<dyn VectorStore<Options = PgOptions>>> {
     let openai_key = env::var("OPENAI_KEY").map_err(|_| anyhow::anyhow!("OPENAI_KEY not set"))?;
     let database_url =
         env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!("DATABASE_URL not set"))?;
@@ -36,7 +36,7 @@ pub async fn get_store() -> Result<Arc<dyn VectorStore>> {
 pub async fn store_document(
     content: String,
     metadata: HashMap<String, Value>,
-    store: &dyn VectorStore,
+    store: &dyn VectorStore<Options = PgOptions>,
 ) -> Result<()> {
     let chunks = chunk_document(content);
     let documents = create_documents(chunks, metadata);
@@ -71,7 +71,10 @@ fn create_documents(chunks: Vec<String>, metadata: HashMap<String, Value>) -> Ve
         .collect()
 }
 
-async fn store_documents(documents: Vec<Document>, store: &dyn VectorStore) -> Result<()> {
+async fn store_documents(
+    documents: Vec<Document>,
+    store: &dyn VectorStore<Options = PgOptions>,
+) -> Result<()> {
     store
         .add_documents(
             &documents,

@@ -42,7 +42,8 @@ rustyline = "15.0.0"
 rustyline-derive = "0.10.0"
 scraper = "0.21.0"
 tokenizers = { version = "0.21", features = ["progressbar", "http"] }
-langchain-rust = { git="https://github.com/dredozubov/langchain-rust.git", branch = "upstream", warnings = false, features = ["postgres"] }
+langchain-rust = { git="https://github.com/dredozubov/langchain-rust.git", branch = "pgvector-better-filter", features = ["postgres"] }
+# langchain-rust = { path = "../langchain-rust", features = ["postgres"] }
 strum = { version = "0.26.3", features = ["derive"] }
 quick-xml = "0.37.1"
 unicode-normalization = "0.1.24"
